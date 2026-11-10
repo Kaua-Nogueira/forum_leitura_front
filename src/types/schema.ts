@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * VERITAS & LITTERAE — Esquema de Dados e Tipagem (Frontend TypeScript)
+ * VERITAS & LITTERAE — Esquema de Dados, Autenticação e RBAC (Frontend TypeScript)
  * Espelha as tabelas e modelos Eloquent da API Laravel (Desacoplada)
  * ============================================================================
  */
@@ -18,6 +18,17 @@ export type FlagReason =
   | 'IRREVERENCE'
   | 'BROKEN_AFFILIATE_LINK';
 
+export interface UserPermissions {
+  can_create_work: boolean;
+  can_create_topic: boolean;
+  can_comment: boolean;
+  can_publish_directly: boolean;
+  can_moderate_queue: boolean;
+  can_ban_users: boolean;
+  can_manage_affiliate_settings: boolean;
+  can_manage_roles: boolean;
+}
+
 export interface User {
   id: number;
   name: string;
@@ -26,10 +37,16 @@ export interface User {
   role: UserRole;
   avatar_url?: string;
   bio?: string;
-  title_badge?: string; // ex: "Patrística & Letras", "Educador Clássico", "Curador Editorial"
+  title_badge?: string;
   is_banned: boolean;
   reputation_score: number;
   created_at: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+  permissions: UserPermissions;
 }
 
 export interface Category {
@@ -47,7 +64,7 @@ export interface Category {
 export interface WorkQuote {
   id?: number;
   quote_text: string;
-  source_note: string; // ex: "Livro I, Cap. 1 — Confissões"
+  source_note: string;
 }
 
 export interface Work {
@@ -55,22 +72,22 @@ export interface Work {
   title: string;
   subtitle?: string;
   slug: string;
-  creator: string; // Autor, Diretor ou Compositor
+  creator: string;
   media_type: MediaType;
   release_year: number;
   category_id: number;
   category?: Category;
   cover_url: string;
-  synopsis: string; // Resenha Crítica Principal (suporta Markdown/ citações)
+  synopsis: string;
   notable_quotes: WorkQuote[];
-  affiliate_url: string; // Link para Amazon / Livraria com tag de afiliado
-  affiliate_cta_label: string; // ex: "Adquirir na Amazon", "Onde Encontrar"
-  affiliate_price_hint?: string; // ex: "Edição Capa Dura • R$ 64,90"
+  affiliate_url: string;
+  affiliate_cta_label: string;
+  affiliate_price_hint?: string;
   affiliate_clicks_count: number;
   isbn_or_ref?: string;
   publisher_or_studio?: string;
   is_featured: boolean;
-  editorial_rating: number; // ex: 4.9
+  editorial_rating: number;
   reviews_count: number;
   status: ModerationStatus;
   submitted_by_id: number;
@@ -85,7 +102,7 @@ export interface Topic {
   title: string;
   slug: string;
   excerpt: string;
-  body: string; // Conteúdo rico com suporte a blockquotes (>) e notas
+  body: string;
   category_id: number;
   category?: Category;
   work_id?: number | null;
@@ -105,8 +122,8 @@ export interface Topic {
 
 export interface Comment {
   id: number;
-  body: string; // Suporta Markdown e Blockquotes literários
-  rating?: number | null; // 1 a 5 estrelas (quando for resenha de obra)
+  body: string;
+  rating?: number | null;
   work_id?: number | null;
   topic_id?: number | null;
   parent_id?: number | null;

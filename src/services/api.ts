@@ -5,16 +5,18 @@ import {
   Category,
   ModerationFlag,
   PlatformSettings,
+  User,
   UserRole,
+  UserPermissions,
+  AuthResponse,
   FlagReason,
 } from '../types/schema';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
-/**
- * Injetor e Normalizador Dinâmico de Tag de Afiliado Amazon
- * Garante que qualquer link de afiliado receba a tag global configurada pelo Admin
- */
+export const TOKEN_STORAGE_KEY = 'veritas_auth_token';
+export const USER_STORAGE_KEY = 'veritas_auth_user';
+
 export function buildAffiliateUrl(rawUrl: string, globalTag: string): string {
   if (!rawUrl) return '#';
   const cleanTag = (globalTag || 'veritaslitterae-20').trim();
@@ -34,24 +36,61 @@ export function buildAffiliateUrl(rawUrl: string, globalTag: string): string {
   }
 }
 
+export function computePermissionsForRole(
+  role: UserRole,
+  isBanned = false
+): UserPermissions {
+  if (isBanned || role === 'VISITOR') {
+    return {
+      can_create_work: false,
+      can_create_topic: false,
+      can_comment: false,
+      can_publish_directly: false,
+      can_moderate_queue: false,
+      can_ban_users: false,
+      can_manage_affiliate_settings: false,
+      can_manage_roles: false,
+    };
+  }
+
+  return {
+    can_create_work: true,
+    can_create_topic: true,
+    can_comment: true,
+    can_publish_directly: role === 'MODERATOR' || role === 'ADMIN',
+    can_moderate_queue: role === 'MODERATOR' || role === 'ADMIN',
+    can_ban_users: role === 'ADMIN',
+    can_manage_affiliate_settings: role === 'ADMIN',
+    can_manage_roles: role === 'ADMIN',
+  };
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
   currentRole: UserRole = 'ADMIN'
 ): Promise<T> {
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-Demo-Role': currentRole,
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-Demo-Role': currentRole,
-      ...(options.headers || {}),
-    },
+    headers,
   });
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.message || `API Error: ${response.status}`);
+    throw new Error(errorBody.message || `Erro HTTP ${response.status}`);
   }
 
   return response.json();
@@ -66,6 +105,63 @@ export interface BootstrapResponse {
 }
 
 export const apiService = {
+  // Autenticação & RBAC
+  async login(email: string, password: string): Promise<AuthResponse> {
+    return request<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  async register(payload: {
+    name: string;
+    email: string;
+    password: string;
+    title_badge?: string;
+    bio?: string;
+  }): Promise<AuthResponse> {
+    return request<AuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async me(): Promise<{ user: User; permissions: UserPermissions }> {
+    return request<{ user: User; permissions: UserPermissions }>('/auth/me', {
+      method: 'GET',
+    });
+  },
+
+  async logout(): Promise<{ message: string }> {
+    return request<{ message: string }>('/auth/logout', {
+      method: 'POST',
+    });
+  },
+
+  async listUsers(role: UserRole): Promise<{ users: User[] }> {
+    return request<{ users: User[] }>('/users', { method: 'GET' }, role);
+  },
+
+  async updateUserRole(
+    userId: number,
+    payload: {
+      role?: 'MEMBER' | 'MODERATOR' | 'ADMIN';
+      is_banned?: boolean;
+      title_badge?: string;
+    },
+    currentRole: UserRole
+  ): Promise<{ user: User; message: string }> {
+    return request<{ user: User; message: string }>(
+      `/users/${userId}/role`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+      currentRole
+    );
+  },
+
+  // Acervo & Fórum
   async getBootstrap(role: UserRole): Promise<BootstrapResponse> {
     return request<BootstrapResponse>('/bootstrap', { method: 'GET' }, role);
   },
@@ -84,7 +180,10 @@ export const apiService = {
     );
   },
 
-  async trackAffiliateClick(workId: number, role: UserRole): Promise<{ clicks_count: number }> {
+  async trackAffiliateClick(
+    workId: number,
+    role: UserRole
+  ): Promise<{ clicks_count: number }> {
     return request<{ clicks_count: number }>(
       `/works/${workId}/affiliate-click`,
       { method: 'POST' },

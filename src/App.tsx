@@ -9,6 +9,7 @@ import { WorkDetailPage } from './pages/WorkDetailPage';
 import { TopicDetailPage } from './pages/TopicDetailPage';
 import { ModerationPanel } from './pages/ModerationPanel';
 import { WriteEssayPage } from './pages/WriteEssayPage';
+import { AuthPage } from './pages/AuthPage';
 
 const ToastBanner: React.FC = () => {
   const { toast } = useApp();
@@ -53,7 +54,7 @@ const Footer: React.FC = () => {
 
         <div className="space-y-2">
           <h4 className="font-serif font-bold text-sm text-ink dark:text-slateDark-text">
-            Navegação Editorial
+            Navegação Editorial &amp; RBAC
           </h4>
           <ul className="space-y-1.5">
             <li>
@@ -67,11 +68,16 @@ const Footer: React.FC = () => {
               </Link>
             </li>
             <li>
+              <Link to="/login" className="hover:text-burgundy dark:hover:text-gold">
+                Login, Cadastro &amp; Credenciais RBAC
+              </Link>
+            </li>
+            <li>
               <Link
                 to="/moderacao"
                 className="hover:text-burgundy dark:hover:text-gold"
               >
-                Painel de Moderação &amp; Tag Global Amazon
+                Painel de Moderação &amp; Gestão de Papéis
               </Link>
             </li>
           </ul>
@@ -101,6 +107,7 @@ export const App: React.FC = () => {
           <div className="flex-1">
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<AuthPage />} />
               <Route path="/escrever" element={<WriteEssayPage />} />
               <Route path="/obras/:slug" element={<WorkDetailPage />} />
               <Route path="/topicos/:slug" element={<TopicDetailPage />} />

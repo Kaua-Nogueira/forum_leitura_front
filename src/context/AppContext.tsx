@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import {
   User,
   UserRole,
+  UserPermissions,
   Category,
   Work,
   Topic,
@@ -18,7 +19,12 @@ import {
   INITIAL_MODERATION_FLAGS,
   INITIAL_SETTINGS,
 } from '../data/fallbackData';
-import { apiService } from '../services/api';
+import {
+  apiService,
+  TOKEN_STORAGE_KEY,
+  USER_STORAGE_KEY,
+  computePermissionsForRole,
+} from '../services/api';
 
 interface FlagModalTarget {
   target_type: 'WORK' | 'TOPIC' | 'COMMENT';
@@ -37,6 +43,26 @@ interface ToastMessage {
 
 interface AppContextType {
   currentUser: User;
+  isAuthenticated: boolean;
+  permissions: UserPermissions;
+  usersList: User[];
+  loginWithCredentials: (email: string, password: string) => Promise<User>;
+  registerAccount: (payload: {
+    name: string;
+    email: string;
+    password: string;
+    title_badge?: string;
+    bio?: string;
+  }) => Promise<User>;
+  logoutUser: () => Promise<void>;
+  updateUserRoleRbac: (
+    userId: number,
+    payload: {
+      role?: 'MEMBER' | 'MODERATOR' | 'ADMIN';
+      is_banned?: boolean;
+      title_badge?: string;
+    }
+  ) => Promise<void>;
   switchRole: (role: UserRole) => void;
   isDark: boolean;
   toggleDark: () => void;
@@ -48,7 +74,11 @@ interface AppContextType {
   apiConnected: boolean;
   isLoading: boolean;
   toast: ToastMessage | null;
-  showToast: (title: string, description?: string, variant?: 'success' | 'info' | 'warning') => void;
+  showToast: (
+    title: string,
+    description?: string,
+    variant?: 'success' | 'info' | 'warning'
+  ) => void;
   // Modals
   isNewWorkModalOpen: boolean;
   setIsNewWorkModalOpen: (v: boolean) => void;
@@ -66,7 +96,11 @@ interface AppContextType {
     topic_id?: number | null;
     parent_id?: number | null;
   }) => Promise<void>;
-  upvoteItem: (targetType: 'TOPIC' | 'COMMENT', targetId: number, workId?: number) => Promise<void>;
+  upvoteItem: (
+    targetType: 'TOPIC' | 'COMMENT',
+    targetId: number,
+    workId?: number
+  ) => Promise<void>;
   submitFlag: (reason: FlagReason, details: string) => Promise<void>;
   resolveFlag: (
     flagId: number,
@@ -84,8 +118,31 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const INITIAL_USERS_LIST: User[] = [
+  DEMO_USERS.ADMIN,
+  DEMO_USERS.MODERATOR,
+  DEMO_USERS.MEMBER,
+];
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User>(DEMO_USERS.ADMIN);
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    const saved = localStorage.getItem(USER_STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // fallback
+      }
+    }
+    return DEMO_USERS.ADMIN;
+  });
+
+  const [permissions, setPermissions] = useState<UserPermissions>(() =>
+    computePermissionsForRole(currentUser.role, currentUser.is_banned)
+  );
+
+  const [usersList, setUsersList] = useState<User[]>(INITIAL_USERS_LIST);
+
   const [isDark, setIsDark] = useState<boolean>(() => {
     return localStorage.getItem('veritas_theme') === 'dark';
   });
@@ -105,6 +162,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isNewTopicModalOpen, setIsNewTopicModalOpen] = useState(false);
   const [flagModalTarget, setFlagModalTarget] = useState<FlagModalTarget | null>(null);
 
+  const isAuthenticated = currentUser.role !== 'VISITOR' && !currentUser.is_banned;
+
   useEffect(() => {
     const root = document.documentElement;
     if (isDark) {
@@ -115,6 +174,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('veritas_theme', 'light');
     }
   }, [isDark]);
+
+  useEffect(() => {
+    setPermissions(computePermissionsForRole(currentUser.role, currentUser.is_banned));
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(currentUser));
+  }, [currentUser]);
 
   const showToast = useCallback(
     (
@@ -131,13 +195,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     []
   );
 
-  // Sync initial data from Laravel API
+  // Sync initial data & verify session from Laravel API
   useEffect(() => {
     let mounted = true;
     setIsLoading(true);
     apiService
       .getBootstrap(currentUser.role)
-      .then((data) => {
+      .then(async (data) => {
         if (!mounted) return;
         if (data.categories?.length) setCategories(data.categories);
         if (data.works?.length) setWorks(data.works);
@@ -145,6 +209,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (data.moderation_flags) setModerationFlags(data.moderation_flags);
         if (data.settings) setSettings(data.settings);
         setApiConnected(true);
+
+        // Fetch users list if Moderator or Admin
+        if (currentUser.role === 'ADMIN' || currentUser.role === 'MODERATOR') {
+          try {
+            const uRes = await apiService.listUsers(currentUser.role);
+            if (mounted && uRes.users?.length) {
+              setUsersList(uRes.users);
+            }
+          } catch {
+            // ignore
+          }
+        }
       })
       .catch(() => {
         if (!mounted) return;
@@ -159,12 +235,143 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [currentUser.role]);
 
-  const switchRole = (role: UserRole) => {
-    const user = DEMO_USERS[role] || DEMO_USERS.VISITOR;
-    setCurrentUser(user);
+  const loginWithCredentials = async (
+    email: string,
+    password: string
+  ): Promise<User> => {
+    const res = await apiService.login(email, password);
+    localStorage.setItem(TOKEN_STORAGE_KEY, res.token);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(res.user));
+    setCurrentUser(res.user);
+    setPermissions(res.permissions);
     showToast(
-      `Perfil alternado: ${user.name}`,
-      `Nível de acesso ativo: ${role}`,
+      `Bem-vindo, ${res.user.name}!`,
+      `Autenticado com papel RBAC: ${res.user.role}`,
+      'success'
+    );
+    return res.user;
+  };
+
+  const registerAccount = async (payload: {
+    name: string;
+    email: string;
+    password: string;
+    title_badge?: string;
+    bio?: string;
+  }): Promise<User> => {
+    try {
+      const res = await apiService.register(payload);
+      localStorage.setItem(TOKEN_STORAGE_KEY, res.token);
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(res.user));
+      setCurrentUser(res.user);
+      setPermissions(res.permissions);
+      setUsersList((prev) => [...prev, res.user]);
+      showToast(
+        `Conta criada com sucesso!`,
+        `Bem-vindo à cátedra, ${res.user.name} (Papel: ${res.user.role})`,
+        'success'
+      );
+      return res.user;
+    } catch (err: any) {
+      if (!apiConnected) {
+        const fallbackUser: User = {
+          id: Date.now(),
+          name: payload.name,
+          username: payload.name.toLowerCase().replace(/\s+/g, '.'),
+          email: payload.email,
+          role: 'MEMBER',
+          title_badge: payload.title_badge || 'Membro Confrade',
+          bio: payload.bio || 'Leitor da comunidade.',
+          is_banned: false,
+          reputation_score: 50,
+          created_at: new Date().toISOString(),
+        };
+        setCurrentUser(fallbackUser);
+        setUsersList((prev) => [...prev, fallbackUser]);
+        showToast(`Conta criada: ${fallbackUser.name}`, 'Papel RBAC: MEMBER', 'success');
+        return fallbackUser;
+      }
+      throw err;
+    }
+  };
+
+  const logoutUser = async () => {
+    try {
+      if (apiConnected) {
+        await apiService.logout();
+      }
+    } catch {
+      // ignore
+    }
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(DEMO_USERS.VISITOR));
+    setCurrentUser(DEMO_USERS.VISITOR);
+    showToast(
+      'Sessão encerrada',
+      'Você está navegando agora como Visitante (somente leitura).',
+      'info'
+    );
+  };
+
+  const updateUserRoleRbac = async (
+    userId: number,
+    payload: {
+      role?: 'MEMBER' | 'MODERATOR' | 'ADMIN';
+      is_banned?: boolean;
+      title_badge?: string;
+    }
+  ) => {
+    try {
+      if (apiConnected) {
+        const res = await apiService.updateUserRole(
+          userId,
+          payload,
+          currentUser.role
+        );
+        setUsersList((prev) =>
+          prev.map((u) => (u.id === userId ? res.user : u))
+        );
+        if (currentUser.id === userId) {
+          setCurrentUser(res.user);
+        }
+        showToast('Permissões RBAC Atualizadas', res.message, 'success');
+        return;
+      }
+    } catch (err: any) {
+      showToast('Erro de Permissão RBAC', err.message, 'warning');
+      return;
+    }
+
+    setUsersList((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, ...payload } : u))
+    );
+    showToast(
+      'Permissões RBAC Atualizadas',
+      'O papel do usuário foi atualizado com sucesso.',
+      'success'
+    );
+  };
+
+  const switchRole = async (role: UserRole) => {
+    if (role === 'VISITOR') {
+      await logoutUser();
+      return;
+    }
+
+    const demoUser = DEMO_USERS[role] || DEMO_USERS.MEMBER;
+    if (apiConnected && demoUser.email) {
+      try {
+        await loginWithCredentials(demoUser.email, 'password');
+        return;
+      } catch {
+        // fallback below
+      }
+    }
+
+    setCurrentUser(demoUser);
+    showToast(
+      `Sessão alternada: ${demoUser.name}`,
+      `Nível RBAC ativo: ${role}`,
       'info'
     );
   };
@@ -174,8 +381,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const createWork = async (data: Partial<Work>): Promise<Work> => {
     const requiresModeration =
       settings.require_moderation_for_new_works &&
-      currentUser.role !== 'ADMIN' &&
-      currentUser.role !== 'MODERATOR';
+      !permissions.can_publish_directly;
 
     try {
       if (apiConnected) {
@@ -194,7 +400,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return res.work;
       }
     } catch {
-      // Fallback local state update if API call fails
+      // Fallback local state update
     }
 
     const cat =
@@ -231,7 +437,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             },
           ],
       affiliate_url:
-        data.affiliate_url || 'https://www.amazon.com.br/s?k=' + encodeURIComponent(data.title || ''),
+        data.affiliate_url ||
+        'https://www.amazon.com.br/s?k=' + encodeURIComponent(data.title || ''),
       affiliate_cta_label: data.affiliate_cta_label || 'Adquirir na Amazon',
       affiliate_price_hint: data.affiliate_price_hint || 'Edição Recomendada',
       affiliate_clicks_count: 0,
@@ -261,7 +468,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         reporter_id: currentUser.id,
         reporter_name: 'Curadoria Editorial (Automático)',
         reason: 'BROKEN_AFFILIATE_LINK',
-        details: 'Obra submetida por membro aguardando aprovação de curadoria e revisão de afiliado.',
+        details:
+          'Obra submetida por membro aguardando aprovação de curadoria e revisão de afiliado.',
         status: 'PENDING',
         created_at: new Date().toISOString(),
       };
@@ -283,7 +491,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (apiConnected) {
         const res = await apiService.createTopic(data, currentUser.role);
         setTopics((prev) => [res.topic, ...prev]);
-        showToast('Tópico publicado no Fórum', res.topic.title, 'success');
+        showToast('Ensaio publicado no Fórum', res.topic.title, 'success');
         return res.topic;
       }
     } catch {
@@ -330,7 +538,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setTopics((prev) => [newTopic, ...prev]);
-    showToast('Tópico publicado na Cátedra Comunitária', newTopic.title, 'success');
+    showToast('Ensaio publicado na Cátedra Comunitária', newTopic.title, 'success');
     return newTopic;
   };
 
@@ -426,7 +634,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     showToast(
-      payload.parent_id ? 'Resposta publicada na thread' : 'Resenha / Comentário publicado',
+      payload.parent_id
+        ? 'Resposta publicada na thread'
+        : 'Comentário / Resenha publicado',
       'Sua contribuição foi integrada ao diálogo.',
       'success'
     );
@@ -443,10 +653,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return c;
     });
 
-  const upvoteItem = async (
-    targetType: 'TOPIC' | 'COMMENT',
-    targetId: number
-  ) => {
+  const upvoteItem = async (targetType: 'TOPIC' | 'COMMENT', targetId: number) => {
     try {
       if (apiConnected) {
         await apiService.toggleUpvote(targetType, targetId, currentUser.role);
@@ -542,8 +749,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           currentUser.role
         );
       }
-    } catch {
-      // Fallback local
+    } catch (err: any) {
+      showToast('Acesso Restrito (RBAC)', err.message, 'warning');
+      return;
     }
 
     const targetFlag = moderationFlags.find((f) => f.id === flagId);
@@ -629,8 +837,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         );
         return;
       }
-    } catch {
-      // Fallback local
+    } catch (err: any) {
+      showToast('Acesso Restrito (RBAC)', err.message, 'warning');
+      return;
     }
 
     setSettings((prev) => {
@@ -661,6 +870,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         currentUser,
+        isAuthenticated,
+        permissions,
+        usersList,
+        loginWithCredentials,
+        registerAccount,
+        logoutUser,
+        updateUserRoleRbac,
         switchRole,
         isDark,
         toggleDark,
