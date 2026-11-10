@@ -14,7 +14,58 @@ import {
   FlagReason,
 } from '../types/schema';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+declare global {
+  interface Window {
+    __ENV__?: {
+      VITE_API_URL?: string;
+      API_URL?: string;
+    };
+  }
+}
+
+function isLocalhostUrl(url: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(url.trim());
+}
+
+function resolveApiBaseUrl(): string {
+  const isBrowserOnLocalhost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1');
+
+  const runtimeUrl = (
+    (typeof window !== 'undefined' &&
+      (window.__ENV__?.VITE_API_URL || window.__ENV__?.API_URL)) ||
+    ''
+  ).trim();
+
+  if (runtimeUrl && (isBrowserOnLocalhost || !isLocalhostUrl(runtimeUrl))) {
+    return runtimeUrl.replace(/\/+$/, '');
+  }
+
+  const buildEnvUrl = (import.meta.env.VITE_API_URL || '').trim();
+  if (buildEnvUrl && (isBrowserOnLocalhost || !isLocalhostUrl(buildEnvUrl))) {
+    return buildEnvUrl.replace(/\/+$/, '');
+  }
+
+  if (isBrowserOnLocalhost) {
+    return 'http://127.0.0.1:8000/api';
+  }
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host.includes('-frontend.')) {
+      return `${window.location.protocol}//${host.replace('-frontend.', '-backend.')}/api`;
+    }
+    if (host.includes('-front.')) {
+      return `${window.location.protocol}//${host.replace('-front.', '-back.')}/api`;
+    }
+  }
+
+  return 'https://forum-leitura-backend.vs5wec.easypanel.host/api';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export const TOKEN_STORAGE_KEY = 'veritas_auth_token';
 export const USER_STORAGE_KEY = 'veritas_auth_user';

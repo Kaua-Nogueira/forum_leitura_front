@@ -6,8 +6,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Argumento de build para injetar a URL da API Laravel em produção
-# Exemplo de uso: docker build --build-arg VITE_API_URL=https://api.seudominio.com/api -t forum-leitura-front .
-ARG VITE_API_URL=http://localhost:8000/api
+ARG VITE_API_URL=https://forum-leitura-backend.vs5wec.easypanel.host/api
 ENV VITE_API_URL=${VITE_API_URL}
 
 # Instala dependências aproveitando o cache de camadas do Docker
@@ -19,7 +18,7 @@ COPY . .
 RUN npm run build
 
 # ==============================================================================
-# STAGE 2: Servidor Nginx de Produção (Leve e Otimizado para SPA)
+# STAGE 2: Servidor Nginx de Produção (Leve e Otimizado para SPA + Runtime Env)
 # ==============================================================================
 FROM nginx:1.27-alpine AS production
 
@@ -29,6 +28,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copia os arquivos estáticos compilados no Stage 1
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Script de inicialização que injeta variáveis de ambiente de runtime (Easypanel/Docker) em /env-config.js
+RUN printf '#!/bin/sh\ncat <<EOF > /usr/share/nginx/html/env-config.js\nwindow.__ENV__ = {\n  VITE_API_URL: "${VITE_API_URL:-}",\n  API_URL: "${API_URL:-}"\n};\nEOF\n' > /docker-entrypoint.d/40-runtime-env.sh \
+    && chmod +x /docker-entrypoint.d/40-runtime-env.sh
 
 EXPOSE 80
 
