@@ -57,7 +57,7 @@ export function computePermissionsForRole(
     can_create_work: true,
     can_create_topic: true,
     can_comment: true,
-    can_publish_directly: role === 'MODERATOR' || role === 'ADMIN',
+    can_publish_directly: false,
     can_moderate_queue: role === 'MODERATOR' || role === 'ADMIN',
     can_ban_users: role === 'ADMIN',
     can_manage_affiliate_settings: role === 'ADMIN',
@@ -203,12 +203,44 @@ export const apiService = {
   async createTopic(
     payload: Partial<Topic>,
     role: UserRole
-  ): Promise<{ topic: Topic }> {
-    return request<{ topic: Topic }>(
+  ): Promise<{ topic: Topic; flag?: ModerationFlag }> {
+    return request<{ topic: Topic; flag?: ModerationFlag }>(
       '/topics',
       {
         method: 'POST',
         body: JSON.stringify(payload),
+      },
+      role
+    );
+  },
+
+  async moderateWorkStatus(
+    workId: number,
+    status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
+    moderationNote: string,
+    role: UserRole
+  ): Promise<{ work: Work }> {
+    return request<{ work: Work }>(
+      `/moderation/works/${workId}/status`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ status, moderation_note: moderationNote }),
+      },
+      role
+    );
+  },
+
+  async moderateTopicStatus(
+    topicId: number,
+    status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
+    moderationNote: string,
+    role: UserRole
+  ): Promise<{ topic: Topic }> {
+    return request<{ topic: Topic }>(
+      `/moderation/topics/${topicId}/status`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ status, moderation_note: moderationNote }),
       },
       role
     );

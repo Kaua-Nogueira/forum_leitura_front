@@ -863,8 +863,8 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                 <Feather className="w-4 h-4" />
                 <span>
                   {isSubmitting
-                    ? 'Publicando...'
-                    : 'Publicar Texto & Abrir para Comentários'}
+                    ? 'Enviando para revisão...'
+                    : 'Enviar Texto para Revisão da Moderação'}
                 </span>
               </button>
             </div>

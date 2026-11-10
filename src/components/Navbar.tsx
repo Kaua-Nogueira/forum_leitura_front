@@ -22,6 +22,7 @@ export const Navbar: React.FC = () => {
     toggleDark,
     moderationFlags,
     works,
+    topics,
   } = useApp();
 
   const location = useLocation();
@@ -29,7 +30,8 @@ export const Navbar: React.FC = () => {
 
   const pendingFlagsCount =
     moderationFlags.filter((f) => f.status === 'PENDING').length +
-    works.filter((w) => w.status === 'PENDING').length;
+    works.filter((w) => w.status === 'PENDING').length +
+    topics.filter((t) => t.status === 'PENDING').length;
 
   const handleLogout = async () => {
     await logoutUser();

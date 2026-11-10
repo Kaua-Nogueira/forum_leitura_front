@@ -111,7 +111,12 @@ interface AppContextType {
     workId: number,
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
     note?: string
-  ) => void;
+  ) => Promise<void>;
+  moderateTopicStatus: (
+    topicId: number,
+    status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
+    note?: string
+  ) => Promise<void>;
   updateGlobalSettings: (newSettings: Partial<PlatformSettings>) => Promise<void>;
   trackAffiliateClick: (workId: number) => void;
 }
@@ -386,22 +391,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       if (apiConnected) {
         const res = await apiService.createWork(data, effectiveRole);
-        const approvedWork: Work = { ...res.work, status: 'APPROVED' };
-        setWorks((prev) => [approvedWork, ...prev]);
+        const pendingWork: Work = { ...res.work, status: 'PENDING' };
+        setWorks((prev) => [pendingWork, ...prev]);
         if (res.flag) {
           setModerationFlags((prev) => [res.flag!, ...prev]);
         }
         showToast(
-          'Publicação realizada com sucesso!',
-          `“${approvedWork.title}” já está disponível no catálogo e no feed.`,
-          'success'
+          'Enviado para Revisão da Moderação!',
+          `“${pendingWork.title}” foi salvo e aguarda aprovação de um moderador antes de ficar público.`,
+          'info'
         );
-        return approvedWork;
+        return pendingWork;
       }
     } catch (err: any) {
       if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
         showToast(
-          'Não foi possível publicar',
+          'Não foi possível enviar o texto',
           err.message,
           'error'
         );
@@ -453,7 +458,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       is_featured: Boolean(data.is_featured),
       editorial_rating: 4.9,
       reviews_count: 0,
-      status: 'APPROVED',
+      status: 'PENDING',
       submitted_by_id: currentUser.id,
       submitted_by: currentUser,
       comments: [],
@@ -462,10 +467,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setWorks((prev) => [newWork, ...prev]);
 
+    const autoFlag: ModerationFlag = {
+      id: Date.now() + 1,
+      target_type: 'WORK',
+      target_id: newWork.id,
+      target_title: `Revisão de Nova Obra/Resenha: ${newWork.title}`,
+      target_excerpt: newWork.synopsis.slice(0, 180) + '...',
+      target_author_id: currentUser.id,
+      target_author_name: currentUser.name,
+      reporter_id: currentUser.id,
+      reporter_name: 'Fila Obrigatória de Revisão Editorial',
+      reason: 'BROKEN_AFFILIATE_LINK',
+      details:
+        'Todo texto publicado aguarda revisão obrigatória da moderação antes de ir ao ar.',
+      status: 'PENDING',
+      created_at: new Date().toISOString(),
+    };
+    setModerationFlags((prev) => [autoFlag, ...prev]);
+
     showToast(
-      'Publicação realizada com sucesso!',
-      `“${newWork.title}” já está disponível no catálogo e no feed.`,
-      'success'
+      'Enviado para Revisão da Moderação!',
+      `“${newWork.title}” aguarda aprovação de um moderador antes de ficar público.`,
+      'info'
     );
     return newWork;
   };
@@ -477,18 +500,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       if (apiConnected) {
         const res = await apiService.createTopic(data, effectiveRole);
-        setTopics((prev) => [res.topic, ...prev]);
+        const pendingTopic: Topic = { ...res.topic, status: 'PENDING' };
+        setTopics((prev) => [pendingTopic, ...prev]);
+        if (res.flag) {
+          setModerationFlags((prev) => [res.flag!, ...prev]);
+        }
         showToast(
-          'Ensaio publicado com sucesso!',
-          `“${res.topic.title}” já está aberto para leitura e comentários.`,
-          'success'
+          'Ensaio enviado para Revisão da Moderação!',
+          `“${pendingTopic.title}” aguarda aprovação de um moderador antes de ser publicado.`,
+          'info'
         );
-        return res.topic;
+        return pendingTopic;
       }
     } catch (err: any) {
       if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
         showToast(
-          'Não foi possível publicar o ensaio',
+          'Não foi possível enviar o ensaio',
           err.message,
           'error'
         );
@@ -530,13 +557,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       upvotes_count: 1,
       comments_count: 0,
       tags: data.tags?.length ? data.tags : ['Diálogo Clássico'],
-      status: 'APPROVED',
+      status: 'PENDING',
       comments: [],
       created_at: new Date().toISOString(),
     };
 
     setTopics((prev) => [newTopic, ...prev]);
-    showToast('Ensaio publicado na Cátedra Comunitária', newTopic.title, 'success');
+
+    const autoFlag: ModerationFlag = {
+      id: Date.now() + 2,
+      target_type: 'TOPIC',
+      target_id: newTopic.id,
+      target_title: `Revisão de Novo Ensaio: ${newTopic.title}`,
+      target_excerpt: newTopic.excerpt,
+      target_author_id: currentUser.id,
+      target_author_name: currentUser.name,
+      reporter_id: currentUser.id,
+      reporter_name: 'Fila Obrigatória de Revisão Editorial',
+      reason: 'GUIDELINE_VIOLATION',
+      details:
+        'Todo ensaio publicado aguarda revisão obrigatória da moderação antes de ir ao ar.',
+      status: 'PENDING',
+      created_at: new Date().toISOString(),
+    };
+    setModerationFlags((prev) => [autoFlag, ...prev]);
+
+    showToast(
+      'Ensaio enviado para Revisão da Moderação!',
+      `“${newTopic.title}” aguarda aprovação de um moderador antes de ser publicado.`,
+      'info'
+    );
     return newTopic;
   };
 
@@ -806,20 +856,97 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(actionLabels[action], moderatorNote || 'Decisão registrada.', 'info');
   };
 
-  const moderateWorkStatus = (
+  const moderateWorkStatus = async (
     workId: number,
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
     note?: string
   ) => {
+    try {
+      if (apiConnected) {
+        await apiService.moderateWorkStatus(
+          workId,
+          status,
+          note || 'Revisado pela Moderação.',
+          currentUser.role
+        );
+      }
+    } catch (err: any) {
+      showToast('Acesso Restrito (RBAC)', err.message, 'error');
+      return;
+    }
+
     setWorks((prev) =>
       prev.map((w) =>
         w.id === workId ? { ...w, status, moderation_note: note } : w
       )
     );
+
+    setModerationFlags((prev) =>
+      prev.map((f) =>
+        f.target_type === 'WORK' && f.target_id === workId && f.status === 'PENDING'
+          ? {
+              ...f,
+              status: status === 'APPROVED' ? 'RESOLVED_APPROVED' : 'RESOLVED_HIDDEN',
+              moderator_note: note || 'Revisado pela Moderação.',
+              resolved_at: new Date().toISOString(),
+            }
+          : f
+      )
+    );
+
     showToast(
-      `Status da Obra atualizado: ${status}`,
-      note || 'Registro de curadoria salvo.',
-      'info'
+      status === 'APPROVED'
+        ? 'Texto aprovado e publicado no Feed!'
+        : 'Texto reprovado / ocultado pela Moderação',
+      note || 'Decisão da moderação registrada.',
+      status === 'APPROVED' ? 'success' : 'warning'
+    );
+  };
+
+  const moderateTopicStatus = async (
+    topicId: number,
+    status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
+    note?: string
+  ) => {
+    try {
+      if (apiConnected) {
+        await apiService.moderateTopicStatus(
+          topicId,
+          status,
+          note || 'Revisado pela Moderação.',
+          currentUser.role
+        );
+      }
+    } catch (err: any) {
+      showToast('Acesso Restrito (RBAC)', err.message, 'error');
+      return;
+    }
+
+    setTopics((prev) =>
+      prev.map((t) =>
+        t.id === topicId ? { ...t, status, moderation_note: note } : t
+      )
+    );
+
+    setModerationFlags((prev) =>
+      prev.map((f) =>
+        f.target_type === 'TOPIC' && f.target_id === topicId && f.status === 'PENDING'
+          ? {
+              ...f,
+              status: status === 'APPROVED' ? 'RESOLVED_APPROVED' : 'RESOLVED_HIDDEN',
+              moderator_note: note || 'Revisado pela Moderação.',
+              resolved_at: new Date().toISOString(),
+            }
+          : f
+      )
+    );
+
+    showToast(
+      status === 'APPROVED'
+        ? 'Ensaio aprovado e publicado no Feed!'
+        : 'Ensaio reprovado / ocultado pela Moderação',
+      note || 'Decisão da moderação registrada.',
+      status === 'APPROVED' ? 'success' : 'warning'
     );
   };
 
@@ -900,6 +1027,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         submitFlag,
         resolveFlag,
         moderateWorkStatus,
+        moderateTopicStatus,
         updateGlobalSettings,
         trackAffiliateClick,
       }}

@@ -29,9 +29,11 @@ export const ModerationPanel: React.FC = () => {
     switchRole,
     moderationFlags,
     works,
+    topics,
     settings,
     resolveFlag,
     moderateWorkStatus,
+    moderateTopicStatus,
     updateGlobalSettings,
   } = useApp();
 
@@ -79,6 +81,7 @@ export const ModerationPanel: React.FC = () => {
   );
 
   const pendingWorks = works.filter((w) => w.status === 'PENDING');
+  const pendingTopics = topics.filter((t) => t.status === 'PENDING');
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -374,47 +377,122 @@ export const ModerationPanel: React.FC = () => {
                 </div>
               )}
 
-              {pendingWorks.length > 0 && (
-                <div className="pt-4 space-y-3">
-                  <h3 className="font-serif text-xl font-bold text-ink dark:text-slateDark-text">
-                    Obras Aguardando Publicação no Catálogo ({pendingWorks.length})
+              {(pendingWorks.length > 0 || pendingTopics.length > 0) && (
+                <div className="p-5 rounded-xl border-2 border-amber-500/80 bg-amber-50/80 dark:bg-amber-950/40 space-y-4">
+                  <h3 className="font-serif text-xl font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <span>
+                      Textos Aguardando Revisão Obrigatória (
+                      {pendingWorks.length + pendingTopics.length})
+                    </span>
                   </h3>
+
                   {pendingWorks.map((w) => (
                     <div
-                      key={w.id}
-                      className="p-4 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card flex flex-wrap items-center justify-between gap-4"
+                      key={`mod-w-${w.id}`}
+                      className="p-4 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card flex flex-wrap items-center justify-between gap-4"
                     >
-                      <div>
-                        <h4 className="font-serif font-bold text-base text-ink dark:text-slateDark-text">
-                          {w.title} — {w.creator}
-                        </h4>
-                        <p className="text-xs text-ink-muted dark:text-slateDark-muted">
-                          Submetida por {w.submitted_by?.name || 'Membro'} • Ano{' '}
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded bg-burgundy text-parchment text-xs font-bold uppercase">
+                            Obra / Resenha
+                          </span>
+                          <Link
+                            to={`/obras/${w.slug}`}
+                            className="font-serif font-bold text-lg text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                          >
+                            {w.title} — {w.creator}
+                          </Link>
+                        </div>
+                        <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
+                          Submetida por <strong>{w.submitted_by?.name || 'Membro'}</strong> • Ano{' '}
                           {w.release_year}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Link
+                          to={`/obras/${w.slug}`}
+                          className="px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                        >
+                          Revisar Texto Completo
+                        </Link>
                         <button
                           onClick={() =>
                             moderateWorkStatus(
                               w.id,
                               'APPROVED',
-                              'Aprovado pela Curadoria.'
+                              'Aprovado pela Moderação.'
                             )
                           }
-                          className="px-3 py-1.5 rounded bg-forest text-parchment text-xs font-semibold"
+                          className="px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-semibold"
                         >
-                          Aprovar no Catálogo
+                          Aprovar &amp; Publicar
                         </button>
                         <button
                           onClick={() =>
                             moderateWorkStatus(
                               w.id,
                               'REJECTED',
-                              'Reprovado por falta de referências bibliográficas.'
+                              'Reprovado na revisão editorial.'
                             )
                           }
-                          className="px-3 py-1.5 rounded bg-burgundy text-parchment text-xs font-semibold"
+                          className="px-3.5 py-1.5 rounded bg-burgundy hover:bg-burgundy-hover text-parchment text-xs font-semibold"
+                        >
+                          Reprovar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {pendingTopics.map((t) => (
+                    <div
+                      key={`mod-t-${t.id}`}
+                      className="p-4 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card flex flex-wrap items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded bg-navy text-parchment text-xs font-bold uppercase">
+                            Ensaio
+                          </span>
+                          <Link
+                            to={`/topicos/${t.slug}`}
+                            className="font-serif font-bold text-lg text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                          >
+                            {t.title}
+                          </Link>
+                        </div>
+                        <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
+                          Submetido por <strong>{t.author?.name || 'Membro'}</strong>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Link
+                          to={`/topicos/${t.slug}`}
+                          className="px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                        >
+                          Revisar Ensaio Completo
+                        </Link>
+                        <button
+                          onClick={() =>
+                            moderateTopicStatus(
+                              t.id,
+                              'APPROVED',
+                              'Ensaio aprovado pela Moderação.'
+                            )
+                          }
+                          className="px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-semibold"
+                        >
+                          Aprovar &amp; Publicar
+                        </button>
+                        <button
+                          onClick={() =>
+                            moderateTopicStatus(
+                              t.id,
+                              'REJECTED',
+                              'Ensaio reprovado na revisão editorial.'
+                            )
+                          }
+                          className="px-3.5 py-1.5 rounded bg-burgundy hover:bg-burgundy-hover text-parchment text-xs font-semibold"
                         >
                           Reprovar
                         </button>

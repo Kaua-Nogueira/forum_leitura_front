@@ -22,6 +22,9 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
+  ShieldAlert,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { AffiliateButton } from '../components/AffiliateButton';
@@ -36,6 +39,9 @@ export const HomePage: React.FC = () => {
     settings,
     currentUser,
     isAuthenticated,
+    permissions,
+    moderateWorkStatus,
+    moderateTopicStatus,
     addComment,
     upvoteItem,
     setFlagModalTarget,
@@ -106,6 +112,16 @@ export const HomePage: React.FC = () => {
     { id: 'ESSAY', label: 'Artigos & Educação', icon: FileText },
     { id: 'SACRED_ART', label: 'Música Sacra & Arte', icon: Music },
   ];
+
+  const pendingWorks = useMemo(
+    () => works.filter((w) => w.status === 'PENDING'),
+    [works]
+  );
+
+  const pendingTopics = useMemo(
+    () => topics.filter((t) => t.status === 'PENDING'),
+    [topics]
+  );
 
   const approvedWorks = useMemo(() => {
     return works.filter((w) => {
@@ -304,6 +320,167 @@ export const HomePage: React.FC = () => {
               <span>+ Escrever Novo Texto</span>
             </Link>
           </div>
+
+          {/* Aviso de Textos Aguardando Revisão Obrigatória da Moderação */}
+          {(pendingWorks.length > 0 || pendingTopics.length > 0) && (
+            <div className="p-5 rounded-xl border-2 border-amber-500/80 bg-amber-50/90 dark:bg-amber-950/40 space-y-3 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+                  <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <h4 className="font-serif font-bold text-base sm:text-lg">
+                    Textos Aguardando Revisão da Moderação (
+                    {pendingWorks.length + pendingTopics.length})
+                  </h4>
+                </div>
+                {permissions.can_moderate_queue && (
+                  <Link
+                    to="/moderacao"
+                    className="text-xs sm:text-sm font-bold text-burgundy dark:text-gold hover:underline"
+                  >
+                    Abrir Painel de Moderação →
+                  </Link>
+                )}
+              </div>
+
+              <p className="text-xs sm:text-sm text-amber-950/90 dark:text-amber-200/90">
+                Todo texto submetido passa obrigatoriamente pela revisão da moderação
+                antes de ser publicado no feed principal.
+              </p>
+
+              <div className="space-y-2 pt-1">
+                {pendingWorks.map((pw) => (
+                  <div
+                    key={`pw-${pw.id}`}
+                    className="p-3.5 rounded-lg bg-parchment dark:bg-slateDark-card border border-amber-500/40 flex flex-wrap items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-900 dark:text-amber-200">
+                          Em Revisão
+                        </span>
+                        <Link
+                          to={`/obras/${pw.slug}`}
+                          className="font-serif font-bold text-base text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold truncate"
+                        >
+                          {pw.title}
+                        </Link>
+                      </div>
+                      <p className="text-xs text-ink-secondary dark:text-slateDark-muted mt-0.5">
+                        Livro de {pw.creator} • Enviado por{' '}
+                        {pw.submitted_by?.name || 'Membro'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Link
+                        to={`/obras/${pw.slug}`}
+                        className="px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                      >
+                        Ler Texto
+                      </Link>
+                      {permissions.can_moderate_queue && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              moderateWorkStatus(
+                                pw.id,
+                                'APPROVED',
+                                'Aprovado pela Moderação.'
+                              )
+                            }
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-forest text-parchment text-xs font-semibold"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Aprovar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              moderateWorkStatus(
+                                pw.id,
+                                'REJECTED',
+                                'Reprovado pela Moderação.'
+                              )
+                            }
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-burgundy text-parchment text-xs font-semibold"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Reprovar</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {pendingTopics.map((pt) => (
+                  <div
+                    key={`pt-${pt.id}`}
+                    className="p-3.5 rounded-lg bg-parchment dark:bg-slateDark-card border border-amber-500/40 flex flex-wrap items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-900 dark:text-amber-200">
+                          Em Revisão
+                        </span>
+                        <Link
+                          to={`/topicos/${pt.slug}`}
+                          className="font-serif font-bold text-base text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold truncate"
+                        >
+                          {pt.title}
+                        </Link>
+                      </div>
+                      <p className="text-xs text-ink-secondary dark:text-slateDark-muted mt-0.5">
+                        Ensaio • Enviado por {pt.author?.name || 'Membro'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Link
+                        to={`/topicos/${pt.slug}`}
+                        className="px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                      >
+                        Ler Ensaio
+                      </Link>
+                      {permissions.can_moderate_queue && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              moderateTopicStatus(
+                                pt.id,
+                                'APPROVED',
+                                'Aprovado pela Moderação.'
+                              )
+                            }
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-forest text-parchment text-xs font-semibold"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Aprovar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              moderateTopicStatus(
+                                pt.id,
+                                'REJECTED',
+                                'Reprovado pela Moderação.'
+                              )
+                            }
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-burgundy text-parchment text-xs font-semibold"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Reprovar</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {approvedWorks.map((work) => {
             const isExpanded = Boolean(expandedWorkIds[work.id]);

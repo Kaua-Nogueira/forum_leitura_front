@@ -10,6 +10,9 @@ import {
   Clock,
   Type,
   MessageSquare,
+  ShieldAlert,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
@@ -23,7 +26,7 @@ import { AffiliateButton } from '../components/AffiliateButton';
 
 export const TopicDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { topics, works, upvoteItem, setFlagModalTarget } = useApp();
+  const { topics, works, permissions, moderateTopicStatus, upvoteItem, setFlagModalTarget } = useApp();
 
   const [fontSize, setFontSize] = useState<ReadingFontSize>('large');
   const [fontFamily, setFontFamily] = useState<ReadingFontFamily>('serif');
@@ -62,6 +65,66 @@ export const TopicDetailPage: React.FC = () => {
           {topic.category?.name || 'Diálogos Abertos'}
         </span>
       </div>
+
+      {/* Banner de Status de Revisão da Moderação (quando PENDING ou REJECTED) */}
+      {topic.status !== 'APPROVED' && (
+        <div
+          className={`p-5 rounded-xl border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm ${
+            topic.status === 'PENDING'
+              ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-950 dark:text-amber-200'
+              : 'bg-red-50 dark:bg-red-950/50 border-red-500 text-red-950 dark:text-red-200'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="w-6 h-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="inline-block px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-900 dark:text-amber-200">
+                {topic.status === 'PENDING'
+                  ? 'Aguardando Revisão da Moderação'
+                  : 'Ensaio Reprovado / Ocultado'}
+              </span>
+              <p className="text-sm font-medium leading-relaxed">
+                {topic.status === 'PENDING'
+                  ? 'Nenhum texto é publicado sem revisão. Este ensaio foi salvo com sucesso e ficará visível no feed público assim que for aprovado pela moderação.'
+                  : 'Este ensaio foi ocultado ou reprovado pela moderação.'}
+              </p>
+            </div>
+          </div>
+
+          {permissions.can_moderate_queue && topic.status === 'PENDING' && (
+            <div className="flex items-center gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() =>
+                  moderateTopicStatus(
+                    topic.id,
+                    'APPROVED',
+                    'Ensaio revisado e aprovado pela Moderação.'
+                  )
+                }
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-forest hover:bg-forest-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Aprovar &amp; Publicar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  moderateTopicStatus(
+                    topic.id,
+                    'REJECTED',
+                    'Reprovado na revisão editorial.'
+                  )
+                }
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Reprovar</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Essay Sheet */}
       <article className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden">
