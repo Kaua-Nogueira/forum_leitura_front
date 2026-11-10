@@ -731,12 +731,16 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
             <div className="flex items-center gap-2 text-xs text-ink-muted dark:text-slateDark-muted">
               <CheckCircle2 className="w-4 h-4 text-forest dark:text-emerald-400" />
               <span>
-                Rascunho salvo automaticamente no navegador • Publicando como{' '}
-                <strong className="text-ink dark:text-slateDark-text">
-                  {currentUser.role === 'VISITOR'
-                    ? 'Lucas Albuquerque (Membro)'
-                    : currentUser.name}
-                </strong>
+                Rascunho salvo automaticamente no navegador
+                {currentUser.role !== 'VISITOR' && (
+                  <>
+                    {' '}
+                    • Publicando como{' '}
+                    <strong className="text-ink dark:text-slateDark-text">
+                      {currentUser.name}
+                    </strong>
+                  </>
+                )}
               </span>
             </div>
 

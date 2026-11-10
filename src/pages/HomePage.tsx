@@ -35,10 +35,11 @@ export const HomePage: React.FC = () => {
     topics,
     settings,
     currentUser,
-    switchRole,
+    isAuthenticated,
     addComment,
     upvoteItem,
     setFlagModalTarget,
+    showToast,
   } = useApp();
 
   const [selectedMediaFilter, setSelectedMediaFilter] = useState<string>('ALL');
@@ -73,8 +74,13 @@ export const HomePage: React.FC = () => {
     e.preventDefault();
     const text = quickCommentByWorkId[workId]?.trim();
     if (!text) return;
-    if (currentUser.role === 'VISITOR') {
-      switchRole('MEMBER');
+    if (!isAuthenticated) {
+      showToast(
+        'Faça login para comentar',
+        'Entre na sua conta para publicar comentários.',
+        'warning'
+      );
+      return;
     }
     await addComment({
       body: text,
@@ -505,12 +511,18 @@ export const HomePage: React.FC = () => {
                       />
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-ink-muted dark:text-slateDark-muted">
-                          Comentando como{' '}
-                          <strong>
-                            {currentUser.role === 'VISITOR'
-                              ? 'Lucas Albuquerque'
-                              : currentUser.name}
-                          </strong>
+                          {isAuthenticated ? (
+                            <>
+                              Comentando como <strong>{currentUser.name}</strong>
+                            </>
+                          ) : (
+                            <Link
+                              to="/login"
+                              className="text-burgundy dark:text-gold font-semibold hover:underline"
+                            >
+                              Entre na sua conta para comentar →
+                            </Link>
+                          )}
                         </span>
                         <button
                           type="submit"

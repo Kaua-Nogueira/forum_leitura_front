@@ -126,15 +126,16 @@ const INITIAL_USERS_LIST: User[] = [
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User>(() => {
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
     const saved = localStorage.getItem(USER_STORAGE_KEY);
-    if (saved) {
+    if (token && saved) {
       try {
         return JSON.parse(saved);
       } catch {
         // fallback
       }
     }
-    return DEMO_USERS.ADMIN;
+    return DEMO_USERS.VISITOR;
   });
 
   const [permissions, setPermissions] = useState<UserPermissions>(() =>

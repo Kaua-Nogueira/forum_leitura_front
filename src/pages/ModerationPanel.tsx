@@ -108,23 +108,17 @@ export const ModerationPanel: React.FC = () => {
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Link
               to="/login"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-ink text-parchment dark:bg-gold dark:text-slateDark-bg text-xs font-semibold"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-xs font-semibold"
             >
               <LogIn className="w-3.5 h-3.5" />
-              <span>Ir para Tela de Login</span>
+              <span>Fazer Login</span>
             </Link>
-            <button
-              onClick={() => switchRole('MODERATOR')}
-              className="px-4 py-2 rounded-md bg-navy text-parchment text-xs font-semibold hover:opacity-95"
+            <Link
+              to="/"
+              className="px-4 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border text-xs font-medium text-ink-secondary dark:text-slateDark-muted"
             >
-              Autenticar como Moderador (Helena)
-            </button>
-            <button
-              onClick={() => switchRole('ADMIN')}
-              className="px-4 py-2 rounded-md bg-burgundy text-parchment text-xs font-semibold hover:opacity-95"
-            >
-              Autenticar como Admin (Prof. Augusto)
-            </button>
+              Voltar ao Início
+            </Link>
           </div>
         </div>
       </div>

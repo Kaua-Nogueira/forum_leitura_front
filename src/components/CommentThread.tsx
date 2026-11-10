@@ -30,8 +30,14 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   topicId = null,
   allowRating = false,
 }) => {
-  const { currentUser, switchRole, addComment, upvoteItem, setFlagModalTarget } =
-    useApp();
+  const {
+    currentUser,
+    isAuthenticated,
+    addComment,
+    upvoteItem,
+    setFlagModalTarget,
+    showToast,
+  } = useApp();
 
   const [newBody, setNewBody] = useState('');
   const [newRating, setNewRating] = useState<number>(5);
@@ -42,8 +48,13 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   const handleRootSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBody.trim()) return;
-    if (currentUser.role === 'VISITOR') {
-      switchRole('MEMBER');
+    if (!isAuthenticated) {
+      showToast(
+        'Faça login para comentar',
+        'Entre na sua conta para publicar comentários.',
+        'warning'
+      );
+      return;
     }
     await addComment({
       body: newBody,
@@ -59,8 +70,13 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   const handleReplySubmit = async (e: React.FormEvent, parentId: number) => {
     e.preventDefault();
     if (!replyBody.trim()) return;
-    if (currentUser.role === 'VISITOR') {
-      switchRole('MEMBER');
+    if (!isAuthenticated) {
+      showToast(
+        'Faça login para responder',
+        'Entre na sua conta para responder na discussão.',
+        'warning'
+      );
+      return;
     }
     await addComment({
       body: replyBody,
@@ -375,12 +391,21 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs text-ink-muted dark:text-slateDark-muted">
-              Comentando como{' '}
-              <strong className="text-ink dark:text-slateDark-text">
-                {currentUser.role === 'VISITOR'
-                  ? 'Lucas Albuquerque (Membro)'
-                  : currentUser.name}
-              </strong>
+              {isAuthenticated ? (
+                <>
+                  Comentando como{' '}
+                  <strong className="text-ink dark:text-slateDark-text">
+                    {currentUser.name}
+                  </strong>
+                </>
+              ) : (
+                <a
+                  href="/login"
+                  className="text-burgundy dark:text-gold font-semibold hover:underline"
+                >
+                  Entre na sua conta para publicar seu comentário →
+                </a>
+              )}
             </span>
 
             <button
