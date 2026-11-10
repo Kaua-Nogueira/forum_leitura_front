@@ -688,6 +688,23 @@ export const HomePage: React.FC = () => {
                       )}
                       <button
                         type="button"
+                        onClick={() =>
+                          setFlagModalTarget({
+                            target_type: 'WORK',
+                            target_id: work.id,
+                            target_title: work.title,
+                            target_excerpt: work.synopsis.slice(0, 160),
+                            target_author_name: work.submitted_by?.name || work.creator,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md text-xs font-semibold text-ink-secondary dark:text-slateDark-muted hover:text-burgundy dark:hover:text-gold border border-parchment-deep dark:border-slateDark-border hover:border-burgundy dark:hover:border-gold transition-colors"
+                        title="Sinalizar conteúdo impróprio à moderação"
+                      >
+                        <Flag className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Sinalizar</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => toggleCommentsDrawer(work.id)}
                         className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-xs font-semibold border transition-colors ${
                           isCommentsOpen
@@ -807,6 +824,22 @@ export const HomePage: React.FC = () => {
                                     <span>Excluir</span>
                                   </button>
                                 )}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setFlagModalTarget({
+                                      target_type: 'COMMENT',
+                                      target_id: c.id,
+                                      target_title: `Comentário em "${work.title}"`,
+                                      target_excerpt: c.body.slice(0, 140),
+                                      target_author_name: c.author?.name || 'Leitor',
+                                    })
+                                  }
+                                  className="text-ink-muted hover:text-burgundy dark:hover:text-gold transition-colors p-1"
+                                  title="Sinalizar comentário impróprio"
+                                >
+                                  <Flag className="w-3 h-3" />
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => upvoteItem('COMMENT', c.id)}
@@ -942,15 +975,8 @@ export const HomePage: React.FC = () => {
                       </button>
                     )}
                     <button
+                      type="button"
                       onClick={() => {
-                        if (!isAuthenticated) {
-                          showToast(
-                            'Faça login para sinalizar',
-                            'Entre na sua conta para sinalizar itens à moderação.',
-                            'warning'
-                          );
-                          return;
-                        }
                         setFlagModalTarget({
                           target_type: 'TOPIC',
                           target_id: topic.id,
@@ -959,7 +985,8 @@ export const HomePage: React.FC = () => {
                           target_author_name: topic.author?.name || 'Membro',
                         });
                       }}
-                      className="ml-auto hover:text-burgundy"
+                      className="ml-auto text-ink-muted hover:text-burgundy dark:hover:text-gold transition-colors p-1"
+                      title="Sinalizar ensaio à moderação"
                     >
                       <Flag className="w-3.5 h-3.5" />
                     </button>

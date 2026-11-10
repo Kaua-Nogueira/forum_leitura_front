@@ -71,6 +71,10 @@ export const ModerationPanel: React.FC = () => {
   const isAdmin = permissions.can_manage_roles;
 
   const reasonLabels: Record<FlagReason, { label: string; color: string }> = {
+    INAPPROPRIATE_CONTENT: {
+      label: 'Conteúdo Impróprio / Ofensivo',
+      color: 'bg-red-600/15 text-red-700 dark:text-red-300 border-red-600/30',
+    },
     SPAM: {
       label: 'Spam Comercial / Bot',
       color: 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30',

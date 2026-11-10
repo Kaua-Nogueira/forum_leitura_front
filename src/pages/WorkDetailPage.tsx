@@ -373,15 +373,8 @@ export const WorkDetailPage: React.FC = () => {
                 )}
 
                 <button
+                  type="button"
                   onClick={() => {
-                    if (!isAuthenticated) {
-                      showToast(
-                        'Faça login para sinalizar',
-                        'Entre na sua conta para sinalizar conteúdos à moderação.',
-                        'warning'
-                      );
-                      return;
-                    }
                     setFlagModalTarget({
                       target_type: 'WORK',
                       target_id: work.id,
@@ -390,7 +383,8 @@ export const WorkDetailPage: React.FC = () => {
                       target_author_name: work.submitted_by?.name || 'Curadoria',
                     });
                   }}
-                  className="inline-flex items-center gap-1 hover:text-burgundy dark:hover:text-red-400"
+                  className="inline-flex items-center gap-1.5 hover:text-burgundy dark:hover:text-gold transition-colors"
+                  title="Sinalizar conteúdo impróprio à moderação"
                 >
                   <Flag className="w-3.5 h-3.5" />
                   <span>Sinalizar texto ou link à moderação</span>

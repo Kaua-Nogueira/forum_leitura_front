@@ -55,7 +55,7 @@ export const GlobalModals: React.FC = () => {
   const [topicTags, setTopicTags] = useState('Clássicos, Teologia, Leitura');
 
   // State for Flag Modal
-  const [flagReason, setFlagReason] = useState<FlagReason>('GUIDELINE_VIOLATION');
+  const [flagReason, setFlagReason] = useState<FlagReason>('INAPPROPRIATE_CONTENT');
   const [flagDetails, setFlagDetails] = useState('');
 
   const handleCreateWork = async (e: React.FormEvent) => {
@@ -499,6 +499,9 @@ export const GlobalModals: React.FC = () => {
                   onChange={(e) => setFlagReason(e.target.value as FlagReason)}
                   className="w-full px-3 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs"
                 >
+                  <option value="INAPPROPRIATE_CONTENT">
+                    Conteúdo Impróprio / Ofensivo
+                  </option>
                   <option value="GUIDELINE_VIOLATION">
                     Descumprimento das Diretrizes Editoriais / Ataque Pessoal
                   </option>
@@ -517,14 +520,13 @@ export const GlobalModals: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-ink-secondary dark:text-slateDark-muted mb-1">
-                  Justificativa para o Moderador *
+                  Justificativa para o Moderador (Opcional)
                 </label>
                 <textarea
                   rows={3}
-                  required
                   value={flagDetails}
                   onChange={(e) => setFlagDetails(e.target.value)}
-                  placeholder="Descreva brevemente por que este conteúdo requer revisão..."
+                  placeholder="Descreva brevemente por que este conteúdo requer revisão (opcional)..."
                   className="w-full px-3 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs"
                 />
               </div>

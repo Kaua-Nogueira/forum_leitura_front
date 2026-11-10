@@ -310,15 +310,8 @@ export const TopicDetailPage: React.FC = () => {
               )}
 
               <button
+                type="button"
                 onClick={() => {
-                  if (!isAuthenticated) {
-                    showToast(
-                      'Faça login para sinalizar',
-                      'Entre na sua conta para sinalizar conteúdos à moderação.',
-                      'warning'
-                    );
-                    return;
-                  }
                   setFlagModalTarget({
                     target_type: 'TOPIC',
                     target_id: topic.id,
@@ -327,7 +320,8 @@ export const TopicDetailPage: React.FC = () => {
                     target_author_name: topic.author?.name || 'Membro',
                   });
                 }}
-                className="inline-flex items-center gap-1 text-ink-muted hover:text-burgundy dark:hover:text-red-400"
+                className="inline-flex items-center gap-1.5 text-ink-muted hover:text-burgundy dark:hover:text-gold transition-colors"
+                title="Sinalizar ensaio à moderação"
               >
                 <Flag className="w-3.5 h-3.5" />
                 <span>Sinalizar</span>

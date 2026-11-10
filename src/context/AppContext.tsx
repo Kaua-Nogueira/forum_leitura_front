@@ -345,19 +345,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         setModerationFlags((prev) => {
           const serverFlags = data.moderation_flags || [];
-          const baseFlags = serverFlags.length > 0 ? serverFlags : prev;
-
           const localOnlyFlags = prev.filter(
-            (lf) =>
-              lf.id > 1000000000 &&
-              !baseFlags.some(
+            (pf) =>
+              !serverFlags.some(
                 (sf) =>
-                  sf.id === lf.id ||
-                  (sf.target_type === lf.target_type && sf.target_id === lf.target_id)
+                  sf.id === pf.id ||
+                  (sf.target_type === pf.target_type &&
+                    sf.target_id === pf.target_id &&
+                    sf.status === pf.status)
               )
           );
 
-          const combined = [...localOnlyFlags, ...baseFlags];
+          const combined = [...localOnlyFlags, ...serverFlags];
 
           // Ensure every PENDING work or topic has a visible entry in the moderation queue
           for (const w of mergedWorks) {
@@ -1056,50 +1055,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const submitFlag = async (reason: FlagReason, details: string) => {
     if (!flagModalTarget) return;
 
+    const resolvedDetails =
+      details?.trim() ||
+      (reason === 'INAPPROPRIATE_CONTENT'
+        ? 'Conteúdo impróprio ou ofensivo sinalizado pelo leitor para análise da moderação.'
+        : 'Sinalização registrada para revisão do Conselho Editorial.');
+
+    const target = { ...flagModalTarget };
+    setFlagModalTarget(null);
+
     try {
-      if (apiConnected) {
-        const res = await apiService.createFlag(
-          {
-            ...flagModalTarget,
-            reason,
-            details,
-          },
-          currentUser.role
-        );
-        setModerationFlags((prev) => [res.flag, ...prev]);
-        setFlagModalTarget(null);
+      const res = await apiService.createFlag(
+        {
+          target_type: target.target_type,
+          target_id: target.target_id,
+          target_title: target.target_title,
+          target_excerpt: target.target_excerpt,
+          target_author_name: target.target_author_name,
+          reason,
+          details: resolvedDetails,
+        },
+        currentUser.role
+      );
+
+      if (res?.flag) {
+        setModerationFlags((prev) => [
+          res.flag,
+          ...prev.filter((f) => f.id !== res.flag.id),
+        ]);
         showToast(
           'Sinalização enviada à Moderação',
-          'O Conselho Editorial analisará o item reportado.',
+          'O item foi registrado na Fila de Moderação com prioridade.',
           'info'
         );
         return;
       }
-    } catch {
-      // Fallback local
+    } catch (err) {
+      console.warn('Falha na API ao sinalizar item, salvando localmente:', err);
     }
 
     const newFlag: ModerationFlag = {
       id: Date.now(),
-      target_type: flagModalTarget.target_type,
-      target_id: flagModalTarget.target_id,
-      target_title: flagModalTarget.target_title,
-      target_excerpt: flagModalTarget.target_excerpt,
+      target_type: target.target_type,
+      target_id: target.target_id,
+      target_title: target.target_title,
+      target_excerpt: target.target_excerpt,
       target_author_id: 99,
-      target_author_name: flagModalTarget.target_author_name,
-      reporter_id: currentUser.id,
-      reporter_name: currentUser.name,
+      target_author_name: target.target_author_name,
+      reporter_id: currentUser.id || null,
+      reporter_name: currentUser.name || 'Visitante / Leitor Anônimo',
       reason,
-      details,
+      details: resolvedDetails,
       status: 'PENDING',
       created_at: new Date().toISOString(),
     };
 
     setModerationFlags((prev) => [newFlag, ...prev]);
-    setFlagModalTarget(null);
     showToast(
       'Item sinalizado para a Fila de Moderação',
-      'Os moderadores foram notificados.',
+      'O item foi registrado na Fila de Revisão da Moderação.',
       'info'
     );
   };

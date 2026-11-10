@@ -12,6 +12,7 @@ export type MediaType = 'BOOK' | 'FILM' | 'DOCUMENTARY' | 'ESSAY' | 'SACRED_ART'
 export type ModerationStatus = 'APPROVED' | 'PENDING' | 'REJECTED' | 'HIDDEN';
 
 export type FlagReason =
+  | 'INAPPROPRIATE_CONTENT'
   | 'SPAM'
   | 'UNETHICAL_CONDUCT'
   | 'GUIDELINE_VIOLATION'
@@ -142,9 +143,9 @@ export interface ModerationFlag {
   target_id: number;
   target_title: string;
   target_excerpt: string;
-  target_author_id: number;
+  target_author_id?: number | null;
   target_author_name: string;
-  reporter_id: number;
+  reporter_id?: number | null;
   reporter_name: string;
   reason: FlagReason;
   details: string;

@@ -397,9 +397,10 @@ export const apiService = {
       target_type: 'WORK' | 'TOPIC' | 'COMMENT';
       target_id: number;
       target_title: string;
-      target_excerpt: string;
+      target_excerpt?: string;
+      target_author_name?: string;
       reason: FlagReason;
-      details: string;
+      details?: string;
     },
     role: UserRole
   ): Promise<{ flag: ModerationFlag }> {

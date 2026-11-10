@@ -254,24 +254,16 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (!isAuthenticated) {
-                  showToast(
-                    'Faça login para sinalizar',
-                    'Entre em sua conta para reportar itens à moderação.',
-                    'warning'
-                  );
-                  return;
-                }
                 setFlagModalTarget({
                   target_type: 'COMMENT',
                   target_id: comment.id,
-                  target_title: `Comentário de ${comment.author?.name}`,
+                  target_title: `Comentário de ${comment.author?.name || 'Membro'}`,
                   target_excerpt: comment.body.slice(0, 140),
                   target_author_name: comment.author?.name || 'Membro',
                 });
               }}
-              className="inline-flex items-center gap-1 hover:text-burgundy dark:hover:text-red-400 transition-colors"
-              title="Sinalizar comentário para moderação"
+              className="inline-flex items-center gap-1 text-ink-muted hover:text-burgundy dark:hover:text-gold transition-colors"
+              title="Sinalizar comentário impróprio à moderação"
             >
               <Flag className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Sinalizar</span>
