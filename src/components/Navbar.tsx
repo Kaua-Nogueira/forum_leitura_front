@@ -30,8 +30,20 @@ export const Navbar: React.FC = () => {
 
   const pendingFlagsCount =
     moderationFlags.filter((f) => f.status === 'PENDING').length +
-    works.filter((w) => w.status === 'PENDING').length +
-    topics.filter((t) => t.status === 'PENDING').length;
+    works.filter(
+      (w) =>
+        w.status === 'PENDING' &&
+        !moderationFlags.some(
+          (f) => f.status === 'PENDING' && f.target_type === 'WORK' && f.target_id === w.id
+        )
+    ).length +
+    topics.filter(
+      (t) =>
+        t.status === 'PENDING' &&
+        !moderationFlags.some(
+          (f) => f.status === 'PENDING' && f.target_type === 'TOPIC' && f.target_id === t.id
+        )
+    ).length;
 
   const handleLogout = async () => {
     await logoutUser();

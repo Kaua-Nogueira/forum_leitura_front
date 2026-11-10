@@ -173,11 +173,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
-  const [works, setWorks] = useState<Work[]>(INITIAL_WORKS);
-  const [topics, setTopics] = useState<Topic[]>(INITIAL_TOPICS);
-  const [moderationFlags, setModerationFlags] = useState<ModerationFlag[]>(
-    INITIAL_MODERATION_FLAGS
-  );
+  const [works, setWorks] = useState<Work[]>(() => {
+    const cached = localStorage.getItem('veritas_cache_works_v2');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {
+        // ignore
+      }
+    }
+    return INITIAL_WORKS;
+  });
+  const [topics, setTopics] = useState<Topic[]>(() => {
+    const cached = localStorage.getItem('veritas_cache_topics_v2');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {
+        // ignore
+      }
+    }
+    return INITIAL_TOPICS;
+  });
+  const [moderationFlags, setModerationFlags] = useState<ModerationFlag[]>(() => {
+    const cached = localStorage.getItem('veritas_cache_flags_v2');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        // ignore
+      }
+    }
+    return INITIAL_MODERATION_FLAGS;
+  });
   const [moderationLogs, setModerationLogs] = useState<ModerationLog[]>([
     {
       id: 1,
@@ -234,6 +265,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [upvotesList]);
 
   useEffect(() => {
+    localStorage.setItem('veritas_cache_works_v2', JSON.stringify(works));
+  }, [works]);
+
+  useEffect(() => {
+    localStorage.setItem('veritas_cache_topics_v2', JSON.stringify(topics));
+  }, [topics]);
+
+  useEffect(() => {
+    localStorage.setItem('veritas_cache_flags_v2', JSON.stringify(moderationFlags));
+  }, [moderationFlags]);
+
+  useEffect(() => {
     const root = document.documentElement;
     if (isDark) {
       root.classList.add('dark');
@@ -273,10 +316,102 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .then(async (data) => {
         if (!mounted) return;
         if (data.categories?.length) setCategories(data.categories);
-        if (data.works?.length) setWorks(data.works);
-        if (data.topics?.length) setTopics(data.topics);
-        if (data.moderation_flags) setModerationFlags(data.moderation_flags);
-        if (data.moderation_logs) setModerationLogs(data.moderation_logs);
+
+        let mergedWorks = data.works || [];
+        if (data.works?.length) {
+          setWorks((prev) => {
+            const localOnly = prev.filter(
+              (lw) =>
+                lw.id > 1000000000 &&
+                !data.works.some((sw) => sw.slug === lw.slug || sw.id === lw.id)
+            );
+            mergedWorks = [...localOnly, ...data.works];
+            return mergedWorks;
+          });
+        }
+
+        let mergedTopics = data.topics || [];
+        if (data.topics?.length) {
+          setTopics((prev) => {
+            const localOnly = prev.filter(
+              (lt) =>
+                lt.id > 1000000000 &&
+                !data.topics.some((st) => st.slug === lt.slug || st.id === lt.id)
+            );
+            mergedTopics = [...localOnly, ...data.topics];
+            return mergedTopics;
+          });
+        }
+
+        setModerationFlags((prev) => {
+          const serverFlags = data.moderation_flags || [];
+          const baseFlags = serverFlags.length > 0 ? serverFlags : prev;
+
+          const localOnlyFlags = prev.filter(
+            (lf) =>
+              lf.id > 1000000000 &&
+              !baseFlags.some(
+                (sf) =>
+                  sf.id === lf.id ||
+                  (sf.target_type === lf.target_type && sf.target_id === lf.target_id)
+              )
+          );
+
+          const combined = [...localOnlyFlags, ...baseFlags];
+
+          // Ensure every PENDING work or topic has a visible entry in the moderation queue
+          for (const w of mergedWorks) {
+            if (
+              w.status === 'PENDING' &&
+              !combined.some((f) => f.target_type === 'WORK' && f.target_id === w.id)
+            ) {
+              combined.unshift({
+                id: 900000 + w.id,
+                target_type: 'WORK',
+                target_id: w.id,
+                target_title: `Revisão de Nova Obra/Resenha: ${w.title}`,
+                target_excerpt: (w.synopsis || '').slice(0, 180),
+                target_author_id: w.submitted_by_id || 1,
+                target_author_name: w.submitted_by?.name || w.creator || 'Membro',
+                reporter_id: w.submitted_by_id || 1,
+                reporter_name: 'Fila Obrigatória de Revisão Editorial',
+                reason: 'BROKEN_AFFILIATE_LINK',
+                details:
+                  'Todo texto publicado aguarda revisão obrigatória da moderação antes de ir ao ar.',
+                status: 'PENDING',
+                created_at: w.created_at || new Date().toISOString(),
+              });
+            }
+          }
+
+          for (const t of mergedTopics) {
+            if (
+              t.status === 'PENDING' &&
+              !combined.some((f) => f.target_type === 'TOPIC' && f.target_id === t.id)
+            ) {
+              combined.unshift({
+                id: 800000 + t.id,
+                target_type: 'TOPIC',
+                target_id: t.id,
+                target_title: `Revisão de Novo Ensaio: ${t.title}`,
+                target_excerpt: t.excerpt || (t.body || '').slice(0, 180),
+                target_author_id: t.author_id || 1,
+                target_author_name: t.author?.name || 'Membro',
+                reporter_id: t.author_id || 1,
+                reporter_name: 'Fila Obrigatória de Revisão Editorial',
+                reason: 'GUIDELINE_VIOLATION',
+                details:
+                  'Todo ensaio publicado aguarda revisão obrigatória da moderação antes de ir ao ar.',
+                status: 'PENDING',
+                created_at: t.created_at || new Date().toISOString(),
+              });
+            }
+          }
+
+          return combined;
+        });
+
+        if (data.moderation_logs?.length) setModerationLogs(data.moderation_logs);
         if (data.upvotes) setUpvotesList(data.upvotes);
         if (data.settings) setSettings(data.settings);
         if (data.users?.length) setUsersList(data.users);
@@ -974,9 +1109,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     action: 'APPROVE' | 'HIDE' | 'BAN_USER',
     moderatorNote: string
   ) => {
+    if (!permissions.can_moderate_queue) {
+      showToast(
+        'Acesso Restrito (RBAC)',
+        'Apenas Moderadores e Administradores podem deliberar na fila de moderação.',
+        'warning'
+      );
+      return;
+    }
+
+    if (action === 'BAN_USER' && !permissions.can_ban_users) {
+      showToast(
+        'Acesso Restrito (RBAC)',
+        'Apenas Administradores podem banir contas permanentemente.',
+        'warning'
+      );
+      return;
+    }
+
+    const targetFlag = moderationFlags.find((f) => f.id === flagId);
     let serverLog: ModerationLog | undefined;
+
     try {
-      if (apiConnected) {
+      if (apiConnected && flagId < 800000) {
         const res = await apiService.resolveModerationFlag(
           flagId,
           action,
@@ -984,13 +1139,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           currentUser.role
         );
         serverLog = res.log;
+      } else if (apiConnected && targetFlag) {
+        const nextStatus = action === 'APPROVE' ? 'APPROVED' : 'HIDDEN';
+        if (targetFlag.target_type === 'WORK') {
+          const res = await apiService.moderateWorkStatus(
+            targetFlag.target_id,
+            nextStatus,
+            moderatorNote || 'Revisado pela Moderação.',
+            currentUser.role
+          );
+          serverLog = res.log;
+        } else if (targetFlag.target_type === 'TOPIC') {
+          const res = await apiService.moderateTopicStatus(
+            targetFlag.target_id,
+            nextStatus,
+            moderatorNote || 'Revisado pela Moderação.',
+            currentUser.role
+          );
+          serverLog = res.log;
+        }
       }
     } catch (err: any) {
-      showToast('Acesso Restrito (RBAC)', err.message, 'warning');
-      return;
+      if (err?.message && err.message.includes('403')) {
+        showToast('Acesso Restrito (RBAC)', err.message, 'warning');
+        return;
+      }
+      // If 404 (local demo flag), continue and resolve in local state
     }
-
-    const targetFlag = moderationFlags.find((f) => f.id === flagId);
 
     setModerationFlags((prev) =>
       prev.map((f) => {

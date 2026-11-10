@@ -320,18 +320,20 @@ export const ModerationPanel: React.FC = () => {
                 </div>
               </div>
 
-              {displayedFlags.length === 0 ? (
+              {displayedFlags.length === 0 &&
+              pendingWorks.length === 0 &&
+              pendingTopics.length === 0 ? (
                 <div className="p-10 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/50 dark:bg-slateDark-card text-center space-y-2">
                   <CheckCircle2 className="w-8 h-8 text-forest dark:text-emerald-400 mx-auto" />
                   <p className="font-serif text-lg font-bold text-ink dark:text-slateDark-text">
                     A fila de moderação está limpa!
                   </p>
                   <p className="text-xs text-ink-muted dark:text-slateDark-muted">
-                    Todas as sinalizações pendentes foram deliberadas pelo Conselho
-                    Editorial.
+                    Todas as sinalizações e revisões pendentes foram deliberadas pelo
+                    Conselho Editorial.
                   </p>
                 </div>
-              ) : (
+              ) : displayedFlags.length > 0 ? (
                 <div className="space-y-4">
                   {displayedFlags.map((flag) => {
                     const reasonMeta =
@@ -478,7 +480,7 @@ export const ModerationPanel: React.FC = () => {
                     );
                   })}
                 </div>
-              )}
+              ) : null}
 
               {(pendingWorks.length > 0 || pendingTopics.length > 0) && (
                 <div className="p-5 rounded-xl border-2 border-amber-500/80 bg-amber-50/80 dark:bg-amber-950/40 space-y-4">
