@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  body {
+    background-color: #FAF7F2;
+    color: #1C1C1C;
+  }
+
+  .dark body {
+    background-color: #13161B;
+    color: #EAE6DF;
+  }
+}
+
+@layer components {
+  /* Drop cap for classical editorial reviews */
+  .editorial-dropcap::first-letter {
+    float: left;
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 3.5rem;
+    line-height: 0.85;
+    padding-top: 4px;
+    padding-right: 12px;
+    padding-bottom: 4px;
+    font-weight: 700;
+    color: #6B1D2F;
+  }
+
+  .dark .editorial-dropcap::first-letter {
+    color: #D4B98C;
+  }
+
+  /* Classical double rule divider */
+  .editorial-divider {
+    border-top: 1px solid #E5DEC9;
+    border-bottom: 3px double #E5DEC9;
+    height: 6px;
+  }
+
+  .dark .editorial-divider {
+    border-top-color: #2D3340;
+    border-bottom-color: #2D3340;
+  }
+
+  /* Refined blockquote styling */
+  .editorial-blockquote {
+    font-family: "EB Garamond", "Playfair Display", Georgia, serif;
+    border-left: 3px solid #6B1D2F;
+    background: linear-gradient(to right, rgba(107, 29, 47, 0.04), transparent);
+  }
+
+  .dark .editorial-blockquote {
+    border-left-color: #B08D57;
+    background: linear-gradient(to right, rgba(176, 141, 87, 0.08), transparent);
+  }
+}
+
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F3EFE6;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #13161B;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D0C7B5;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #2D3340;
+  border-radius: 4px;
+}

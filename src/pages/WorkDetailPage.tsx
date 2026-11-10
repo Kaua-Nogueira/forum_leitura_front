@@ -1,0 +1,355 @@
+import React, { useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import {
+  ArrowLeft,
+  BookOpen,
+  Star,
+  Quote,
+  Calendar,
+  Building2,
+  Hash,
+  Flag,
+  MessageSquare,
+  Clock,
+  Feather,
+  Type,
+} from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { AffiliateButton } from '../components/AffiliateButton';
+import {
+  RichTextRenderer,
+  ReadingFontSize,
+  ReadingFontFamily,
+  getReadingMetrics,
+} from '../components/RichTextRenderer';
+import { CommentThread } from '../components/CommentThread';
+
+export const WorkDetailPage: React.FC = () => {
+  const { slug } = useParams<{ slug: string }>();
+  const { works, topics, setFlagModalTarget } = useApp();
+
+  const [fontSize, setFontSize] = useState<ReadingFontSize>('large');
+  const [fontFamily, setFontFamily] = useState<ReadingFontFamily>('serif');
+
+  const work = works.find((w) => w.slug === slug) || works[0];
+  const relatedTopics = topics.filter(
+    (t) => t.work_id === work?.id && t.status === 'APPROVED'
+  );
+
+  if (!work) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <h2 className="font-serif text-2xl font-bold">Obra não localizada</h2>
+        <Link to="/" className="mt-4 inline-block text-sm text-burgundy underline">
+          Voltar ao Catálogo Editorial
+        </Link>
+      </div>
+    );
+  }
+
+  const metrics = getReadingMetrics(work.synopsis);
+  const commentsCount = work.comments?.length || 0;
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+      {/* Top Breadcrumb */}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted dark:text-slateDark-muted">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 font-medium text-ink-secondary dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Retornar às Leituras &amp; Ensaios</span>
+        </Link>
+
+        <div className="flex items-center gap-3">
+          <Link
+            to={`/escrever?obra=${work.id}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-burgundy/10 dark:bg-gold/15 text-burgundy dark:text-gold font-semibold hover:underline"
+          >
+            <Feather className="w-3.5 h-3.5" />
+            <span>Escrever ensaio sobre este livro</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* 1. DOSSIÊ DA OBRA (CAPA + FICHA + COMPRA AFILIADO) */}
+      <section className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/80 dark:bg-slateDark-card p-6 sm:p-8 shadow-editorial">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+          {/* Book Cover */}
+          <div className="md:col-span-4 lg:col-span-3 flex justify-center">
+            <div className="relative w-48 sm:w-56 rounded-lg overflow-hidden shadow-xl border border-parchment-deep dark:border-slateDark-border bg-ink">
+              <img
+                src={work.cover_url}
+                alt={work.title}
+                className="w-full h-72 object-cover"
+              />
+              <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded bg-black/80 text-gold-light text-xs font-bold flex items-center gap-1">
+                <Star className="w-3.5 h-3.5 fill-gold text-gold" />
+                <span>{work.editorial_rating.toFixed(1)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Book Info & Affiliate Action */}
+          <div className="md:col-span-8 lg:col-span-9 space-y-5">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="px-2.5 py-0.5 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-semibold uppercase tracking-wider">
+                  {work.category?.name || 'Letras & Teologia'}
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-slateDark-muted font-medium">
+                  <Clock className="w-3 h-3 text-burgundy dark:text-gold" />
+                  {metrics.words} palavras • ~{metrics.minutes} min de leitura
+                </span>
+              </div>
+
+              <h1 className="font-serif text-3xl sm:text-4xl lg:text-[42px] font-bold text-ink dark:text-slateDark-text leading-tight">
+                {work.title}
+              </h1>
+
+              {work.subtitle && (
+                <p className="font-literary italic text-lg sm:text-xl text-ink-secondary dark:text-slateDark-muted leading-snug">
+                  {work.subtitle}
+                </p>
+              )}
+
+              <div className="pt-1 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+                <span>
+                  Autor: <strong className="text-ink dark:text-white">{work.creator}</strong>
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
+                  Ano: {work.release_year}
+                </span>
+                {work.publisher_or_studio && (
+                  <span className="flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
+                    {work.publisher_or_studio}
+                  </span>
+                )}
+                {work.isbn_or_ref && (
+                  <span className="flex items-center gap-1 font-mono text-xs">
+                    <Hash className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
+                    {work.isbn_or_ref}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="max-w-xl">
+              <AffiliateButton work={work} variant="compact" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. BARRA DE CONFORTO DE LEITURA & CITAÇÕES PERENES */}
+      <article className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden">
+        {/* Reading Comfort Control Bar */}
+        <div className="sticky top-[73px] z-30 bg-parchment-warm/95 dark:bg-slateDark-elevated/95 backdrop-blur border-b border-parchment-deep dark:border-slateDark-border px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-ink-secondary dark:text-slateDark-text font-medium">
+            <BookOpen className="w-4 h-4 text-burgundy dark:text-gold" />
+            <span>
+              Ensaio por{' '}
+              <strong>
+                {work.submitted_by?.name || 'Prof. Augusto Vasconcelos'}
+              </strong>
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Font Family Switch */}
+            <div className="inline-flex items-center rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5">
+              <button
+                type="button"
+                onClick={() => setFontFamily('serif')}
+                className={`px-2.5 py-1 rounded text-xs font-serif transition-colors ${
+                  fontFamily === 'serif'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                Serif Literária
+              </button>
+              <button
+                type="button"
+                onClick={() => setFontFamily('sans')}
+                className={`px-2.5 py-1 rounded text-xs font-sans transition-colors ${
+                  fontFamily === 'sans'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                Sans Limpa
+              </button>
+            </div>
+
+            {/* Font Size Switch */}
+            <div className="inline-flex items-center rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5">
+              <Type className="w-3.5 h-3.5 text-ink-muted ml-2 mr-1" />
+              {(
+                [
+                  { id: 'normal', label: 'A-' },
+                  { id: 'large', label: 'A' },
+                  { id: 'xlarge', label: 'A+' },
+                ] as const
+              ).map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setFontSize(s.id)}
+                  className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                    fontSize === s.id
+                      ? 'bg-ink text-parchment dark:bg-gold dark:text-slateDark-bg'
+                      : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            <a
+              href="#comentarios"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-burgundy/10 dark:bg-gold/15 text-burgundy dark:text-gold font-semibold hover:opacity-90"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Comentários ({commentsCount})</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Main Reading Sheet (Wide, Generous Padding, Ideal Line Width) */}
+        <div className="px-6 sm:px-12 lg:px-20 py-10 sm:py-14 max-w-4xl mx-auto space-y-10">
+          {/* Notable Quotes Epigraph */}
+          {work.notable_quotes && work.notable_quotes.length > 0 && (
+            <div className="space-y-4 pb-4 border-b border-parchment-deep/70 dark:border-slateDark-border">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-burgundy dark:text-gold flex items-center gap-1.5">
+                <Quote className="w-3.5 h-3.5" />
+                Epígrafe &amp; Vozes da Obra
+              </span>
+              <div className="space-y-4">
+                {work.notable_quotes.map((q, idx) => (
+                  <blockquote
+                    key={idx}
+                    className="p-5 sm:p-6 rounded-lg bg-parchment-warm/70 dark:bg-slateDark-elevated border-l-4 border-burgundy dark:border-gold"
+                  >
+                    <p className="font-literary italic text-xl sm:text-2xl text-ink dark:text-slateDark-text leading-relaxed">
+                      “{q.quote_text}”
+                    </p>
+                    <footer className="mt-2.5 text-xs font-sans font-semibold uppercase tracking-wider text-burgundy dark:text-gold-light">
+                      — {q.source_note}
+                    </footer>
+                  </blockquote>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Full Essay Text */}
+          <RichTextRenderer
+            content={work.synopsis}
+            dropcap={true}
+            fontSize={fontSize}
+            fontFamily={fontFamily}
+          />
+
+          {/* End of Essay Footer & Affiliate Callout */}
+          <div className="pt-8 border-t border-parchment-deep dark:border-slateDark-border space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-ink-muted dark:text-slateDark-muted">
+              <span>
+                Publicado por{' '}
+                <strong className="text-ink dark:text-slateDark-text">
+                  {work.submitted_by?.name || 'Conselho Editorial'}
+                </strong>
+              </span>
+
+              <button
+                onClick={() =>
+                  setFlagModalTarget({
+                    target_type: 'WORK',
+                    target_id: work.id,
+                    target_title: work.title,
+                    target_excerpt: work.synopsis.slice(0, 140),
+                    target_author_name: work.submitted_by?.name || 'Curadoria',
+                  })
+                }
+                className="inline-flex items-center gap-1 hover:text-burgundy dark:hover:text-red-400"
+              >
+                <Flag className="w-3.5 h-3.5" />
+                <span>Sinalizar texto ou link à moderação</span>
+              </button>
+            </div>
+
+            <AffiliateButton work={work} variant="full" />
+          </div>
+        </div>
+      </article>
+
+      {/* Linked Essays / Topics about this book */}
+      {relatedTopics.length > 0 && (
+        <section className="p-6 sm:p-8 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/50 dark:bg-slateDark-card space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-serif text-xl font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
+              <Feather className="w-5 h-5 text-navy dark:text-gold" />
+              <span>Outros Ensaios dos Membros sobre “{work.title}”</span>
+            </h3>
+            <Link
+              to={`/escrever?obra=${work.id}`}
+              className="text-xs font-semibold text-burgundy dark:text-gold hover:underline"
+            >
+              + Escrever novo ensaio sobre esta obra
+            </Link>
+          </div>
+          <div className="divide-y divide-parchment-deep/60 dark:divide-slateDark-border">
+            {relatedTopics.map((t) => (
+              <div
+                key={t.id}
+                className="py-3 flex flex-wrap items-center justify-between gap-4"
+              >
+                <div>
+                  <Link
+                    to={`/topicos/${t.slug}`}
+                    className="font-serif font-bold text-base sm:text-lg text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                  >
+                    {t.title}
+                  </Link>
+                  <p className="text-xs text-ink-muted dark:text-slateDark-muted mt-0.5">
+                    Por {t.author?.name} • {t.comments_count} comentários
+                  </p>
+                </div>
+                <Link
+                  to={`/topicos/${t.slug}`}
+                  className="text-xs font-semibold text-burgundy dark:text-gold hover:underline"
+                >
+                  Ler ensaio →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 3. SEÇÃO DE COMENTÁRIOS E NOTAS DOS LEITORES */}
+      <section id="comentarios" className="scroll-mt-24 space-y-5">
+        <div className="border-b border-parchment-deep dark:border-slateDark-border pb-3 flex items-center justify-between">
+          <div>
+            <span className="text-[11px] uppercase tracking-widest font-semibold text-burgundy dark:text-gold block">
+              Caderno de Leitura Compartilhado
+            </span>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
+              Comentários &amp; Reflexões dos Leitores ({commentsCount})
+            </h2>
+          </div>
+        </div>
+
+        <CommentThread
+          comments={work.comments || []}
+          workId={work.id}
+          allowRating={true}
+        />
+      </section>
+    </div>
+  );
+};
