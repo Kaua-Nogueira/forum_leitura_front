@@ -260,22 +260,22 @@ export const HomePage: React.FC = () => {
               onClick={() =>
                 setSelectedCategorySlug(isSelected ? 'ALL' : cat.slug)
               }
-              className={`text-left p-4 rounded-lg border transition-all duration-200 ${
+              className={`text-left p-4 rounded-lg border transition-all duration-200 overflow-hidden ${
                 isSelected
                   ? 'border-burgundy dark:border-gold bg-burgundy/10 dark:bg-gold/15 shadow-editorial-hover ring-1 ring-burgundy/40'
                   : 'border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card hover:border-burgundy/50'
               }`}
             >
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="inline-flex items-center gap-1.5 font-serif font-bold text-lg text-ink dark:text-slateDark-text">
-                  <Icon className="w-4 h-4 text-burgundy dark:text-gold" />
-                  {cat.name}
+              <div className="space-y-0.5 mb-2">
+                <span className="flex items-center gap-2 font-serif font-bold text-base sm:text-lg text-ink dark:text-slateDark-text leading-snug">
+                  <Icon className="w-4 h-4 text-burgundy dark:text-gold shrink-0" />
+                  <span className="truncate">{cat.name}</span>
                 </span>
-                <span className="font-literary italic text-sm font-medium text-burgundy dark:text-gold-light">
+                <span className="block font-literary italic text-xs sm:text-sm font-medium text-burgundy dark:text-gold-light truncate">
                   {cat.latin_motto}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted line-clamp-2 leading-relaxed">
+              <p className="text-xs text-ink-secondary dark:text-slateDark-muted line-clamp-2 leading-relaxed">
                 {cat.description}
               </p>
             </button>
@@ -337,7 +337,7 @@ export const HomePage: React.FC = () => {
                     </Link>
 
                     {/* Metadados do Livro & Título do Ensaio */}
-                    <div className="flex-1 space-y-3">
+                    <div className="flex-1 min-w-0 space-y-3">
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className="px-2.5 py-1 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold uppercase tracking-wider text-xs">
                           {mediaLabelMap[work.media_type]}

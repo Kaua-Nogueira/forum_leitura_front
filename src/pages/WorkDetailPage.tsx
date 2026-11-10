@@ -147,7 +147,7 @@ export const WorkDetailPage: React.FC = () => {
       {/* 2. BARRA DE CONFORTO DE LEITURA & CITAÇÕES PERENES */}
       <article className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden">
         {/* Reading Comfort Control Bar */}
-        <div className="sticky top-[73px] z-30 bg-parchment-warm/95 dark:bg-slateDark-elevated/95 backdrop-blur border-b border-parchment-deep dark:border-slateDark-border px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 text-ink-secondary dark:text-slateDark-text font-medium">
             <BookOpen className="w-4 h-4 text-burgundy dark:text-gold" />
             <span>

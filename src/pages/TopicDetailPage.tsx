@@ -66,7 +66,7 @@ export const TopicDetailPage: React.FC = () => {
       {/* Main Essay Sheet */}
       <article className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden">
         {/* Reading Comfort Bar */}
-        <div className="sticky top-[73px] z-30 bg-parchment-warm/95 dark:bg-slateDark-elevated/95 backdrop-blur border-b border-parchment-deep dark:border-slateDark-border px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-3 text-ink-secondary dark:text-slateDark-text">
             <span className="inline-flex items-center gap-1 font-medium">
               <Clock className="w-3.5 h-3.5 text-burgundy dark:text-gold" />

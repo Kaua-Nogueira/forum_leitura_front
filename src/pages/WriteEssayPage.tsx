@@ -612,8 +612,8 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
 
         {/* 2. FOLHA EDITORIAL DE ESCRITA E LEITURA (O CORAÇÃO DO SCRIPTORIUM) */}
         <div className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden">
-          {/* Sticky Formatting & Comfort Toolbar */}
-          <div className="sticky top-[73px] z-30 bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+          {/* Formatting & Comfort Toolbar */}
+          <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
