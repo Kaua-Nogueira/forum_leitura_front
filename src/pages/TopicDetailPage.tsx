@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ThumbsUp,
@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   CheckCircle2,
   XCircle,
+  Trash2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
@@ -26,10 +27,26 @@ import { AffiliateButton } from '../components/AffiliateButton';
 
 export const TopicDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { topics, works, permissions, moderateTopicStatus, upvoteItem, setFlagModalTarget } = useApp();
+  const navigate = useNavigate();
+  const {
+    topics,
+    works,
+    isAuthenticated,
+    permissions,
+    moderateTopicStatus,
+    deleteByModerator,
+    upvoteItem,
+    hasUserUpvoted,
+    setFlagModalTarget,
+    showToast,
+  } = useApp();
 
   const [fontSize, setFontSize] = useState<ReadingFontSize>('large');
   const [fontFamily, setFontFamily] = useState<ReadingFontFamily>('serif');
+  const [showDeleteBox, setShowDeleteBox] = useState(false);
+  const [deleteReason, setDeleteReason] = useState(
+    'Ensaio excluído pela Moderação após revisão.'
+  );
 
   const topic = topics.find((t) => t.slug === slug) || topics[0];
   const linkedWork = topic?.work_id
@@ -258,25 +275,58 @@ export const TopicDetailPage: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex items-center gap-4 text-xs">
-              <button
-                onClick={() => upvoteItem('TOPIC', topic.id)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-semibold hover:opacity-95 shadow-sm"
-              >
-                <ThumbsUp className="w-3.5 h-3.5" />
-                <span>Apreciar este Texto ({topic.upvotes_count})</span>
-              </button>
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              {(() => {
+                const alreadyLiked = hasUserUpvoted('TOPIC', topic.id);
+                return (
+                  <button
+                    onClick={() => upvoteItem('TOPIC', topic.id)}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-md font-semibold transition-all shadow-sm ${
+                      alreadyLiked
+                        ? 'bg-forest text-parchment dark:bg-emerald-600 dark:text-white'
+                        : 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg hover:opacity-95'
+                    }`}
+                  >
+                    <ThumbsUp
+                      className={`w-3.5 h-3.5 ${alreadyLiked ? 'fill-current' : ''}`}
+                    />
+                    <span>
+                      {alreadyLiked ? 'Curtido' : 'Curtir este Ensaio'} (
+                      {topic.upvotes_count})
+                    </span>
+                  </button>
+                );
+              })()}
+
+              {permissions.can_moderate_queue && (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteBox((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 font-semibold"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Excluir Ensaio (Mod)</span>
+                </button>
+              )}
 
               <button
-                onClick={() =>
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    showToast(
+                      'Faça login para sinalizar',
+                      'Entre na sua conta para sinalizar conteúdos à moderação.',
+                      'warning'
+                    );
+                    return;
+                  }
                   setFlagModalTarget({
                     target_type: 'TOPIC',
                     target_id: topic.id,
                     target_title: topic.title,
                     target_excerpt: topic.excerpt,
                     target_author_name: topic.author?.name || 'Membro',
-                  })
-                }
+                  });
+                }}
                 className="inline-flex items-center gap-1 text-ink-muted hover:text-burgundy dark:hover:text-red-400"
               >
                 <Flag className="w-3.5 h-3.5" />
@@ -284,6 +334,46 @@ export const TopicDetailPage: React.FC = () => {
               </button>
             </div>
           </footer>
+
+          {showDeleteBox && permissions.can_moderate_queue && (
+            <div className="p-4 rounded-lg bg-red-950/10 dark:bg-red-950/30 border border-red-600/40 space-y-3">
+              <p className="text-xs font-bold text-red-800 dark:text-red-300">
+                Exclusão pela Moderação — Informe o motivo para registro obrigatório no Log de Auditoria:
+              </p>
+              <input
+                type="text"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-bg text-sm text-ink dark:text-slateDark-text"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteBox(false)}
+                  className="px-3 py-1.5 text-xs font-semibold text-ink-muted"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await deleteByModerator(
+                      'TOPIC',
+                      topic.id,
+                      topic.title,
+                      deleteReason,
+                      topic.author?.name
+                    );
+                    navigate('/');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Confirmar Exclusão e Registrar Log</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </article>
 

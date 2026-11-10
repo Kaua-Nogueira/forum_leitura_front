@@ -8,6 +8,8 @@ import {
   Topic,
   Comment,
   ModerationFlag,
+  ModerationLog,
+  UpvoteRecord,
   PlatformSettings,
   FlagReason,
 } from '../types/schema';
@@ -75,6 +77,11 @@ interface AppContextType {
   works: Work[];
   topics: Topic[];
   moderationFlags: ModerationFlag[];
+  moderationLogs: ModerationLog[];
+  hasUserUpvoted: (
+    targetType: 'WORK' | 'TOPIC' | 'COMMENT',
+    targetId: number
+  ) => boolean;
   settings: PlatformSettings;
   apiConnected: boolean;
   isLoading: boolean;
@@ -122,6 +129,13 @@ interface AppContextType {
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
     note?: string
   ) => Promise<void>;
+  deleteByModerator: (
+    targetType: 'WORK' | 'TOPIC' | 'COMMENT',
+    targetId: number,
+    targetTitle: string,
+    reason: string,
+    targetAuthorName?: string
+  ) => Promise<void>;
   updateGlobalSettings: (newSettings: Partial<PlatformSettings>) => Promise<void>;
   trackAffiliateClick: (workId: number) => void;
 }
@@ -164,6 +178,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [moderationFlags, setModerationFlags] = useState<ModerationFlag[]>(
     INITIAL_MODERATION_FLAGS
   );
+  const [moderationLogs, setModerationLogs] = useState<ModerationLog[]>([
+    {
+      id: 1,
+      actor_id: 2,
+      actor_name: 'Helena Monteiro de Barros',
+      actor_role: 'MODERATOR',
+      action_type: 'APPROVE_WORK',
+      target_type: 'WORK',
+      target_id: 1,
+      target_title: 'Confissões (Santo Agostinho)',
+      target_author_name: 'Prof. Augusto Vasconcelos',
+      reason: 'Revisão editorial inicial concluída: tradução e aparato crítico verificados.',
+      ip_address: '127.0.0.1',
+      created_at: new Date(Date.now() - 86400000).toISOString(),
+    },
+  ]);
+  const [upvotesList, setUpvotesList] = useState<UpvoteRecord[]>(() => {
+    const raw = localStorage.getItem('veritas_upvotes');
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        // ignore
+      }
+    }
+    return [];
+  });
   const [settings, setSettings] = useState<PlatformSettings>(INITIAL_SETTINGS);
   const [apiConnected, setApiConnected] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -174,6 +215,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [flagModalTarget, setFlagModalTarget] = useState<FlagModalTarget | null>(null);
 
   const isAuthenticated = currentUser.role !== 'VISITOR' && !currentUser.is_banned;
+
+  const hasUserUpvoted = useCallback(
+    (targetType: 'WORK' | 'TOPIC' | 'COMMENT', targetId: number): boolean => {
+      if (!isAuthenticated) return false;
+      return upvotesList.some(
+        (u) =>
+          u.user_id === currentUser.id &&
+          u.target_type === targetType &&
+          u.target_id === targetId
+      );
+    },
+    [isAuthenticated, upvotesList, currentUser.id]
+  );
+
+  useEffect(() => {
+    localStorage.setItem('veritas_upvotes', JSON.stringify(upvotesList));
+  }, [upvotesList]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -218,6 +276,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (data.works?.length) setWorks(data.works);
         if (data.topics?.length) setTopics(data.topics);
         if (data.moderation_flags) setModerationFlags(data.moderation_flags);
+        if (data.moderation_logs) setModerationLogs(data.moderation_logs);
+        if (data.upvotes) setUpvotesList(data.upvotes);
         if (data.settings) setSettings(data.settings);
         if (data.users?.length) setUsersList(data.users);
         setApiConnected(true);
@@ -379,6 +439,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (currentUser.id === userId) {
           setCurrentUser(res.user);
         }
+        if (res.log) {
+          setModerationLogs((prev) => [res.log!, ...prev]);
+        }
         showToast('Permissões RBAC Atualizadas', res.message, 'success');
         return;
       }
@@ -387,12 +450,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    const targetUser = usersList.find((u) => u.id === userId);
     setUsersList((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, ...payload } : u))
     );
+    const localLog: ModerationLog = {
+      id: Date.now(),
+      actor_id: currentUser.id,
+      actor_name: currentUser.name,
+      actor_role: currentUser.role,
+      action_type:
+        payload.is_banned !== undefined
+          ? payload.is_banned
+            ? 'BAN_USER'
+            : 'UNBAN_USER'
+          : 'UPDATE_USER_ROLE',
+      target_type: 'USER',
+      target_id: userId,
+      target_title: targetUser ? `${targetUser.name} (${targetUser.email})` : `Usuário #${userId}`,
+      target_author_name: targetUser?.name || null,
+      reason:
+        payload.is_banned !== undefined
+          ? payload.is_banned
+            ? 'Conta suspensa pelo Administrador.'
+            : 'Suspensão revogada pelo Administrador.'
+          : `Papel RBAC alterado para ${payload.role}.`,
+      ip_address: '127.0.0.1',
+      created_at: new Date().toISOString(),
+    };
+    setModerationLogs((prev) => [localLog, ...prev]);
     showToast(
       'Permissões RBAC Atualizadas',
-      'O papel do usuário foi atualizado com sucesso.',
+      'O papel do usuário foi atualizado e registrado no log de auditoria.',
       'success'
     );
   };
@@ -658,6 +747,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     topic_id?: number | null;
     parent_id?: number | null;
   }) => {
+    if (!isAuthenticated || !permissions.can_comment) {
+      showToast(
+        'Conta necessária para comentar',
+        'Para curtir e comentar é necessário ter uma conta e estar autenticado.',
+        'warning'
+      );
+      return;
+    }
+
     let createdComment: Comment | null = null;
 
     try {
@@ -665,8 +763,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const res = await apiService.createComment(payload, currentUser.role);
         createdComment = res.comment;
       }
-    } catch {
-      // Fallback local creation
+    } catch (err: any) {
+      if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
+        showToast('Não foi possível comentar', err.message, 'error');
+        return;
+      }
     }
 
     if (!createdComment) {
@@ -741,13 +842,59 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
   const upvoteItem = async (targetType: 'TOPIC' | 'COMMENT', targetId: number) => {
+    if (!isAuthenticated) {
+      showToast(
+        'Conta necessária para curtir',
+        'Para curtir e comentar é necessário ter uma conta e estar autenticado.',
+        'warning'
+      );
+      return;
+    }
+
+    if (hasUserUpvoted(targetType, targetId)) {
+      showToast(
+        'Curtida já registrada',
+        'Cada usuário só pode dar curtida uma única vez neste item.',
+        'info'
+      );
+      return;
+    }
+
     try {
       if (apiConnected) {
         await apiService.toggleUpvote(targetType, targetId, currentUser.role);
       }
-    } catch {
-      // ignore
+    } catch (err: any) {
+      if (err?.message && err.message.includes('já deu curtida')) {
+        setUpvotesList((prev) => [
+          ...prev,
+          {
+            user_id: currentUser.id,
+            target_type: targetType,
+            target_id: targetId,
+          },
+        ]);
+        showToast(
+          'Curtida já registrada',
+          'Cada usuário só pode dar curtida uma única vez neste item.',
+          'info'
+        );
+        return;
+      }
+      if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
+        showToast('Não foi possível curtir', err.message, 'warning');
+        return;
+      }
     }
+
+    setUpvotesList((prev) => [
+      ...prev,
+      {
+        user_id: currentUser.id,
+        target_type: targetType,
+        target_id: targetId,
+      },
+    ]);
 
     if (targetType === 'TOPIC') {
       setTopics((prev) =>
@@ -827,14 +974,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     action: 'APPROVE' | 'HIDE' | 'BAN_USER',
     moderatorNote: string
   ) => {
+    let serverLog: ModerationLog | undefined;
     try {
       if (apiConnected) {
-        await apiService.resolveModerationFlag(
+        const res = await apiService.resolveModerationFlag(
           flagId,
           action,
           moderatorNote,
           currentUser.role
         );
+        serverLog = res.log;
       }
     } catch (err: any) {
       showToast('Acesso Restrito (RBAC)', err.message, 'warning');
@@ -887,12 +1036,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    if (serverLog) {
+      setModerationLogs((prev) => [serverLog!, ...prev]);
+    } else if (targetFlag) {
+      const fallbackLog: ModerationLog = {
+        id: Date.now(),
+        actor_id: currentUser.id,
+        actor_name: currentUser.name,
+        actor_role: currentUser.role,
+        action_type: `RESOLVE_FLAG_${action}`,
+        target_type: targetFlag.target_type,
+        target_id: targetFlag.target_id,
+        target_title: targetFlag.target_title,
+        target_author_name: targetFlag.target_author_name,
+        reason: moderatorNote || 'Deliberação registrada na fila de moderação.',
+        ip_address: '127.0.0.1',
+        created_at: new Date().toISOString(),
+      };
+      setModerationLogs((prev) => [fallbackLog, ...prev]);
+    }
+
     const actionLabels = {
       APPROVE: 'Item Aprovado e Mantido',
       HIDE: 'Conteúdo Ocultado (Soft Delete)',
       BAN_USER: 'Autor Banido e Conteúdo Ocultado',
     };
-    showToast(actionLabels[action], moderatorNote || 'Decisão registrada.', 'info');
+    showToast(actionLabels[action], moderatorNote || 'Decisão registrada no log.', 'info');
   };
 
   const moderateWorkStatus = async (
@@ -900,19 +1069,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
     note?: string
   ) => {
+    let serverLog: ModerationLog | undefined;
     try {
       if (apiConnected) {
-        await apiService.moderateWorkStatus(
+        const res = await apiService.moderateWorkStatus(
           workId,
           status,
           note || 'Revisado pela Moderação.',
           currentUser.role
         );
+        serverLog = res.log;
       }
     } catch (err: any) {
       showToast('Acesso Restrito (RBAC)', err.message, 'error');
       return;
     }
+
+    const targetWork = works.find((w) => w.id === workId);
 
     setWorks((prev) =>
       prev.map((w) =>
@@ -933,11 +1106,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
 
+    if (serverLog) {
+      setModerationLogs((prev) => [serverLog!, ...prev]);
+    } else if (targetWork) {
+      setModerationLogs((prev) => [
+        {
+          id: Date.now(),
+          actor_id: currentUser.id,
+          actor_name: currentUser.name,
+          actor_role: currentUser.role,
+          action_type: status === 'APPROVED' ? 'APPROVE_WORK' : 'REJECT_WORK',
+          target_type: 'WORK',
+          target_id: workId,
+          target_title: targetWork.title,
+          target_author_name: targetWork.submitted_by?.name || targetWork.creator,
+          reason: note || 'Revisado pela Moderação.',
+          ip_address: '127.0.0.1',
+          created_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+    }
+
     showToast(
       status === 'APPROVED'
         ? 'Texto aprovado e publicado no Feed!'
         : 'Texto reprovado / ocultado pela Moderação',
-      note || 'Decisão da moderação registrada.',
+      note || 'Decisão da moderação registrada no Log de Auditoria.',
       status === 'APPROVED' ? 'success' : 'warning'
     );
   };
@@ -947,19 +1142,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
     note?: string
   ) => {
+    let serverLog: ModerationLog | undefined;
     try {
       if (apiConnected) {
-        await apiService.moderateTopicStatus(
+        const res = await apiService.moderateTopicStatus(
           topicId,
           status,
           note || 'Revisado pela Moderação.',
           currentUser.role
         );
+        serverLog = res.log;
       }
     } catch (err: any) {
       showToast('Acesso Restrito (RBAC)', err.message, 'error');
       return;
     }
+
+    const targetTopic = topics.find((t) => t.id === topicId);
 
     setTopics((prev) =>
       prev.map((t) =>
@@ -980,12 +1179,154 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
 
+    if (serverLog) {
+      setModerationLogs((prev) => [serverLog!, ...prev]);
+    } else if (targetTopic) {
+      setModerationLogs((prev) => [
+        {
+          id: Date.now(),
+          actor_id: currentUser.id,
+          actor_name: currentUser.name,
+          actor_role: currentUser.role,
+          action_type: status === 'APPROVED' ? 'APPROVE_TOPIC' : 'REJECT_TOPIC',
+          target_type: 'TOPIC',
+          target_id: topicId,
+          target_title: targetTopic.title,
+          target_author_name: targetTopic.author?.name || 'Autor',
+          reason: note || 'Revisado pela Moderação.',
+          ip_address: '127.0.0.1',
+          created_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+    }
+
     showToast(
       status === 'APPROVED'
         ? 'Ensaio aprovado e publicado no Feed!'
         : 'Ensaio reprovado / ocultado pela Moderação',
-      note || 'Decisão da moderação registrada.',
+      note || 'Decisão da moderação registrada no Log de Auditoria.',
       status === 'APPROVED' ? 'success' : 'warning'
+    );
+  };
+
+  const removeCommentFromTree = (list: Comment[], commentId: number): Comment[] =>
+    list
+      .filter((c) => c.id !== commentId)
+      .map((c) => ({
+        ...c,
+        replies: c.replies?.length ? removeCommentFromTree(c.replies, commentId) : [],
+      }));
+
+  const deleteByModerator = async (
+    targetType: 'WORK' | 'TOPIC' | 'COMMENT',
+    targetId: number,
+    targetTitle: string,
+    reason: string,
+    targetAuthorName?: string
+  ) => {
+    if (!permissions.can_moderate_queue) {
+      showToast(
+        'Acesso negado (RBAC)',
+        'Apenas Moderadores e Administradores podem excluir conteúdos.',
+        'error'
+      );
+      return;
+    }
+
+    const cleanReason = reason.trim();
+    if (cleanReason.length < 3) {
+      showToast(
+        'Justificativa obrigatória',
+        'Informe o motivo da exclusão (mínimo de 3 caracteres) para registro no Log de Auditoria.',
+        'warning'
+      );
+      return;
+    }
+
+    let serverLog: ModerationLog | undefined;
+    try {
+      if (apiConnected) {
+        const res = await apiService.deleteContentByModerator(
+          {
+            target_type: targetType,
+            target_id: targetId,
+            reason: cleanReason,
+          },
+          currentUser.role
+        );
+        serverLog = res.log;
+      }
+    } catch (err: any) {
+      showToast('Erro ao excluir item', err.message, 'error');
+      return;
+    }
+
+    if (targetType === 'WORK') {
+      setWorks((prev) => prev.filter((w) => w.id !== targetId));
+    } else if (targetType === 'TOPIC') {
+      setTopics((prev) => prev.filter((t) => t.id !== targetId));
+    } else if (targetType === 'COMMENT') {
+      setWorks((prev) =>
+        prev.map((w) => {
+          const beforeCount = JSON.stringify(w.comments || []).length;
+          const nextComments = removeCommentFromTree(w.comments || [], targetId);
+          const changed = JSON.stringify(nextComments).length !== beforeCount;
+          return {
+            ...w,
+            reviews_count: changed ? Math.max(0, w.reviews_count - 1) : w.reviews_count,
+            comments: nextComments,
+          };
+        })
+      );
+      setTopics((prev) =>
+        prev.map((t) => {
+          const beforeCount = JSON.stringify(t.comments || []).length;
+          const nextComments = removeCommentFromTree(t.comments || [], targetId);
+          const changed = JSON.stringify(nextComments).length !== beforeCount;
+          return {
+            ...t,
+            comments_count: changed ? Math.max(0, t.comments_count - 1) : t.comments_count,
+            comments: nextComments,
+          };
+        })
+      );
+    }
+
+    setModerationFlags((prev) =>
+      prev.map((f) =>
+        f.target_type === targetType && f.target_id === targetId && f.status === 'PENDING'
+          ? {
+              ...f,
+              status: 'RESOLVED_HIDDEN',
+              moderator_note: `Excluído pela Moderação: ${cleanReason}`,
+              resolved_at: new Date().toISOString(),
+            }
+          : f
+      )
+    );
+
+    const logEntry: ModerationLog = serverLog || {
+      id: Date.now(),
+      actor_id: currentUser.id,
+      actor_name: currentUser.name,
+      actor_role: currentUser.role,
+      action_type: `DELETE_${targetType}`,
+      target_type: targetType,
+      target_id: targetId,
+      target_title: targetTitle,
+      target_author_name: targetAuthorName || 'Membro da Comunidade',
+      reason: cleanReason,
+      ip_address: '127.0.0.1',
+      created_at: new Date().toISOString(),
+    };
+
+    setModerationLogs((prev) => [logEntry, ...prev]);
+
+    showToast(
+      'Conteúdo excluído pela Moderação',
+      `Exclusão registrada no Log de Auditoria por ${currentUser.name}.`,
+      'warning'
     );
   };
 
@@ -994,6 +1335,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (apiConnected) {
         const res = await apiService.updateSettings(newSettings, currentUser.role);
         setSettings(res.settings);
+        if (res.log) {
+          setModerationLogs((prev) => [res.log!, ...prev]);
+        }
         showToast(
           'Configurações Globais Atualizadas',
           `Tag Amazon ativa: ${res.settings.amazon_associate_tag}`,
@@ -1049,6 +1393,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         works,
         topics,
         moderationFlags,
+        moderationLogs,
+        hasUserUpvoted,
         settings,
         apiConnected,
         isLoading,
@@ -1068,6 +1414,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resolveFlag,
         moderateWorkStatus,
         moderateTopicStatus,
+        deleteByModerator,
         updateGlobalSettings,
         trackAffiliateClick,
       }}

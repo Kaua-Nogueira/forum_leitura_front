@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   BookOpen,
@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   CheckCircle2,
   XCircle,
+  Trash2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { AffiliateButton } from '../components/AffiliateButton';
@@ -29,10 +30,24 @@ import { CommentThread } from '../components/CommentThread';
 
 export const WorkDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { works, topics, permissions, moderateWorkStatus, setFlagModalTarget } = useApp();
+  const navigate = useNavigate();
+  const {
+    works,
+    topics,
+    isAuthenticated,
+    permissions,
+    moderateWorkStatus,
+    deleteByModerator,
+    setFlagModalTarget,
+    showToast,
+  } = useApp();
 
   const [fontSize, setFontSize] = useState<ReadingFontSize>('large');
   const [fontFamily, setFontFamily] = useState<ReadingFontFamily>('serif');
+  const [showDeleteBox, setShowDeleteBox] = useState(false);
+  const [deleteReason, setDeleteReason] = useState(
+    'Obra/resenha excluída pela Moderação após revisão.'
+  );
 
   const work = works.find((w) => w.slug === slug) || works[0];
   const relatedTopics = topics.filter(
@@ -345,22 +360,83 @@ export const WorkDetailPage: React.FC = () => {
                 </span>
               </Link>
 
-              <button
-                onClick={() =>
-                  setFlagModalTarget({
-                    target_type: 'WORK',
-                    target_id: work.id,
-                    target_title: work.title,
-                    target_excerpt: work.synopsis.slice(0, 140),
-                    target_author_name: work.submitted_by?.name || 'Curadoria',
-                  })
-                }
-                className="inline-flex items-center gap-1 hover:text-burgundy dark:hover:text-red-400"
-              >
-                <Flag className="w-3.5 h-3.5" />
-                <span>Sinalizar texto ou link à moderação</span>
-              </button>
+              <div className="flex items-center gap-4">
+                {permissions.can_moderate_queue && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteBox((prev) => !prev)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 font-semibold"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Excluir Obra (Moderação)</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      showToast(
+                        'Faça login para sinalizar',
+                        'Entre na sua conta para sinalizar conteúdos à moderação.',
+                        'warning'
+                      );
+                      return;
+                    }
+                    setFlagModalTarget({
+                      target_type: 'WORK',
+                      target_id: work.id,
+                      target_title: work.title,
+                      target_excerpt: work.synopsis.slice(0, 140),
+                      target_author_name: work.submitted_by?.name || 'Curadoria',
+                    });
+                  }}
+                  className="inline-flex items-center gap-1 hover:text-burgundy dark:hover:text-red-400"
+                >
+                  <Flag className="w-3.5 h-3.5" />
+                  <span>Sinalizar texto ou link à moderação</span>
+                </button>
+              </div>
             </div>
+
+            {showDeleteBox && permissions.can_moderate_queue && (
+              <div className="p-4 rounded-lg bg-red-950/10 dark:bg-red-950/30 border border-red-600/40 space-y-3">
+                <p className="text-xs font-bold text-red-800 dark:text-red-300">
+                  Exclusão pela Moderação — Informe o motivo para registro obrigatório no Log de Auditoria:
+                </p>
+                <input
+                  type="text"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-bg text-sm text-ink dark:text-slateDark-text"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteBox(false)}
+                    className="px-3 py-1.5 text-xs font-semibold text-ink-muted"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await deleteByModerator(
+                        'WORK',
+                        work.id,
+                        work.title,
+                        deleteReason,
+                        work.submitted_by?.name || work.creator
+                      );
+                      navigate('/');
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirmar Exclusão e Registrar Log</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             <AffiliateButton work={work} variant="full" />
           </div>

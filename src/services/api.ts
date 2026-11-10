@@ -4,6 +4,8 @@ import {
   Comment,
   Category,
   ModerationFlag,
+  ModerationLog,
+  UpvoteRecord,
   PlatformSettings,
   User,
   UserRole,
@@ -123,6 +125,8 @@ export interface BootstrapResponse {
   works: Work[];
   topics: Topic[];
   moderation_flags: ModerationFlag[];
+  moderation_logs?: ModerationLog[];
+  upvotes?: UpvoteRecord[];
   settings: PlatformSettings;
   users?: User[];
 }
@@ -191,8 +195,8 @@ export const apiService = {
       title_badge?: string;
     },
     currentRole: UserRole
-  ): Promise<{ user: User; message: string }> {
-    return request<{ user: User; message: string }>(
+  ): Promise<{ user: User; log?: ModerationLog; message: string }> {
+    return request<{ user: User; log?: ModerationLog; message: string }>(
       `/users/${userId}/role`,
       {
         method: 'PATCH',
@@ -251,8 +255,8 @@ export const apiService = {
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
     moderationNote: string,
     role: UserRole
-  ): Promise<{ work: Work }> {
-    return request<{ work: Work }>(
+  ): Promise<{ work: Work; log?: ModerationLog }> {
+    return request<{ work: Work; log?: ModerationLog }>(
       `/moderation/works/${workId}/status`,
       {
         method: 'POST',
@@ -267,12 +271,36 @@ export const apiService = {
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
     moderationNote: string,
     role: UserRole
-  ): Promise<{ topic: Topic }> {
-    return request<{ topic: Topic }>(
+  ): Promise<{ topic: Topic; log?: ModerationLog }> {
+    return request<{ topic: Topic; log?: ModerationLog }>(
       `/moderation/topics/${topicId}/status`,
       {
         method: 'POST',
         body: JSON.stringify({ status, moderation_note: moderationNote }),
+      },
+      role
+    );
+  },
+
+  async deleteContentByModerator(
+    payload: {
+      target_type: 'WORK' | 'TOPIC' | 'COMMENT';
+      target_id: number;
+      reason: string;
+    },
+    role: UserRole
+  ): Promise<{
+    deleted: boolean;
+    target_type: 'WORK' | 'TOPIC' | 'COMMENT';
+    target_id: number;
+    log: ModerationLog;
+    message: string;
+  }> {
+    return request(
+      '/moderation/delete',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
       },
       role
     );
@@ -302,8 +330,8 @@ export const apiService = {
     targetType: 'TOPIC' | 'COMMENT',
     targetId: number,
     role: UserRole
-  ): Promise<{ upvotes_count: number }> {
-    return request<{ upvotes_count: number }>(
+  ): Promise<{ upvotes_count: number; already_upvoted?: boolean }> {
+    return request<{ upvotes_count: number; already_upvoted?: boolean }>(
       '/upvotes',
       {
         method: 'POST',
@@ -339,8 +367,8 @@ export const apiService = {
     action: 'APPROVE' | 'HIDE' | 'BAN_USER',
     moderatorNote: string,
     role: UserRole
-  ): Promise<{ flag: ModerationFlag }> {
-    return request<{ flag: ModerationFlag }>(
+  ): Promise<{ flag: ModerationFlag; log?: ModerationLog }> {
+    return request<{ flag: ModerationFlag; log?: ModerationLog }>(
       `/moderation/flags/${flagId}/resolve`,
       {
         method: 'POST',
@@ -353,8 +381,8 @@ export const apiService = {
   async updateSettings(
     settings: Partial<PlatformSettings>,
     role: UserRole
-  ): Promise<{ settings: PlatformSettings }> {
-    return request<{ settings: PlatformSettings }>(
+  ): Promise<{ settings: PlatformSettings; log?: ModerationLog }> {
+    return request<{ settings: PlatformSettings; log?: ModerationLog }>(
       '/moderation/settings',
       {
         method: 'PUT',

@@ -25,6 +25,7 @@ import {
   ShieldAlert,
   CheckCircle2,
   XCircle,
+  Trash2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { AffiliateButton } from '../components/AffiliateButton';
@@ -42,8 +43,10 @@ export const HomePage: React.FC = () => {
     permissions,
     moderateWorkStatus,
     moderateTopicStatus,
+    deleteByModerator,
     addComment,
     upvoteItem,
+    hasUserUpvoted,
     setFlagModalTarget,
     showToast,
   } = useApp();
@@ -51,6 +54,15 @@ export const HomePage: React.FC = () => {
   const [selectedMediaFilter, setSelectedMediaFilter] = useState<string>('ALL');
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [deletePromptTarget, setDeletePromptTarget] = useState<{
+    type: 'WORK' | 'TOPIC' | 'COMMENT';
+    id: number;
+    title: string;
+    authorName?: string;
+  } | null>(null);
+  const [deleteReasonText, setDeleteReasonText] = useState(
+    'Remoção pela Moderação por inadequação às diretrizes editoriais.'
+  );
 
   // Track which book essays are expanded inline on the feed
   const [expandedWorkIds, setExpandedWorkIds] = useState<Record<number, boolean>>({
@@ -653,6 +665,27 @@ export const HomePage: React.FC = () => {
                     </div>
 
                     <div className="md:col-span-5 flex flex-wrap items-center justify-end gap-2.5">
+                      {permissions.can_moderate_queue && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeletePromptTarget({
+                              type: 'WORK',
+                              id: work.id,
+                              title: work.title,
+                              authorName: work.submitted_by?.name || work.creator,
+                            });
+                            setDeleteReasonText(
+                              'Remoção pela Moderação por inadequação às diretrizes editoriais.'
+                            );
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 transition-colors"
+                          title="Excluir esta obra/resenha (registrado no Log de Auditoria)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Excluir (Mod)</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => toggleCommentsDrawer(work.id)}
@@ -752,14 +785,45 @@ export const HomePage: React.FC = () => {
                                   {c.author?.name || 'Leitor'}
                                 </span>
                               </Link>
-                              <button
-                                type="button"
-                                onClick={() => upvoteItem('COMMENT', c.id)}
-                                className="inline-flex items-center gap-1 text-ink-muted hover:text-burgundy dark:hover:text-gold"
-                              >
-                                <ThumbsUp className="w-3 h-3" />
-                                <span>{c.upvotes_count}</span>
-                              </button>
+                              <div className="flex items-center gap-3">
+                                {permissions.can_moderate_queue && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDeletePromptTarget({
+                                        type: 'COMMENT',
+                                        id: c.id,
+                                        title: `Comentário #${c.id}: ${c.body.slice(0, 70)}`,
+                                        authorName: c.author?.name || 'Leitor',
+                                      });
+                                      setDeleteReasonText(
+                                        'Comentário removido pela Moderação.'
+                                      );
+                                    }}
+                                    className="inline-flex items-center gap-1 text-red-700 dark:text-red-300 hover:underline font-semibold"
+                                    title="Excluir comentário (registrado no Log)"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                    <span>Excluir</span>
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => upvoteItem('COMMENT', c.id)}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded transition-colors ${
+                                    hasUserUpvoted('COMMENT', c.id)
+                                      ? 'bg-burgundy/15 text-burgundy dark:bg-gold/20 dark:text-gold font-bold'
+                                      : 'text-ink-muted hover:text-burgundy dark:hover:text-gold'
+                                  }`}
+                                >
+                                  <ThumbsUp
+                                    className={`w-3 h-3 ${
+                                      hasUserUpvoted('COMMENT', c.id) ? 'fill-current' : ''
+                                    }`}
+                                  />
+                                  <span>{c.upvotes_count}</span>
+                                </button>
+                              </div>
                             </div>
                             <RichTextRenderer
                               content={c.body}
@@ -828,12 +892,25 @@ export const HomePage: React.FC = () => {
                     {topic.excerpt}
                   </p>
 
-                  <div className="flex items-center gap-4 text-xs font-medium text-ink-secondary dark:text-slateDark-muted pt-1">
+                  <div className="flex items-center gap-3 text-xs font-medium text-ink-secondary dark:text-slateDark-muted pt-1">
                     <button
                       onClick={() => upvoteItem('TOPIC', topic.id)}
-                      className="inline-flex items-center gap-1 hover:text-burgundy dark:hover:text-gold"
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded transition-colors ${
+                        hasUserUpvoted('TOPIC', topic.id)
+                          ? 'bg-burgundy/15 text-burgundy dark:bg-gold/20 dark:text-gold font-bold'
+                          : 'hover:text-burgundy dark:hover:text-gold'
+                      }`}
+                      title={
+                        hasUserUpvoted('TOPIC', topic.id)
+                          ? 'Você já curtiu este ensaio'
+                          : 'Curtir ensaio'
+                      }
                     >
-                      <ThumbsUp className="w-3.5 h-3.5" />
+                      <ThumbsUp
+                        className={`w-3.5 h-3.5 ${
+                          hasUserUpvoted('TOPIC', topic.id) ? 'fill-current' : ''
+                        }`}
+                      />
                       <span>{topic.upvotes_count}</span>
                     </button>
                     <Link
@@ -843,16 +920,45 @@ export const HomePage: React.FC = () => {
                       <MessageCircle className="w-3.5 h-3.5" />
                       <span>{topic.comments_count} comentários</span>
                     </Link>
+                    {permissions.can_moderate_queue && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeletePromptTarget({
+                            type: 'TOPIC',
+                            id: topic.id,
+                            title: topic.title,
+                            authorName: topic.author?.name || 'Membro',
+                          });
+                          setDeleteReasonText(
+                            'Ensaio removido pela Moderação.'
+                          );
+                        }}
+                        className="inline-flex items-center gap-1 text-red-700 dark:text-red-300 hover:underline font-semibold"
+                        title="Excluir ensaio (registrado no Log de Auditoria)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Excluir</span>
+                      </button>
+                    )}
                     <button
-                      onClick={() =>
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          showToast(
+                            'Faça login para sinalizar',
+                            'Entre na sua conta para sinalizar itens à moderação.',
+                            'warning'
+                          );
+                          return;
+                        }
                         setFlagModalTarget({
                           target_type: 'TOPIC',
                           target_id: topic.id,
                           target_title: topic.title,
                           target_excerpt: topic.excerpt,
                           target_author_name: topic.author?.name || 'Membro',
-                        })
-                      }
+                        });
+                      }}
                       className="ml-auto hover:text-burgundy"
                     >
                       <Flag className="w-3.5 h-3.5" />
@@ -895,6 +1001,65 @@ export const HomePage: React.FC = () => {
           </div>
         </aside>
       </section>
+
+      {/* Modal de Exclusão Auditada da Moderação */}
+      {deletePromptTarget && permissions.can_moderate_queue && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-xl border-2 border-red-600/60 bg-parchment dark:bg-slateDark-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2.5 text-red-700 dark:text-red-400">
+              <Trash2 className="w-5 h-5 shrink-0" />
+              <h4 className="font-serif text-lg font-bold">
+                Confirmar Exclusão pela Moderação
+              </h4>
+            </div>
+            <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+              Você está prestes a excluir{' '}
+              <strong className="text-ink dark:text-white">
+                “{deletePromptTarget.title}”
+              </strong>
+              . Toda exclusão realizada pela moderação exige justificativa e fica
+              registrada permanentemente no Log de Auditoria.
+            </p>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-ink-secondary dark:text-slateDark-muted">
+                Motivo / Justificativa para o Log
+              </label>
+              <textarea
+                rows={3}
+                value={deleteReasonText}
+                onChange={(e) => setDeleteReasonText(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-sm text-ink dark:text-slateDark-text focus:outline-none focus:border-red-600"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletePromptTarget(null)}
+                className="px-4 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink-secondary hover:text-ink"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await deleteByModerator(
+                    deletePromptTarget.type,
+                    deletePromptTarget.id,
+                    deletePromptTarget.title,
+                    deleteReasonText,
+                    deletePromptTarget.authorName
+                  );
+                  setDeletePromptTarget(null);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Excluir e Registrar Log</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

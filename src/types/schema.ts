@@ -160,3 +160,24 @@ export interface PlatformSettings {
   require_moderation_for_new_works: boolean;
   editorial_edition_label: string;
 }
+
+export interface UpvoteRecord {
+  user_id: number;
+  target_type: 'WORK' | 'TOPIC' | 'COMMENT';
+  target_id: number;
+}
+
+export interface ModerationLog {
+  id: number;
+  actor_id: number;
+  actor_name: string;
+  actor_role: UserRole;
+  action_type: string;
+  target_type: 'WORK' | 'TOPIC' | 'COMMENT' | 'USER' | 'SETTINGS';
+  target_id?: number | null;
+  target_title: string;
+  target_author_name?: string | null;
+  reason?: string | null;
+  ip_address?: string | null;
+  created_at: string;
+}

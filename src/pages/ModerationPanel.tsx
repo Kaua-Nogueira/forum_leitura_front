@@ -15,9 +15,14 @@ import {
   Users,
   ShieldCheck,
   LogIn,
+  Trash2,
+  ClipboardList,
+  Clock,
+  BookOpen,
+  MessageSquare,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { FlagReason } from '../types/schema';
+import { FlagReason, Comment } from '../types/schema';
 import { buildAffiliateUrl } from '../services/api';
 
 export const ModerationPanel: React.FC = () => {
@@ -26,20 +31,32 @@ export const ModerationPanel: React.FC = () => {
     permissions,
     usersList,
     updateUserRoleRbac,
-    switchRole,
     moderationFlags,
+    moderationLogs,
     works,
     topics,
     settings,
     resolveFlag,
     moderateWorkStatus,
     moderateTopicStatus,
+    deleteByModerator,
     updateGlobalSettings,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'QUEUE' | 'RBAC_USERS'>('QUEUE');
+  const [activeTab, setActiveTab] = useState<
+    'QUEUE' | 'CONTENT_MANAGER' | 'AUDIT_LOGS' | 'RBAC_USERS'
+  >('QUEUE');
   const [filterStatus, setFilterStatus] = useState<'PENDING' | 'ALL'>('PENDING');
   const [notesByFlagId, setNotesByFlagId] = useState<Record<number, string>>({});
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'WORK' | 'TOPIC' | 'COMMENT';
+    id: number;
+    title: string;
+    authorName: string;
+  } | null>(null);
+  const [deleteReasonInput, setDeleteReasonInput] = useState(
+    'Conteúdo removido pela Moderação por descumprimento das diretrizes editoriais.'
+  );
 
   // Admin Affiliate Tag Configuration State
   const [tagInput, setTagInput] = useState(settings.amazon_associate_tag);
@@ -82,6 +99,63 @@ export const ModerationPanel: React.FC = () => {
 
   const pendingWorks = works.filter((w) => w.status === 'PENDING');
   const pendingTopics = topics.filter((t) => t.status === 'PENDING');
+
+  // Flatten all comments across works and topics for the Content Manager tab
+  const allCommentsFlat = React.useMemo(() => {
+    const list: Array<{
+      comment: Comment;
+      contextLabel: string;
+      contextLink: string;
+    }> = [];
+    const walk = (items: Comment[], label: string, link: string) => {
+      for (const c of items) {
+        if (c.status !== 'HIDDEN') {
+          list.push({ comment: c, contextLabel: label, contextLink: link });
+        }
+        if (c.replies?.length) {
+          walk(c.replies, label, link);
+        }
+      }
+    };
+    works.forEach((w) =>
+      walk(w.comments || [], `Obra: ${w.title}`, `/obras/${w.slug}`)
+    );
+    topics.forEach((t) =>
+      walk(t.comments || [], `Ensaio: ${t.title}`, `/topicos/${t.slug}`)
+    );
+    return list;
+  }, [works, topics]);
+
+  const formatActionBadge = (actionType: string) => {
+    if (actionType.startsWith('DELETE_')) {
+      return {
+        label: actionType.replace('DELETE_', 'EXCLUSÃO DE '),
+        color: 'bg-red-600/15 text-red-700 dark:text-red-300 border-red-600/30',
+      };
+    }
+    if (actionType.includes('APPROVE')) {
+      return {
+        label: 'APROVAÇÃO EDITORIAL',
+        color: 'bg-forest/15 text-forest dark:text-emerald-300 border-forest/30',
+      };
+    }
+    if (actionType.includes('REJECT') || actionType.includes('HIDE')) {
+      return {
+        label: 'REPROVAÇÃO / OCULTAÇÃO',
+        color: 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30',
+      };
+    }
+    if (actionType.includes('BAN')) {
+      return {
+        label: 'SUSPENSÃO DE CONTA',
+        color: 'bg-red-700 text-white border-red-800',
+      };
+    }
+    return {
+      label: actionType,
+      color: 'bg-navy/15 text-navy dark:text-gold border-navy/30',
+    };
+  };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,12 +222,12 @@ export const ModerationPanel: React.FC = () => {
           </p>
         </div>
 
-        {/* Tab Selector: Fila de Moderação vs Gestão de Usuários RBAC */}
+        {/* Tab Selector: Fila, Exclusão de Conteúdos, Logs de Auditoria, e Usuários RBAC */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setActiveTab('QUEUE')}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all ${
               activeTab === 'QUEUE'
                 ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg'
                 : 'bg-parchment-warm dark:bg-slateDark-card text-ink-secondary dark:text-slateDark-muted border-parchment-deep dark:border-slateDark-border'
@@ -161,22 +235,51 @@ export const ModerationPanel: React.FC = () => {
           >
             <Filter className="w-4 h-4" />
             <span>
-              Fila de Moderação (
+              Fila de Revisão (
               {moderationFlags.filter((f) => f.status === 'PENDING').length})
             </span>
           </button>
 
           <button
             type="button"
+            onClick={() => setActiveTab('CONTENT_MANAGER')}
+            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all ${
+              activeTab === 'CONTENT_MANAGER'
+                ? 'bg-red-700 text-white border-red-700'
+                : 'bg-parchment-warm dark:bg-slateDark-card text-ink-secondary dark:text-slateDark-muted border-parchment-deep dark:border-slateDark-border'
+            }`}
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>
+              Excluir Conteúdos (
+              {works.length + topics.length + allCommentsFlat.length})
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('AUDIT_LOGS')}
+            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all ${
+              activeTab === 'AUDIT_LOGS'
+                ? 'bg-forest text-parchment border-forest dark:bg-emerald-500 dark:text-slateDark-bg'
+                : 'bg-parchment-warm dark:bg-slateDark-card text-ink-secondary dark:text-slateDark-muted border-parchment-deep dark:border-slateDark-border'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4" />
+            <span>Logs de Auditoria ({moderationLogs.length})</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('RBAC_USERS')}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all ${
               activeTab === 'RBAC_USERS'
                 ? 'bg-navy text-parchment border-navy dark:bg-gold dark:text-slateDark-bg'
                 : 'bg-parchment-warm dark:bg-slateDark-card text-ink-secondary dark:text-slateDark-muted border-parchment-deep dark:border-slateDark-border'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>Usuários &amp; Papéis RBAC ({usersList.length})</span>
+            <span>Usuários RBAC ({usersList.length})</span>
           </button>
         </div>
       </div>
@@ -502,8 +605,245 @@ export const ModerationPanel: React.FC = () => {
                 </div>
               )}
             </>
+          ) : activeTab === 'CONTENT_MANAGER' ? (
+            /* TAB 2: GERENCIAR & EXCLUIR QUALQUER CONTEÚDO (OBRAS, ENSAIOS, COMENTÁRIOS) COM LOG */
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-serif text-2xl font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
+                  <Trash2 className="w-5 h-5 text-red-700 dark:text-red-400" />
+                  <span>Exclusão Auditada de Conteúdos</span>
+                </h2>
+                <p className="text-xs sm:text-sm text-ink-muted dark:text-slateDark-muted mt-1">
+                  A Moderação pode excluir qualquer obra, ensaio ou comentário da
+                  plataforma. Toda exclusão requer justificativa e gera um registro
+                  imutável na aba <strong>Logs de Auditoria</strong>.
+                </p>
+              </div>
+
+              {/* Obras & Resenhas */}
+              <div className="space-y-3">
+                <h3 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-burgundy dark:text-gold" />
+                  <span>Obras &amp; Resenhas ({works.length})</span>
+                </h3>
+                {works.map((w) => (
+                  <div
+                    key={`del-w-${w.id}`}
+                    className="p-4 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-card flex flex-wrap items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to={`/obras/${w.slug}`}
+                        className="font-serif font-bold text-base text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                      >
+                        {w.title} ({w.creator})
+                      </Link>
+                      <p className="text-xs text-ink-muted dark:text-slateDark-muted">
+                        Status: <strong>{w.status}</strong> • Enviado por{' '}
+                        {w.submitted_by?.name || 'Curadoria'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteTarget({
+                          type: 'WORK',
+                          id: w.id,
+                          title: w.title,
+                          authorName: w.submitted_by?.name || w.creator,
+                        });
+                        setDeleteReasonInput(
+                          'Obra/resenha excluída pela Moderação.'
+                        );
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Excluir Obra</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Ensaios & Tópicos */}
+              <div className="space-y-3 pt-2">
+                <h3 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-navy dark:text-gold" />
+                  <span>Ensaios &amp; Tópicos do Fórum ({topics.length})</span>
+                </h3>
+                {topics.map((t) => (
+                  <div
+                    key={`del-t-${t.id}`}
+                    className="p-4 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-card flex flex-wrap items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to={`/topicos/${t.slug}`}
+                        className="font-serif font-bold text-base text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                      >
+                        {t.title}
+                      </Link>
+                      <p className="text-xs text-ink-muted dark:text-slateDark-muted">
+                        Status: <strong>{t.status}</strong> • Autor:{' '}
+                        {t.author?.name || 'Membro'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteTarget({
+                          type: 'TOPIC',
+                          id: t.id,
+                          title: t.title,
+                          authorName: t.author?.name || 'Membro',
+                        });
+                        setDeleteReasonInput('Ensaio excluído pela Moderação.');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Excluir Ensaio</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Comentários */}
+              <div className="space-y-3 pt-2">
+                <h3 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-forest dark:text-gold" />
+                  <span>Comentários da Comunidade ({allCommentsFlat.length})</span>
+                </h3>
+                {allCommentsFlat.map(({ comment, contextLabel, contextLink }) => (
+                  <div
+                    key={`del-c-${comment.id}`}
+                    className="p-4 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-card flex flex-wrap items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <strong className="text-ink dark:text-slateDark-text">
+                          {comment.author?.name || 'Membro'}
+                        </strong>
+                        <span className="text-ink-muted">em</span>
+                        <Link
+                          to={contextLink}
+                          className="text-burgundy dark:text-gold font-semibold hover:underline"
+                        >
+                          {contextLabel}
+                        </Link>
+                      </div>
+                      <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted line-clamp-2 font-literary">
+                        “{comment.body}”
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteTarget({
+                          type: 'COMMENT',
+                          id: comment.id,
+                          title: `Comentário #${comment.id}: ${comment.body.slice(0, 70)}`,
+                          authorName: comment.author?.name || 'Membro',
+                        });
+                        setDeleteReasonInput(
+                          'Comentário removido pela Moderação.'
+                        );
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Excluir Comentário</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : activeTab === 'AUDIT_LOGS' ? (
+            /* TAB 3: LOGS DE AUDITORIA DA MODERAÇÃO */
+            <div className="space-y-5">
+              <div>
+                <h2 className="font-serif text-2xl font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-forest dark:text-emerald-400" />
+                  <span>Livro de Logs de Auditoria da Moderação ({moderationLogs.length})</span>
+                </h2>
+                <p className="text-xs sm:text-sm text-ink-muted dark:text-slateDark-muted mt-1">
+                  Registro transparente e cronológico de todas as exclusões, aprovações,
+                  reprovações e alterações administrativas realizadas pelos moderadores.
+                </p>
+              </div>
+
+              {moderationLogs.length === 0 ? (
+                <div className="p-8 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/50 dark:bg-slateDark-card text-center text-sm text-ink-muted">
+                  Nenhum registro de auditoria até o momento.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {moderationLogs.map((log) => {
+                    const badge = formatActionBadge(log.action_type);
+                    return (
+                      <div
+                        key={log.id}
+                        className="p-5 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-card space-y-2.5 shadow-editorial"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`px-2.5 py-0.5 rounded text-[11px] font-bold uppercase border ${badge.color}`}
+                            >
+                              {badge.label}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-ink text-parchment dark:bg-slateDark-elevated dark:text-gold text-[10px] font-mono font-bold">
+                              {log.target_type} {log.target_id ? `#${log.target_id}` : ''}
+                            </span>
+                          </div>
+                          <span className="inline-flex items-center gap-1 text-xs text-ink-muted dark:text-slateDark-muted">
+                            <Clock className="w-3.5 h-3.5" />
+                            {new Date(log.created_at).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h4 className="font-serif font-bold text-base sm:text-lg text-ink dark:text-slateDark-text">
+                            {log.target_title}
+                          </h4>
+                          {log.target_author_name && (
+                            <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
+                              Autor do conteúdo: <strong>{log.target_author_name}</strong>
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-parchment dark:bg-slateDark-elevated border border-parchment-deep/70 dark:border-slateDark-border text-xs sm:text-sm text-ink dark:text-slateDark-text">
+                          <strong className="text-burgundy dark:text-gold">
+                            Justificativa / Motivo registrado:
+                          </strong>{' '}
+                          {log.reason || 'Ação registrada pela Moderação.'}
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted dark:text-slateDark-muted pt-1">
+                          <span>
+                            Executado por:{' '}
+                            <strong className="text-ink dark:text-slateDark-text">
+                              {log.actor_name}
+                            </strong>{' '}
+                            <span className="px-1.5 py-0.5 rounded bg-burgundy/15 text-burgundy dark:bg-gold/20 dark:text-gold font-bold text-[10px]">
+                              {log.actor_role}
+                            </span>
+                          </span>
+                          {log.ip_address && (
+                            <span className="font-mono text-[11px]">
+                              IP: {log.ip_address}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           ) : (
-            /* TAB 2: GESTÃO DE USUÁRIOS & PAPÉIS RBAC */
+            /* TAB 4: GESTÃO DE USUÁRIOS & PAPÉIS RBAC */
             <div className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -739,6 +1079,66 @@ export const ModerationPanel: React.FC = () => {
           </div>
         </aside>
       </div>
+
+      {/* Modal de Confirmação de Exclusão com Registro no Log de Auditoria */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-xl border-2 border-red-600/70 bg-parchment dark:bg-slateDark-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2.5 text-red-700 dark:text-red-400">
+              <Trash2 className="w-5 h-5 shrink-0" />
+              <h3 className="font-serif text-lg font-bold">
+                Excluir Conteúdo e Registrar Log
+              </h3>
+            </div>
+            <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+              Item selecionado:{' '}
+              <strong className="text-ink dark:text-white">
+                “{deleteTarget.title}”
+              </strong>{' '}
+              (por {deleteTarget.authorName}). Esta ação removerá o item da plataforma e
+              gravará um registro permanente nos Logs de Auditoria.
+            </p>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-ink-secondary dark:text-slateDark-muted">
+                Justificativa Obrigatória para o Log
+              </label>
+              <textarea
+                rows={3}
+                value={deleteReasonInput}
+                onChange={(e) => setDeleteReasonInput(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-sm text-ink dark:text-slateDark-text focus:outline-none focus:border-red-600"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink-secondary hover:text-ink"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await deleteByModerator(
+                    deleteTarget.type,
+                    deleteTarget.id,
+                    deleteTarget.title,
+                    deleteReasonInput,
+                    deleteTarget.authorName
+                  );
+                  setDeleteTarget(null);
+                  setActiveTab('AUDIT_LOGS');
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Confirmar Exclusão e Ver Log</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -13,6 +13,8 @@ import {
   Italic,
   Eye,
   Edit3,
+  Trash2,
+  Lock,
 } from 'lucide-react';
 import { Comment } from '../types/schema';
 import { useApp } from '../context/AppContext';
@@ -34,8 +36,11 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   const {
     currentUser,
     isAuthenticated,
+    permissions,
     addComment,
     upvoteItem,
+    hasUserUpvoted,
+    deleteByModerator,
     setFlagModalTarget,
     showToast,
   } = useApp();
@@ -45,6 +50,8 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   const [previewComment, setPreviewComment] = useState<boolean>(false);
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyBody, setReplyBody] = useState('');
+  const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
+  const [deleteReason, setDeleteReason] = useState('Violação das diretrizes editoriais da comunidade.');
 
   const handleRootSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,45 +184,144 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
         />
 
         {/* Comment Footer Actions */}
-        <div className="mt-5 pt-3 border-t border-parchment-deep/60 dark:border-slateDark-border/60 flex items-center gap-5 text-xs text-ink-muted dark:text-slateDark-muted">
-          <button
-            type="button"
-            onClick={() => upvoteItem('COMMENT', comment.id)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded hover:bg-burgundy/10 dark:hover:bg-gold/15 hover:text-burgundy dark:hover:text-gold font-semibold transition-colors"
-          >
-            <ThumbsUp className="w-3.5 h-3.5" />
-            <span>Apreciar ({comment.upvotes_count})</span>
-          </button>
+        <div className="mt-5 pt-3 border-t border-parchment-deep/60 dark:border-slateDark-border/60 flex flex-wrap items-center gap-4 text-xs text-ink-muted dark:text-slateDark-muted">
+          {(() => {
+            const alreadyLiked = hasUserUpvoted('COMMENT', comment.id);
+            return (
+              <button
+                type="button"
+                onClick={() => upvoteItem('COMMENT', comment.id)}
+                title={
+                  !isAuthenticated
+                    ? 'Faça login na sua conta para curtir'
+                    : alreadyLiked
+                    ? 'Você já curtiu este comentário (1 curtida por usuário)'
+                    : 'Curtir comentário'
+                }
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded font-semibold transition-colors ${
+                  alreadyLiked
+                    ? 'bg-burgundy/15 text-burgundy dark:bg-gold/20 dark:text-gold border border-burgundy/30 dark:border-gold/40'
+                    : 'hover:bg-burgundy/10 dark:hover:bg-gold/15 hover:text-burgundy dark:hover:text-gold'
+                }`}
+              >
+                <ThumbsUp
+                  className={`w-3.5 h-3.5 ${alreadyLiked ? 'fill-current' : ''}`}
+                />
+                <span>
+                  {alreadyLiked ? 'Curtido' : 'Curtir'} ({comment.upvotes_count})
+                </span>
+              </button>
+            );
+          })()}
 
           <button
             type="button"
-            onClick={() =>
-              setReplyingToId(replyingToId === comment.id ? null : comment.id)
-            }
+            onClick={() => {
+              if (!isAuthenticated) {
+                showToast(
+                  'Conta necessária para comentar',
+                  'Faça login ou crie uma conta para responder a comentários.',
+                  'warning'
+                );
+                return;
+              }
+              setReplyingToId(replyingToId === comment.id ? null : comment.id);
+            }}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded hover:bg-parchment dark:hover:bg-slateDark-elevated hover:text-ink dark:hover:text-white font-semibold transition-colors"
           >
             <Reply className="w-3.5 h-3.5" />
             <span>Responder a {comment.author?.name?.split(' ')[0]}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() =>
-              setFlagModalTarget({
-                target_type: 'COMMENT',
-                target_id: comment.id,
-                target_title: `Comentário de ${comment.author?.name}`,
-                target_excerpt: comment.body.slice(0, 140),
-                target_author_name: comment.author?.name || 'Membro',
-              })
-            }
-            className="ml-auto inline-flex items-center gap-1 hover:text-burgundy dark:hover:text-red-400 transition-colors"
-            title="Sinalizar comentário para moderação"
-          >
-            <Flag className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sinalizar</span>
-          </button>
+          <div className="ml-auto flex items-center gap-3">
+            {permissions.can_moderate_queue && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDeletingCommentId(
+                    deletingCommentId === comment.id ? null : comment.id
+                  );
+                  setDeleteReason('Violação das diretrizes editoriais da comunidade.');
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 font-semibold transition-colors"
+                title="Excluir comentário (ação auditada no Log da Moderação)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Excluir (Mod)</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!isAuthenticated) {
+                  showToast(
+                    'Faça login para sinalizar',
+                    'Entre em sua conta para reportar itens à moderação.',
+                    'warning'
+                  );
+                  return;
+                }
+                setFlagModalTarget({
+                  target_type: 'COMMENT',
+                  target_id: comment.id,
+                  target_title: `Comentário de ${comment.author?.name}`,
+                  target_excerpt: comment.body.slice(0, 140),
+                  target_author_name: comment.author?.name || 'Membro',
+                });
+              }}
+              className="inline-flex items-center gap-1 hover:text-burgundy dark:hover:text-red-400 transition-colors"
+              title="Sinalizar comentário para moderação"
+            >
+              <Flag className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sinalizar</span>
+            </button>
+          </div>
         </div>
+
+        {/* Moderator Deletion Box with Mandatory Log Reason */}
+        {permissions.can_moderate_queue && deletingCommentId === comment.id && (
+          <div className="mt-4 p-4 rounded-lg bg-red-950/10 dark:bg-red-950/30 border border-red-600/40 space-y-3">
+            <div className="flex items-center justify-between text-xs font-bold text-red-800 dark:text-red-300">
+              <span>
+                Exclusão pela Moderação (Registro Obrigatório no Log de Auditoria)
+              </span>
+              <button
+                type="button"
+                onClick={() => setDeletingCommentId(null)}
+                className="underline"
+              >
+                Cancelar
+              </button>
+            </div>
+            <input
+              type="text"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Informe o motivo da exclusão para o log de auditoria..."
+              className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-bg text-xs sm:text-sm text-ink dark:text-slateDark-text focus:outline-none"
+            />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={async () => {
+                  await deleteByModerator(
+                    'COMMENT',
+                    comment.id,
+                    `Comentário #${comment.id}: ${comment.body.slice(0, 80)}`,
+                    deleteReason,
+                    comment.author?.name || 'Membro'
+                  );
+                  setDeletingCommentId(null);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Confirmar Exclusão e Registrar Log</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Spacious Inline Reply Box */}
         {replyingToId === comment.id && (
@@ -386,57 +492,70 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
         {/* Spacious Writing Area */}
         <div className="p-6">
-          {previewComment ? (
-            <div className="min-h-[140px] p-4 rounded-lg bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border">
-              {newBody.trim() ? (
-                <RichTextRenderer
-                  content={newBody}
-                  fontSize="normal"
-                  fontFamily="serif"
-                />
-              ) : (
-                <p className="text-sm italic text-ink-muted">
-                  Nada digitado ainda para pré-visualizar...
-                </p>
-              )}
+          {!isAuthenticated ? (
+            <div className="p-5 rounded-lg bg-parchment dark:bg-slateDark-elevated border border-burgundy/30 dark:border-gold/30 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Lock className="w-5 h-5 text-burgundy dark:text-gold shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-ink dark:text-slateDark-text">
+                    Para curtir e comentar é necessário ter uma conta
+                  </p>
+                  <p className="text-xs text-ink-muted dark:text-slateDark-muted mt-0.5">
+                    Entre na sua conta ou cadastre-se gratuitamente para publicar comentários e dar curtidas.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-xs sm:text-sm font-semibold shadow-sm"
+              >
+                <span>Entrar ou Criar Conta</span>
+              </Link>
             </div>
           ) : (
-            <textarea
-              rows={5}
-              value={newBody}
-              onChange={(e) => setNewBody(e.target.value)}
-              placeholder="Escreva seu comentário, reflexão ou destaque de leitura com tranquilidade... (Use '>' no início de uma linha se quiser destacar uma citação do livro)"
-              className="w-full px-4 py-3.5 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-lg font-literary leading-[1.85] focus:outline-none focus:border-burgundy dark:focus:border-gold resize-y"
-            />
-          )}
+            <>
+              {previewComment ? (
+                <div className="min-h-[140px] p-4 rounded-lg bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border">
+                  {newBody.trim() ? (
+                    <RichTextRenderer
+                      content={newBody}
+                      fontSize="normal"
+                      fontFamily="serif"
+                    />
+                  ) : (
+                    <p className="text-sm italic text-ink-muted">
+                      Nada digitado ainda para pré-visualizar...
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <textarea
+                  rows={5}
+                  value={newBody}
+                  onChange={(e) => setNewBody(e.target.value)}
+                  placeholder="Escreva seu comentário, reflexão ou destaque de leitura com tranquilidade... (Use '>' no início de uma linha se quiser destacar uma citação do livro)"
+                  className="w-full px-4 py-3.5 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-lg font-literary leading-[1.85] focus:outline-none focus:border-burgundy dark:focus:border-gold resize-y"
+                />
+              )}
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <span className="text-xs text-ink-muted dark:text-slateDark-muted">
-              {isAuthenticated ? (
-                <>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <span className="text-xs text-ink-muted dark:text-slateDark-muted">
                   Comentando como{' '}
                   <strong className="text-ink dark:text-slateDark-text">
                     {currentUser.name}
                   </strong>
-                </>
-              ) : (
-                <a
-                  href="/login"
-                  className="text-burgundy dark:text-gold font-semibold hover:underline"
-                >
-                  Entre na sua conta para publicar seu comentário →
-                </a>
-              )}
-            </span>
+                </span>
 
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-xs sm:text-sm font-semibold tracking-wide transition-colors shadow-sm"
-            >
-              <Send className="w-4 h-4" />
-              <span>Publicar Comentário</span>
-            </button>
-          </div>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-xs sm:text-sm font-semibold tracking-wide transition-colors shadow-sm"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Publicar Comentário</span>
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </form>
 
