@@ -51,7 +51,7 @@ export const Navbar: React.FC = () => {
                   VERITAS <span className="font-light text-burgundy dark:text-gold">&amp;</span> LITTERAE
                 </h1>
               </div>
-              <p className="text-xs text-ink-muted dark:text-slateDark-muted tracking-wide">
+              <p className="text-xs sm:text-sm font-medium text-ink-secondary dark:text-slateDark-muted tracking-wide">
                 Ensaios sobre Grandes Livros, Teologia, Educação Clássica &amp; Artes
               </p>
             </div>
@@ -59,13 +59,13 @@ export const Navbar: React.FC = () => {
 
           {/* Navigation & Actions */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <nav className="flex items-center gap-1 mr-1">
+            <nav className="flex items-center gap-1.5 mr-1">
               <Link
                 to="/"
-                className={`px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                className={`px-3.5 py-2 rounded-md text-sm font-semibold transition-colors ${
                   location.pathname === '/'
-                    ? 'bg-parchment-deep/70 dark:bg-slateDark-elevated text-ink dark:text-white font-semibold'
-                    : 'text-ink-secondary dark:text-slateDark-muted hover:bg-parchment-warm dark:hover:bg-slateDark-card'
+                    ? 'bg-parchment-deep dark:bg-slateDark-elevated text-ink dark:text-white'
+                    : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
                 }`}
               >
                 Leituras &amp; Ensaios
@@ -74,16 +74,16 @@ export const Navbar: React.FC = () => {
               {isAuthenticated && permissions.can_moderate_queue && (
                 <Link
                   to="/moderacao"
-                  className={`relative px-3 py-2 rounded-md text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors ${
+                  className={`relative px-3.5 py-2 rounded-md text-sm font-semibold flex items-center gap-1.5 transition-colors ${
                     location.pathname === '/moderacao'
-                      ? 'bg-burgundy/10 dark:bg-gold/15 text-burgundy dark:text-gold font-semibold border border-burgundy/20 dark:border-gold/30'
-                      : 'text-ink-secondary dark:text-slateDark-muted hover:bg-parchment-warm dark:hover:bg-slateDark-card'
+                      ? 'bg-burgundy/15 dark:bg-gold/20 text-burgundy dark:text-gold border border-burgundy/30 dark:border-gold/40'
+                      : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
                   }`}
                 >
                   <ShieldAlert className="w-4 h-4 text-burgundy dark:text-gold" />
                   <span>Moderação</span>
                   {pendingFlagsCount > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg">
+                    <span className="px-1.5 py-0.5 rounded-full text-xs font-bold bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg">
                       {pendingFlagsCount}
                     </span>
                   )}
@@ -93,8 +93,8 @@ export const Navbar: React.FC = () => {
 
             {/* Primary Button: Write about a Book */}
             <Link
-              to={isAuthenticated ? '/escrever' : '/login'}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-xs sm:text-sm font-semibold bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg transition-all shadow-sm"
+              to="/escrever"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg transition-all shadow-sm"
             >
               <Feather className="w-4 h-4" />
               <span>Escrever sobre um Livro</span>
@@ -102,12 +102,12 @@ export const Navbar: React.FC = () => {
 
             {/* User Session / Login */}
             {isAuthenticated ? (
-              <div className="flex items-center gap-2 pl-2 border-l border-parchment-deep dark:border-slateDark-border">
+              <div className="flex items-center gap-2.5 pl-2.5 border-l border-parchment-deep dark:border-slateDark-border">
                 <div className="hidden sm:flex flex-col text-right">
-                  <span className="text-xs font-semibold text-ink dark:text-slateDark-text leading-tight">
+                  <span className="text-sm font-bold text-ink dark:text-slateDark-text leading-tight">
                     {currentUser.name}
                   </span>
-                  <span className="text-[10px] text-ink-muted dark:text-slateDark-muted">
+                  <span className="text-xs font-medium text-ink-secondary dark:text-slateDark-muted">
                     {currentUser.title_badge || 'Membro'}
                   </span>
                 </div>
@@ -115,16 +115,16 @@ export const Navbar: React.FC = () => {
                   type="button"
                   onClick={handleLogout}
                   title="Encerrar sessão"
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card text-xs font-medium text-ink-secondary dark:text-slateDark-muted hover:text-burgundy dark:hover:text-red-400 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card text-xs sm:text-sm font-semibold text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-red-400 transition-colors"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
+                  <LogOut className="w-4 h-4" />
                   <span>Sair</span>
                 </button>
               </div>
             ) : (
               <Link
                 to="/login"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card text-xs sm:text-sm font-semibold text-ink dark:text-slateDark-text hover:border-burgundy transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card text-sm font-semibold text-ink dark:text-slateDark-text hover:border-burgundy transition-colors"
               >
                 <LogIn className="w-4 h-4 text-burgundy dark:text-gold" />
                 <span>Entrar</span>

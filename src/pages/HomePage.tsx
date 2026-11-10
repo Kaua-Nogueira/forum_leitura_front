@@ -73,7 +73,14 @@ export const HomePage: React.FC = () => {
   const handleQuickCommentSubmit = async (e: React.FormEvent, workId: number) => {
     e.preventDefault();
     const text = quickCommentByWorkId[workId]?.trim();
-    if (!text) return;
+    if (!text) {
+      showToast(
+        'Comentário vazio',
+        'Escreva seu comentário antes de clicar em publicar.',
+        'warning'
+      );
+      return;
+    }
     if (!isAuthenticated) {
       showToast(
         'Faça login para comentar',
@@ -243,7 +250,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* 2. FILTRO RÁPIDO PELAS 4 CÁTEDRAS TEMÁTICAS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {categories.map((cat) => {
           const Icon = getCategoryIcon(cat.icon_name);
           const isSelected = selectedCategorySlug === cat.slug;
@@ -255,20 +262,20 @@ export const HomePage: React.FC = () => {
               }
               className={`text-left p-4 rounded-lg border transition-all duration-200 ${
                 isSelected
-                  ? 'border-burgundy dark:border-gold bg-burgundy/5 dark:bg-gold/10 shadow-editorial-hover ring-1 ring-burgundy/30'
-                  : 'border-parchment-deep dark:border-slateDark-border bg-parchment-warm/60 dark:bg-slateDark-card hover:border-burgundy/40'
+                  ? 'border-burgundy dark:border-gold bg-burgundy/10 dark:bg-gold/15 shadow-editorial-hover ring-1 ring-burgundy/40'
+                  : 'border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card hover:border-burgundy/50'
               }`}
             >
               <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="inline-flex items-center gap-1.5 font-serif font-bold text-base text-ink dark:text-slateDark-text">
+                <span className="inline-flex items-center gap-1.5 font-serif font-bold text-lg text-ink dark:text-slateDark-text">
                   <Icon className="w-4 h-4 text-burgundy dark:text-gold" />
                   {cat.name}
                 </span>
-                <span className="font-literary italic text-xs text-ink-muted dark:text-gold-light">
+                <span className="font-literary italic text-sm font-medium text-burgundy dark:text-gold-light">
                   {cat.latin_motto}
                 </span>
               </div>
-              <p className="text-xs text-ink-muted dark:text-slateDark-muted line-clamp-2 leading-relaxed">
+              <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted line-clamp-2 leading-relaxed">
                 {cat.description}
               </p>
             </button>
@@ -282,7 +289,7 @@ export const HomePage: React.FC = () => {
         <div className="lg:col-span-8 space-y-8">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-parchment-deep dark:border-slateDark-border pb-4">
             <div>
-              <span className="text-[11px] uppercase tracking-widest font-semibold text-burgundy dark:text-gold block">
+              <span className="text-xs uppercase tracking-widest font-bold text-burgundy dark:text-gold block">
                 Caderno de Leituras &amp; Ensaios Críticos
               </span>
               <h3 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
@@ -291,9 +298,9 @@ export const HomePage: React.FC = () => {
             </div>
             <Link
               to="/escrever"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-xs font-semibold hover:opacity-95 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-sm font-semibold hover:opacity-95 shadow-sm"
             >
-              <Feather className="w-3.5 h-3.5" />
+              <Feather className="w-4 h-4" />
               <span>+ Escrever Novo Texto</span>
             </Link>
           </div>
@@ -332,16 +339,16 @@ export const HomePage: React.FC = () => {
                     {/* Metadados do Livro & Título do Ensaio */}
                     <div className="flex-1 space-y-3">
                       <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="px-2.5 py-0.5 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-semibold uppercase tracking-wider text-[11px]">
+                        <span className="px-2.5 py-1 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold uppercase tracking-wider text-xs">
                           {mediaLabelMap[work.media_type]}
                         </span>
                         {work.category && (
-                          <span className="px-2.5 py-0.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border font-medium text-ink-secondary dark:text-slateDark-text text-[11px]">
+                          <span className="px-2.5 py-1 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border font-semibold text-ink dark:text-slateDark-text text-xs">
                             {work.category.name}
                           </span>
                         )}
-                        <span className="inline-flex items-center gap-1 text-ink-muted dark:text-slateDark-muted ml-auto">
-                          <Clock className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
+                        <span className="inline-flex items-center gap-1.5 text-ink-secondary dark:text-slateDark-muted font-medium ml-auto">
+                          <Clock className="w-4 h-4 text-burgundy dark:text-gold" />
                           {metrics.words} palavras • ~{metrics.minutes} min de leitura
                         </span>
                       </div>
@@ -352,21 +359,21 @@ export const HomePage: React.FC = () => {
                             {work.title}
                           </h4>
                         </Link>
-                        <p className="text-xs sm:text-sm font-semibold text-burgundy dark:text-gold mt-1">
+                        <p className="text-sm font-semibold text-burgundy dark:text-gold mt-1">
                           Obra de {work.creator} ({work.release_year}) •{' '}
-                          <span className="font-normal text-ink-muted dark:text-slateDark-muted">
+                          <span className="font-medium text-ink-secondary dark:text-slateDark-muted">
                             {work.publisher_or_studio}
                           </span>
                         </p>
                       </div>
 
                       {work.subtitle && (
-                        <p className="font-literary italic text-base sm:text-lg text-ink-secondary dark:text-slateDark-muted leading-snug">
+                        <p className="font-literary italic text-lg sm:text-xl text-ink dark:text-slateDark-text leading-snug">
                           “{work.subtitle}”
                         </p>
                       )}
 
-                      <div className="pt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted dark:text-slateDark-muted">
+                      <div className="pt-1 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
                         <span>
                           Resenha por{' '}
                           <strong className="text-ink dark:text-slateDark-text">
@@ -374,7 +381,7 @@ export const HomePage: React.FC = () => {
                           </strong>
                         </span>
                         <span className="inline-flex items-center gap-1 text-gold font-bold">
-                          <Star className="w-3.5 h-3.5 fill-gold text-gold" />
+                          <Star className="w-4 h-4 fill-gold text-gold" />
                           {work.editorial_rating.toFixed(1)}
                         </span>
                       </div>
@@ -494,11 +501,11 @@ export const HomePage: React.FC = () => {
                     {/* Caixa Rápida e Espaçosa para Comentar */}
                     <form
                       onSubmit={(e) => handleQuickCommentSubmit(e, work.id)}
+                      noValidate
                       className="space-y-3"
                     >
                       <textarea
                         rows={3}
-                        required
                         value={quickCommentByWorkId[work.id] || ''}
                         onChange={(e) =>
                           setQuickCommentByWorkId((prev) => ({
@@ -507,7 +514,7 @@ export const HomePage: React.FC = () => {
                           }))
                         }
                         placeholder={`Escreva seu comentário sobre "${work.title}"... (Use '>' para citar um trecho)`}
-                        className="w-full px-4 py-3 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm sm:text-base font-literary leading-relaxed focus:outline-none focus:border-burgundy"
+                        className="w-full px-4 py-3 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-base font-literary leading-relaxed focus:outline-none focus:border-burgundy"
                       />
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-ink-muted dark:text-slateDark-muted">
@@ -574,64 +581,64 @@ export const HomePage: React.FC = () => {
         {/* Coluna Lateral: Ensaios Temáticos da Comunidade & Carta de Princípios (4 colunas) */}
         <aside className="lg:col-span-4 space-y-6 sticky top-24">
           {/* Ensaios e Diálogos dos Membros */}
-          <div className="p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/80 dark:bg-slateDark-card space-y-4 shadow-editorial">
+          <div className="p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card space-y-4 shadow-editorial">
             <div className="flex items-center justify-between border-b border-parchment-deep dark:border-slateDark-border pb-3">
               <div>
-                <span className="text-[10px] uppercase tracking-widest font-bold text-navy dark:text-gold block">
+                <span className="text-xs uppercase tracking-widest font-bold text-navy dark:text-gold block">
                   Fórum &amp; Colóquios
                 </span>
-                <h4 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text">
+                <h4 className="font-serif text-xl font-bold text-ink dark:text-slateDark-text">
                   Debates &amp; Ensaios Abertos
                 </h4>
               </div>
               <Link
                 to="/escrever"
-                className="text-xs font-semibold text-burgundy dark:text-gold hover:underline"
+                className="text-xs sm:text-sm font-semibold text-burgundy dark:text-gold hover:underline"
               >
                 + Novo
               </Link>
             </div>
 
-            <div className="divide-y divide-parchment-deep/70 dark:divide-slateDark-border">
+            <div className="divide-y divide-parchment-deep dark:divide-slateDark-border">
               {filteredTopics.map((topic) => (
-                <div key={topic.id} className="py-3.5 first:pt-1 last:pb-1 space-y-2">
-                  <div className="flex items-center gap-1.5 text-[11px]">
+                <div key={topic.id} className="py-4 first:pt-1 last:pb-1 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs">
                     {topic.is_pinned && (
-                      <Pin className="w-3 h-3 text-burgundy dark:text-gold shrink-0" />
+                      <Pin className="w-3.5 h-3.5 text-burgundy dark:text-gold shrink-0" />
                     )}
-                    <span className="font-semibold text-burgundy dark:text-gold">
+                    <span className="font-bold text-burgundy dark:text-gold">
                       {topic.category?.name}
                     </span>
                     <span className="text-ink-muted">•</span>
-                    <span className="text-ink-muted dark:text-slateDark-muted">
+                    <span className="font-medium text-ink-secondary dark:text-slateDark-muted">
                       {topic.author?.name}
                     </span>
                   </div>
 
                   <Link
                     to={`/topicos/${topic.slug}`}
-                    className="block font-serif font-bold text-base text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold leading-snug"
+                    className="block font-serif font-bold text-lg text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold leading-snug"
                   >
                     {topic.title}
                   </Link>
 
-                  <p className="text-xs text-ink-muted dark:text-slateDark-muted line-clamp-2 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted line-clamp-2 leading-relaxed">
                     {topic.excerpt}
                   </p>
 
-                  <div className="flex items-center gap-4 text-[11px] text-ink-muted pt-1">
+                  <div className="flex items-center gap-4 text-xs font-medium text-ink-secondary dark:text-slateDark-muted pt-1">
                     <button
                       onClick={() => upvoteItem('TOPIC', topic.id)}
                       className="inline-flex items-center gap-1 hover:text-burgundy dark:hover:text-gold"
                     >
-                      <ThumbsUp className="w-3 h-3" />
+                      <ThumbsUp className="w-3.5 h-3.5" />
                       <span>{topic.upvotes_count}</span>
                     </button>
                     <Link
                       to={`/topicos/${topic.slug}`}
                       className="inline-flex items-center gap-1 hover:text-ink dark:hover:text-white"
                     >
-                      <MessageCircle className="w-3 h-3" />
+                      <MessageCircle className="w-3.5 h-3.5" />
                       <span>{topic.comments_count} comentários</span>
                     </Link>
                     <button
@@ -646,7 +653,7 @@ export const HomePage: React.FC = () => {
                       }
                       className="ml-auto hover:text-burgundy"
                     >
-                      <Flag className="w-3 h-3" />
+                      <Flag className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>

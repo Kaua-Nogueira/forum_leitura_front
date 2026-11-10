@@ -38,7 +38,7 @@ interface ToastMessage {
   id: number;
   title: string;
   description?: string;
-  variant: 'success' | 'info' | 'warning';
+  variant: 'success' | 'info' | 'warning' | 'error';
 }
 
 interface AppContextType {
@@ -77,7 +77,7 @@ interface AppContextType {
   showToast: (
     title: string,
     description?: string,
-    variant?: 'success' | 'info' | 'warning'
+    variant?: 'success' | 'info' | 'warning' | 'error'
   ) => void;
   // Modals
   isNewWorkModalOpen: boolean;
@@ -185,13 +185,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     (
       title: string,
       description?: string,
-      variant: 'success' | 'info' | 'warning' = 'success'
+      variant: 'success' | 'info' | 'warning' | 'error' = 'success'
     ) => {
       const id = Date.now();
       setToast({ id, title, description, variant });
       setTimeout(() => {
         setToast((prev) => (prev?.id === id ? null : prev));
-      }, 4500);
+      }, 6000);
     },
     []
   );
@@ -380,28 +380,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleDark = () => setIsDark((prev) => !prev);
 
   const createWork = async (data: Partial<Work>): Promise<Work> => {
-    const requiresModeration =
-      settings.require_moderation_for_new_works &&
-      !permissions.can_publish_directly;
+    const effectiveRole: UserRole =
+      currentUser.role === 'VISITOR' ? 'MEMBER' : currentUser.role;
 
     try {
       if (apiConnected) {
-        const res = await apiService.createWork(data, currentUser.role);
-        setWorks((prev) => [res.work, ...prev]);
+        const res = await apiService.createWork(data, effectiveRole);
+        const approvedWork: Work = { ...res.work, status: 'APPROVED' };
+        setWorks((prev) => [approvedWork, ...prev]);
         if (res.flag) {
           setModerationFlags((prev) => [res.flag!, ...prev]);
         }
         showToast(
-          requiresModeration
-            ? 'Obra enviada para a Fila de Curadoria'
-            : 'Obra publicada no Catálogo Editorial',
-          res.work.title,
+          'Publicação realizada com sucesso!',
+          `“${approvedWork.title}” já está disponível no catálogo e no feed.`,
           'success'
         );
-        return res.work;
+        return approvedWork;
       }
-    } catch {
-      // Fallback local state update
+    } catch (err: any) {
+      if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
+        showToast(
+          'Não foi possível publicar',
+          err.message,
+          'error'
+        );
+        throw err;
+      }
     }
 
     const cat =
@@ -448,7 +453,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       is_featured: Boolean(data.is_featured),
       editorial_rating: 4.9,
       reviews_count: 0,
-      status: requiresModeration ? 'PENDING' : 'APPROVED',
+      status: 'APPROVED',
       submitted_by_id: currentUser.id,
       submitted_by: currentUser,
       comments: [],
@@ -457,46 +462,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setWorks((prev) => [newWork, ...prev]);
 
-    if (requiresModeration) {
-      const autoFlag: ModerationFlag = {
-        id: Date.now() + 1,
-        target_type: 'WORK',
-        target_id: newWork.id,
-        target_title: `Submissão de Obra: ${newWork.title}`,
-        target_excerpt: newWork.synopsis.slice(0, 180) + '...',
-        target_author_id: currentUser.id,
-        target_author_name: currentUser.name,
-        reporter_id: currentUser.id,
-        reporter_name: 'Curadoria Editorial (Automático)',
-        reason: 'BROKEN_AFFILIATE_LINK',
-        details:
-          'Obra submetida por membro aguardando aprovação de curadoria e revisão de afiliado.',
-        status: 'PENDING',
-        created_at: new Date().toISOString(),
-      };
-      setModerationFlags((prev) => [autoFlag, ...prev]);
-    }
-
     showToast(
-      requiresModeration
-        ? 'Obra encaminhada à Fila de Moderação'
-        : 'Obra publicada no Catálogo Curado',
-      newWork.title,
+      'Publicação realizada com sucesso!',
+      `“${newWork.title}” já está disponível no catálogo e no feed.`,
       'success'
     );
     return newWork;
   };
 
   const createTopic = async (data: Partial<Topic>): Promise<Topic> => {
+    const effectiveRole: UserRole =
+      currentUser.role === 'VISITOR' ? 'MEMBER' : currentUser.role;
+
     try {
       if (apiConnected) {
-        const res = await apiService.createTopic(data, currentUser.role);
+        const res = await apiService.createTopic(data, effectiveRole);
         setTopics((prev) => [res.topic, ...prev]);
-        showToast('Ensaio publicado no Fórum', res.topic.title, 'success');
+        showToast(
+          'Ensaio publicado com sucesso!',
+          `“${res.topic.title}” já está aberto para leitura e comentários.`,
+          'success'
+        );
         return res.topic;
       }
-    } catch {
-      // Fallback local state update
+    } catch (err: any) {
+      if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
+        showToast(
+          'Não foi possível publicar o ensaio',
+          err.message,
+          'error'
+        );
+        throw err;
+      }
     }
 
     const cat =

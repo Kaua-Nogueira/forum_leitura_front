@@ -47,7 +47,14 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
   const handleRootSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newBody.trim()) return;
+    if (!newBody.trim()) {
+      showToast(
+        'Comentário vazio',
+        'Escreva seu comentário antes de clicar em publicar.',
+        'warning'
+      );
+      return;
+    }
     if (!isAuthenticated) {
       showToast(
         'Faça login para comentar',
@@ -69,7 +76,14 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
   const handleReplySubmit = async (e: React.FormEvent, parentId: number) => {
     e.preventDefault();
-    if (!replyBody.trim()) return;
+    if (!replyBody.trim()) {
+      showToast(
+        'Resposta vazia',
+        'Escreva sua resposta antes de publicar.',
+        'warning'
+      );
+      return;
+    }
     if (!isAuthenticated) {
       showToast(
         'Faça login para responder',
@@ -264,7 +278,8 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
       {/* Spacious, Pleasant Main Comment & Review Composer */}
       <form
         onSubmit={handleRootSubmit}
-        className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/90 dark:bg-slateDark-card shadow-editorial overflow-hidden"
+        noValidate
+        className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card shadow-editorial overflow-hidden"
       >
         {/* Composer Header */}
         <div className="px-6 py-4 bg-parchment dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border flex flex-wrap items-center justify-between gap-3">
@@ -381,11 +396,10 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           ) : (
             <textarea
               rows={5}
-              required
               value={newBody}
               onChange={(e) => setNewBody(e.target.value)}
               placeholder="Escreva seu comentário, reflexão ou destaque de leitura com tranquilidade... (Use '>' no início de uma linha se quiser destacar uma citação do livro)"
-              className="w-full px-4 py-3.5 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-base sm:text-[17px] font-literary leading-[1.8] focus:outline-none focus:border-burgundy dark:focus:border-gold resize-y"
+              className="w-full px-4 py-3.5 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-lg font-literary leading-[1.85] focus:outline-none focus:border-burgundy dark:focus:border-gold resize-y"
             />
           )}
 

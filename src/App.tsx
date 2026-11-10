@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import { BookOpen, CheckCircle2, Info, ShieldCheck } from 'lucide-react';
+import { BookOpen, CheckCircle2, Info, ShieldCheck, AlertCircle } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { GlobalModals } from './components/Modals';
@@ -15,17 +15,27 @@ const ToastBanner: React.FC = () => {
   const { toast } = useApp();
   if (!toast) return null;
 
+  const isError = toast.variant === 'error' || toast.variant === 'warning';
+
   return (
-    <div className="fixed bottom-5 right-5 z-50 max-w-sm rounded-lg border border-parchment-deep dark:border-slateDark-border bg-ink text-parchment dark:bg-slateDark-elevated dark:text-slateDark-text px-4 py-3 shadow-2xl flex items-start gap-3 animate-fade-in">
+    <div
+      className={`fixed bottom-6 right-6 z-50 max-w-md rounded-xl border-2 px-5 py-4 shadow-2xl flex items-start gap-3.5 animate-fade-in ${
+        isError
+          ? 'bg-red-950 text-white border-red-500'
+          : 'bg-ink text-parchment dark:bg-slateDark-elevated dark:text-slateDark-text border-parchment-deep dark:border-gold/50'
+      }`}
+    >
       {toast.variant === 'success' ? (
         <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+      ) : isError ? (
+        <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
       ) : (
-        <Info className="w-5 h-5 text-gold shrink-0 mt-0.5" />
+        <Info className="w-5 h-5 text-gold-light shrink-0 mt-0.5" />
       )}
-      <div className="text-xs space-y-0.5">
-        <p className="font-serif font-bold text-sm">{toast.title}</p>
+      <div className="space-y-1">
+        <p className="font-serif font-bold text-base leading-snug">{toast.title}</p>
         {toast.description && (
-          <p className="text-parchment/80 dark:text-slateDark-muted">
+          <p className="text-sm text-parchment/95 dark:text-slateDark-text leading-relaxed">
             {toast.description}
           </p>
         )}

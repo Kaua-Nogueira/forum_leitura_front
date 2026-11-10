@@ -51,9 +51,9 @@ export const RichTextRenderer: React.FC<RichTextRendererProps> = ({
   let firstParagraphRendered = false;
 
   const sizeClasses: Record<ReadingFontSize, string> = {
-    normal: 'text-[16px] leading-[1.85]',
-    large: 'text-[18px] sm:text-[19px] leading-[1.92]',
-    xlarge: 'text-[20px] sm:text-[21.5px] leading-[1.98]',
+    normal: 'text-[17.5px] sm:text-[18px] leading-[1.85]',
+    large: 'text-[19.5px] sm:text-[20.5px] leading-[1.9]',
+    xlarge: 'text-[21.5px] sm:text-[23px] leading-[1.95]',
   };
 
   const fontClasses: Record<ReadingFontFamily, string> = {
@@ -143,7 +143,7 @@ export const RichTextRenderer: React.FC<RichTextRendererProps> = ({
         return (
           <p
             key={index}
-            className={`text-ink-secondary dark:text-slateDark-text/95 ${sizeClasses[fontSize]} ${fontClasses[fontFamily]} ${
+            className={`text-ink dark:text-slateDark-text ${sizeClasses[fontSize]} ${fontClasses[fontFamily]} ${
               shouldUseDropcap ? 'editorial-dropcap' : ''
             }`}
           >

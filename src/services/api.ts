@@ -90,7 +90,16 @@ async function request<T>(
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.message || `Erro HTTP ${response.status}`);
+    if (errorBody?.errors && typeof errorBody.errors === 'object') {
+      const messages = Object.values(errorBody.errors)
+        .flat()
+        .filter(Boolean)
+        .join(' ');
+      if (messages) {
+        throw new Error(messages);
+      }
+    }
+    throw new Error(errorBody.message || `Não foi possível concluir a operação (Erro HTTP ${response.status}).`);
   }
 
   return response.json();

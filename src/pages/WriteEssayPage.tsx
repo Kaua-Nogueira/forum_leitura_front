@@ -19,6 +19,7 @@ import {
   FileText,
   Plus,
   Trash2,
+  AlertCircle,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { RichTextRenderer, getReadingMetrics } from '../components/RichTextRenderer';
@@ -62,7 +63,9 @@ export const WriteEssayPage: React.FC = () => {
   );
 
   // Fields when writing about a NEW Book/Work
-  const [bookAuthor, setBookAuthor] = useState<string>('');
+  const [bookAuthor, setBookAuthor] = useState<string>(
+    () => localStorage.getItem('veritas_draft_author') || ''
+  );
   const [mediaType, setMediaType] = useState<MediaType>('BOOK');
   const [releaseYear, setReleaseYear] = useState<number>(1950);
   const [publisher, setPublisher] = useState<string>('');
@@ -70,10 +73,8 @@ export const WriteEssayPage: React.FC = () => {
     'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=900&q=85'
   );
   const [affiliateUrl, setAffiliateUrl] = useState<string>('');
-  const [affiliateCta, setAffiliateCta] = useState<string>('Adquirir na Amazon');
-  const [affiliatePriceHint, setAffiliatePriceHint] = useState<string>(
-    'Edição Recomendada'
-  );
+  const [affiliateCta] = useState<string>('Adquirir na Amazon');
+  const [affiliatePriceHint] = useState<string>('Edição Recomendada');
   const [quotes, setQuotes] = useState<WorkQuote[]>([
     { quote_text: '', source_note: '' },
   ]);
@@ -86,14 +87,21 @@ export const WriteEssayPage: React.FC = () => {
     'Leitura Clássica, Resenha Crítica, Teologia'
   );
 
+  // Validation & Error feedback state
+  const [submitErrors, setSubmitErrors] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const authorInputRef = useRef<HTMLInputElement | null>(null);
 
   // Auto-save draft
   useEffect(() => {
     localStorage.setItem('veritas_draft_title', essayTitle);
     localStorage.setItem('veritas_draft_subtitle', essaySubtitle);
     localStorage.setItem('veritas_draft_body', essayBody);
-  }, [essayTitle, essaySubtitle, essayBody]);
+    localStorage.setItem('veritas_draft_author', bookAuthor);
+  }, [essayTitle, essaySubtitle, essayBody, bookAuthor]);
 
   const metrics = getReadingMetrics(essayBody);
 
@@ -173,73 +181,126 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!essayTitle.trim() || !essayBody.trim()) {
-      showToast(
-        'Preencha o título e o texto do ensaio',
-        'Seu texto precisa ter título e corpo antes da publicação.',
-        'warning'
+    setSubmitErrors([]);
+
+    const missing: string[] = [];
+
+    if (!essayTitle.trim()) {
+      missing.push(
+        postMode === 'NEW_BOOK_ESSAY'
+          ? 'Informe o Título do Livro ou da Obra.'
+          : 'Informe o Título do seu Ensaio.'
       );
+    }
+
+    if (postMode === 'NEW_BOOK_ESSAY' && !bookAuthor.trim()) {
+      missing.push('Informe o Autor / Criador do Livro ou Obra.');
+    }
+
+    if (!essayBody.trim()) {
+      missing.push('O corpo do texto está vazio. Escreva sua resenha ou ensaio antes de publicar.');
+    }
+
+    if (missing.length > 0) {
+      setSubmitErrors(missing);
+      showToast(
+        'Não foi possível publicar',
+        missing.join(' '),
+        'error'
+      );
+
+      if (!essayTitle.trim() && titleInputRef.current) {
+        titleInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        titleInputRef.current.focus();
+      } else if (postMode === 'NEW_BOOK_ESSAY' && !bookAuthor.trim() && authorInputRef.current) {
+        authorInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        authorInputRef.current.focus();
+      } else if (!essayBody.trim()) {
+        if (editorLayout === 'PREVIEW') {
+          setEditorLayout('SPLIT');
+        }
+        setTimeout(() => {
+          textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          textareaRef.current?.focus();
+        }, 50);
+      }
       return;
     }
 
-    if (currentUser.role === 'VISITOR') {
-      switchRole('MEMBER');
-    }
+    setIsSubmitting(true);
 
-    if (postMode === 'NEW_BOOK_ESSAY') {
-      const validQuotes = quotes.filter((q) => q.quote_text.trim().length > 0);
-      const createdWork = await createWork({
-        title: essayTitle,
-        subtitle:
-          essaySubtitle ||
-          `Ensaio crítico e resenha literária por ${currentUser.name}`,
-        creator: bookAuthor || 'Autor Clássico',
-        media_type: mediaType,
-        release_year: releaseYear,
-        category_id: categoryId,
-        cover_url: coverUrl,
-        synopsis: essayBody,
-        notable_quotes: validQuotes.length
-          ? validQuotes
-          : [
-              {
-                quote_text:
-                  'A leitura de todos os bons livros é como uma conversação com as mentes mais nobres dos séculos passados.',
-                source_note: essayTitle,
-              },
-            ],
-        affiliate_url:
-          affiliateUrl ||
-          `https://www.amazon.com.br/s?k=${encodeURIComponent(essayTitle)}`,
-        affiliate_cta_label: affiliateCta,
-        affiliate_price_hint: affiliatePriceHint,
-        publisher_or_studio: publisher || 'Edição Recomendada',
-        is_featured: true,
-      });
+    try {
+      if (currentUser.role === 'VISITOR') {
+        await switchRole('MEMBER');
+      }
 
-      localStorage.removeItem('veritas_draft_title');
-      localStorage.removeItem('veritas_draft_subtitle');
-      localStorage.removeItem('veritas_draft_body');
-      navigate(`/obras/${createdWork.slug}`);
-    } else {
-      const createdTopic = await createTopic({
-        title: essayTitle,
-        excerpt:
-          essaySubtitle ||
-          essayBody.replace(/>/g, '').replace(/#/g, '').slice(0, 180) + '...',
-        body: essayBody,
-        category_id: categoryId,
-        work_id: selectedWorkId ? Number(selectedWorkId) : null,
-        tags: tagsInput
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean),
-      });
+      if (postMode === 'NEW_BOOK_ESSAY') {
+        const validQuotes = quotes.filter((q) => q.quote_text.trim().length > 0);
+        const createdWork = await createWork({
+          title: essayTitle.trim(),
+          subtitle:
+            essaySubtitle.trim() ||
+            `Ensaio crítico e resenha literária por ${currentUser.name}`,
+          creator: bookAuthor.trim() || 'Autor Clássico',
+          media_type: mediaType,
+          release_year: releaseYear || 1950,
+          category_id: categoryId,
+          cover_url:
+            coverUrl.trim() ||
+            'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=900&q=85',
+          synopsis: essayBody.trim(),
+          notable_quotes: validQuotes.length
+            ? validQuotes
+            : [
+                {
+                  quote_text:
+                    'A leitura de todos os bons livros é como uma conversação com as mentes mais nobres dos séculos passados.',
+                  source_note: essayTitle.trim(),
+                },
+              ],
+          affiliate_url:
+            affiliateUrl.trim() ||
+            `https://www.amazon.com.br/s?k=${encodeURIComponent(essayTitle.trim())}`,
+          affiliate_cta_label: affiliateCta,
+          affiliate_price_hint: affiliatePriceHint,
+          publisher_or_studio: publisher.trim() || 'Edição Recomendada',
+          is_featured: true,
+        });
 
-      localStorage.removeItem('veritas_draft_title');
-      localStorage.removeItem('veritas_draft_subtitle');
-      localStorage.removeItem('veritas_draft_body');
-      navigate(`/topicos/${createdTopic.slug}`);
+        localStorage.removeItem('veritas_draft_title');
+        localStorage.removeItem('veritas_draft_subtitle');
+        localStorage.removeItem('veritas_draft_body');
+        localStorage.removeItem('veritas_draft_author');
+        navigate(`/obras/${createdWork.slug}`);
+      } else {
+        const createdTopic = await createTopic({
+          title: essayTitle.trim(),
+          excerpt:
+            essaySubtitle.trim() ||
+            essayBody.replace(/>/g, '').replace(/#/g, '').slice(0, 180) + '...',
+          body: essayBody.trim(),
+          category_id: categoryId,
+          work_id: selectedWorkId ? Number(selectedWorkId) : null,
+          tags: tagsInput
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean),
+        });
+
+        localStorage.removeItem('veritas_draft_title');
+        localStorage.removeItem('veritas_draft_subtitle');
+        localStorage.removeItem('veritas_draft_body');
+        localStorage.removeItem('veritas_draft_author');
+        navigate(`/topicos/${createdTopic.slug}`);
+      }
+    } catch (err: any) {
+      const errorMessage =
+        err?.message ||
+        'Ocorreu um erro inesperado ao publicar seu texto. Verifique sua conexão e tente novamente.';
+      setSubmitErrors([errorMessage]);
+      showToast('Erro ao publicar', errorMessage, 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -310,18 +371,21 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} noValidate className="space-y-8">
         {/* 1. Escolha do Tipo de Publicação e Dados do Livro */}
-        <div className="p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-card shadow-editorial space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-parchment-deep/80 dark:border-slateDark-border pb-4">
-            <div className="flex flex-wrap gap-2">
+        <div className="p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card shadow-editorial space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-parchment-deep dark:border-slateDark-border pb-4">
+            <div className="flex flex-wrap gap-2.5">
               <button
                 type="button"
-                onClick={() => setPostMode('NEW_BOOK_ESSAY')}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold border transition-all ${
+                onClick={() => {
+                  setPostMode('NEW_BOOK_ESSAY');
+                  setSubmitErrors([]);
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
                   postMode === 'NEW_BOOK_ESSAY'
                     ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg dark:border-gold shadow-sm'
-                    : 'bg-parchment dark:bg-slateDark-elevated text-ink-secondary dark:text-slateDark-muted border-parchment-deep dark:border-slateDark-border'
+                    : 'bg-parchment dark:bg-slateDark-elevated text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border'
                 }`}
               >
                 <BookOpen className="w-4 h-4" />
@@ -330,11 +394,14 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
 
               <button
                 type="button"
-                onClick={() => setPostMode('EXISTING_BOOK_ESSAY')}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold border transition-all ${
+                onClick={() => {
+                  setPostMode('EXISTING_BOOK_ESSAY');
+                  setSubmitErrors([]);
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
                   postMode === 'EXISTING_BOOK_ESSAY'
                     ? 'bg-navy text-parchment border-navy dark:bg-gold dark:text-slateDark-bg dark:border-gold shadow-sm'
-                    : 'bg-parchment dark:bg-slateDark-elevated text-ink-secondary dark:text-slateDark-muted border-parchment-deep dark:border-slateDark-border'
+                    : 'bg-parchment dark:bg-slateDark-elevated text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border'
                 }`}
               >
                 <FileText className="w-4 h-4" />
@@ -342,12 +409,12 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
               </button>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-ink-muted dark:text-slateDark-muted">
+            <div className="flex items-center gap-3 text-sm text-ink dark:text-slateDark-text font-medium">
               <span>Cátedra Temática:</span>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(Number(e.target.value))}
-                className="px-3 py-1.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-bg text-ink dark:text-slateDark-text font-semibold"
+                className="px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text font-semibold"
               >
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -363,27 +430,34 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-secondary dark:text-slateDark-muted mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1.5">
                     Autor / Criador do Livro ou Obra *
                   </label>
                   <input
+                    ref={authorInputRef}
                     type="text"
-                    required
                     value={bookAuthor}
-                    onChange={(e) => setBookAuthor(e.target.value)}
+                    onChange={(e) => {
+                      setBookAuthor(e.target.value);
+                      if (submitErrors.length) setSubmitErrors([]);
+                    }}
                     placeholder="Ex: Fiódor Dostoiévski, Santo Agostinho, C. S. Lewis..."
-                    className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm focus:outline-none focus:border-burgundy"
+                    className={`w-full px-3.5 py-2.5 rounded-md border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm focus:outline-none ${
+                      submitErrors.length > 0 && !bookAuthor.trim()
+                        ? 'border-red-600 ring-2 ring-red-500/20'
+                        : 'border-parchment-deep dark:border-slateDark-border focus:border-burgundy'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-secondary dark:text-slateDark-muted mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1.5">
                     Mídia
                   </label>
                   <select
                     value={mediaType}
                     onChange={(e) => setMediaType(e.target.value as MediaType)}
-                    className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
+                    className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
                   >
                     <option value="BOOK">Livro Clássico / Teologia</option>
                     <option value="ESSAY">Ensaio &amp; Educação</option>
@@ -394,56 +468,56 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-secondary dark:text-slateDark-muted mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1.5">
                     Ano da Obra
                   </label>
                   <input
                     type="number"
                     value={releaseYear}
                     onChange={(e) => setReleaseYear(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
+                    className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-secondary dark:text-slateDark-muted mb-1.5">
-                    Editora / Tradução Recomendada
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1.5">
+                    Editora / Tradução Recomendada (Opcional)
                   </label>
                   <input
                     type="text"
                     value={publisher}
                     onChange={(e) => setPublisher(e.target.value)}
                     placeholder="Ex: Editora 34 / Penguin / Ecclesiae"
-                    className="w-full px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs"
+                    className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-secondary dark:text-slateDark-muted mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1.5">
                     URL da Capa do Livro (Imagem)
                   </label>
                   <input
-                    type="url"
+                    type="text"
                     value={coverUrl}
                     onChange={(e) => setCoverUrl(e.target.value)}
                     placeholder="https://..."
-                    className="w-full px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs"
+                    className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-forest dark:text-emerald-300 mb-1.5 flex items-center gap-1">
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    <span>Link Amazon (Tag: {settings.amazon_associate_tag})</span>
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Link Amazon (Opcional • Tag: {settings.amazon_associate_tag})</span>
                   </label>
                   <input
-                    type="url"
+                    type="text"
                     value={affiliateUrl}
                     onChange={(e) => setAffiliateUrl(e.target.value)}
                     placeholder="https://www.amazon.com.br/dp/... (ou automático)"
-                    className="w-full px-3.5 py-2 rounded-md border border-forest/30 bg-parchment dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs"
+                    className="w-full px-3.5 py-2.5 rounded-md border border-forest/40 bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
                   />
                 </div>
               </div>
@@ -630,25 +704,32 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
           </div>
 
           {/* Title & Subtitle Inputs inside the Editorial Sheet */}
-          <div className="px-6 sm:px-12 pt-8 pb-4 border-b border-parchment-deep/50 dark:border-slateDark-border/60 space-y-3 max-w-5xl mx-auto">
+          <div className="px-6 sm:px-12 pt-8 pb-5 border-b border-parchment-deep dark:border-slateDark-border space-y-3.5 max-w-5xl mx-auto">
             <input
+              ref={titleInputRef}
               type="text"
-              required
               value={essayTitle}
-              onChange={(e) => setEssayTitle(e.target.value)}
+              onChange={(e) => {
+                setEssayTitle(e.target.value);
+                if (submitErrors.length) setSubmitErrors([]);
+              }}
               placeholder={
                 postMode === 'NEW_BOOK_ESSAY'
-                  ? 'Título do Livro (Ex: Os Irmãos Karamázov)'
-                  : 'Título do seu Ensaio sobre o Livro...'
+                  ? 'Título do Livro ou da Obra * (Ex: Os Irmãos Karamázov)'
+                  : 'Título do seu Ensaio sobre o Livro *...'
               }
-              className="w-full bg-transparent font-serif text-3xl sm:text-4xl font-bold text-ink dark:text-slateDark-text placeholder:text-ink-muted/40 focus:outline-none"
+              className={`w-full bg-transparent font-serif text-3xl sm:text-4xl font-bold text-ink dark:text-slateDark-text focus:outline-none rounded px-2 py-1 -mx-2 ${
+                submitErrors.length > 0 && !essayTitle.trim()
+                  ? 'border-2 border-red-600 bg-red-500/5'
+                  : ''
+              }`}
             />
             <input
               type="text"
               value={essaySubtitle}
               onChange={(e) => setEssaySubtitle(e.target.value)}
-              placeholder="Subtítulo da sua análise (Ex: O Grande Inquisidor, o problema do mal e a redenção pelo amor ativo em Dostoiévski)"
-              className="w-full bg-transparent font-literary italic text-lg sm:text-xl text-ink-secondary dark:text-slateDark-muted placeholder:text-ink-muted/40 focus:outline-none"
+              placeholder="Subtítulo da sua análise (Opcional — Ex: O problema do mal e a redenção pelo amor ativo em Dostoiévski)"
+              className="w-full bg-transparent font-literary italic text-xl sm:text-2xl text-ink-secondary dark:text-slateDark-muted focus:outline-none"
             />
           </div>
 
@@ -667,14 +748,20 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                   <textarea
                     ref={textareaRef}
                     rows={22}
-                    required
                     value={essayBody}
-                    onChange={(e) => setEssayBody(e.target.value)}
+                    onChange={(e) => {
+                      setEssayBody(e.target.value);
+                      if (submitErrors.length) setSubmitErrors([]);
+                    }}
                     placeholder={`Comece a escrever seu texto aqui com calma...\n\nDicas rápidas de formatação:\n• Deixe uma linha em branco entre os parágrafos.\n• Digite "## Título" para criar uma nova seção.\n• Digite "> texto" no início de uma linha para destacar uma citação longa do livro.\n• Digite "* * *" em uma linha isolada para criar um divisor clássico (✦ ✦ ✦).`}
-                    className={`w-full min-h-[520px] bg-transparent resize-y focus:outline-none text-ink dark:text-slateDark-text placeholder:text-ink-muted/45 leading-[1.9] ${
+                    className={`w-full min-h-[520px] bg-transparent resize-y focus:outline-none text-ink dark:text-slateDark-text leading-[1.9] rounded p-2 -m-2 ${
                       writerFont === 'serif'
-                        ? 'font-literary text-[19px]'
-                        : 'font-sans text-[17px]'
+                        ? 'font-literary text-[20px]'
+                        : 'font-sans text-[18px]'
+                    } ${
+                      submitErrors.length > 0 && !essayBody.trim()
+                        ? 'border-2 border-red-600 bg-red-500/5'
+                        : ''
                     }`}
                   />
                 </div>
@@ -683,14 +770,14 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
 
             {/* Live Preview Pane */}
             {editorLayout !== 'WRITE' && (
-              <div className="p-6 sm:p-10 lg:p-12 bg-parchment-warm/35 dark:bg-slateDark-bg/40">
+              <div className="p-6 sm:p-10 lg:p-12 bg-parchment-warm/50 dark:bg-slateDark-bg/50">
                 <div className="max-w-3xl mx-auto space-y-6">
-                  <div className="flex items-center justify-between border-b border-parchment-deep/70 dark:border-slateDark-border pb-3">
-                    <span className="text-[11px] uppercase tracking-widest font-bold text-burgundy dark:text-gold flex items-center gap-1.5">
-                      <Eye className="w-3.5 h-3.5" />
+                  <div className="flex items-center justify-between border-b border-parchment-deep dark:border-slateDark-border pb-3">
+                    <span className="text-xs uppercase tracking-widest font-bold text-burgundy dark:text-gold flex items-center gap-1.5">
+                      <Eye className="w-4 h-4" />
                       Pré-visualização da Página de Leitura
                     </span>
-                    <span className="text-xs text-ink-muted dark:text-slateDark-muted">
+                    <span className="text-xs font-medium text-ink-muted dark:text-slateDark-muted">
                       {metrics.paragraphs} parágrafos • {metrics.words} palavras
                     </span>
                   </div>
@@ -701,7 +788,7 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                         {essayTitle}
                       </h2>
                       {essaySubtitle && (
-                        <p className="font-literary italic text-lg text-ink-muted dark:text-slateDark-muted">
+                        <p className="font-literary italic text-xl text-ink-secondary dark:text-slateDark-muted">
                           {essaySubtitle}
                         </p>
                       )}
@@ -716,7 +803,7 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                       fontFamily={writerFont}
                     />
                   ) : (
-                    <p className="py-16 text-center font-literary italic text-lg text-ink-muted/60">
+                    <p className="py-16 text-center font-literary italic text-xl text-ink-muted dark:text-slateDark-muted">
                       À medida que você digitar seu texto ao lado, ele aparecerá aqui
                       diagramado como em uma revista literária clássica...
                     </p>
@@ -726,9 +813,26 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
             )}
           </div>
 
+          {/* Visible Validation / Submission Error Banner right above the Submit Button */}
+          {submitErrors.length > 0 && (
+            <div className="mx-6 mb-4 p-4 rounded-lg bg-red-50 dark:bg-red-950/60 border-2 border-red-600 dark:border-red-500 text-red-900 dark:text-red-200 flex items-start gap-3 shadow-sm">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <div className="space-y-1 text-sm">
+                <p className="font-serif font-bold text-base">
+                  Não foi possível publicar ainda — verifique os itens abaixo:
+                </p>
+                <ul className="list-disc list-inside space-y-1 font-medium">
+                  {submitErrors.map((err, index) => (
+                    <li key={index}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
           {/* Bottom Bar: Draft Status & Submit */}
-          <div className="bg-parchment-warm dark:bg-slateDark-elevated border-t border-parchment-deep dark:border-slateDark-border px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-xs text-ink-muted dark:text-slateDark-muted">
+          <div className="bg-parchment-warm dark:bg-slateDark-elevated border-t border-parchment-deep dark:border-slateDark-border px-6 py-5 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-ink-secondary dark:text-slateDark-muted">
               <CheckCircle2 className="w-4 h-4 text-forest dark:text-emerald-400" />
               <span>
                 Rascunho salvo automaticamente no navegador
@@ -747,16 +851,21 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
             <div className="flex items-center gap-3">
               <Link
                 to="/"
-                className="px-4 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink-secondary dark:text-slateDark-muted hover:text-ink"
+                className="px-4 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border text-sm font-semibold text-ink dark:text-slateDark-text hover:bg-parchment"
               >
                 Cancelar
               </Link>
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-sm font-semibold tracking-wide shadow-sm transition-all"
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-sm sm:text-base font-semibold tracking-wide shadow-sm transition-all disabled:opacity-60"
               >
                 <Feather className="w-4 h-4" />
-                <span>Publicar Texto &amp; Abrir para Comentários</span>
+                <span>
+                  {isSubmitting
+                    ? 'Publicando...'
+                    : 'Publicar Texto & Abrir para Comentários'}
+                </span>
               </button>
             </div>
           </div>

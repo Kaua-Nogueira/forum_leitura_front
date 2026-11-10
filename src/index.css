@@ -6,16 +6,32 @@
   html {
     scroll-behavior: smooth;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    background-color: #FAF7F2;
-    color: #1C1C1C;
+    background-color: #F6F2E9;
+    color: #141413;
+    font-size: 16.5px;
+    line-height: 1.65;
   }
 
   .dark body {
-    background-color: #13161B;
-    color: #EAE6DF;
+    background-color: #13171F;
+    color: #F4F1EA;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #5C564D !important;
+    opacity: 0.85 !important;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #AEB6C4 !important;
+    opacity: 0.85 !important;
   }
 }
 

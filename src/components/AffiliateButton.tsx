@@ -32,16 +32,16 @@ export const AffiliateButton: React.FC<AffiliateButtonProps> = ({
           target="_blank"
           rel="noopener noreferrer sponsored"
           onClick={handleClick}
-          className="group flex items-center justify-between w-full px-3.5 py-2.5 rounded-md bg-forest text-parchment hover:bg-forest-hover dark:bg-forest-light dark:hover:bg-forest transition-all duration-200 text-xs font-medium tracking-wide shadow-sm"
+          className="group flex items-center justify-between w-full px-4 py-2.5 rounded-md bg-forest text-parchment hover:bg-forest-hover dark:bg-forest-light dark:hover:bg-forest transition-all duration-200 text-xs sm:text-sm font-semibold tracking-wide shadow-sm"
         >
           <span className="flex items-center gap-2">
-            <ShoppingBag className="w-3.5 h-3.5 text-gold-light shrink-0" />
+            <ShoppingBag className="w-4 h-4 text-gold-light shrink-0" />
             <span>{work.affiliate_cta_label || 'Adquirir na Amazon'}</span>
           </span>
-          <ExternalLink className="w-3.5 h-3.5 opacity-80 group-hover:translate-x-0.5 transition-transform" />
+          <ExternalLink className="w-4 h-4 opacity-90 group-hover:translate-x-0.5 transition-transform" />
         </a>
-        <p className="text-[11px] leading-snug text-ink-muted dark:text-slateDark-muted flex items-start gap-1">
-          <ShieldCheck className="w-3 h-3 text-gold shrink-0 mt-0.5" />
+        <p className="text-xs leading-snug text-ink-secondary dark:text-slateDark-muted flex items-start gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-gold shrink-0 mt-0.5" />
           <span>
             Comprando por este link, você apoia o projeto sem custo adicional.
           </span>
