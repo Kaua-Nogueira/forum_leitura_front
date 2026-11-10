@@ -71,11 +71,24 @@ async function request<T>(
   currentRole: UserRole = 'ADMIN'
 ): Promise<T> {
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const savedUserRaw = localStorage.getItem(USER_STORAGE_KEY);
+  let currentUserId = '';
+  if (savedUserRaw) {
+    try {
+      const parsed = JSON.parse(savedUserRaw);
+      if (parsed?.id && parsed?.role !== 'VISITOR') {
+        currentUserId = String(parsed.id);
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
     'X-Demo-Role': currentRole,
+    ...(currentUserId ? { 'X-User-Id': currentUserId } : {}),
     ...((options.headers as Record<string, string>) || {}),
   };
 
@@ -111,6 +124,7 @@ export interface BootstrapResponse {
   topics: Topic[];
   moderation_flags: ModerationFlag[];
   settings: PlatformSettings;
+  users?: User[];
 }
 
 export const apiService = {
@@ -145,6 +159,24 @@ export const apiService = {
     return request<{ message: string }>('/auth/logout', {
       method: 'POST',
     });
+  },
+
+  async updateProfile(
+    payload: {
+      name: string;
+      title_badge?: string;
+      bio?: string;
+    },
+    role: UserRole
+  ): Promise<{ user: User; message: string }> {
+    return request<{ user: User; message: string }>(
+      '/auth/profile',
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+      role
+    );
   },
 
   async listUsers(role: UserRole): Promise<{ users: User[] }> {

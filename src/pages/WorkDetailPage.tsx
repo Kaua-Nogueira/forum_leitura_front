@@ -211,15 +211,26 @@ export const WorkDetailPage: React.FC = () => {
       <article className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden">
         {/* Reading Comfort Control Bar */}
         <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-ink-secondary dark:text-slateDark-text font-medium">
-            <BookOpen className="w-4 h-4 text-burgundy dark:text-gold" />
+          <Link
+            to={`/perfil/${work.submitted_by?.id || work.submitted_by_id || 1}`}
+            className="flex items-center gap-2.5 text-ink dark:text-slateDark-text font-medium hover:text-burgundy dark:hover:text-gold group"
+          >
+            <span className="w-7 h-7 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-xs flex items-center justify-center shrink-0">
+              {(work.submitted_by?.name || 'A').charAt(0).toUpperCase()}
+            </span>
             <span>
-              Ensaio por{' '}
-              <strong>
+              Texto escrito por{' '}
+              <strong className="underline decoration-burgundy/40">
                 {work.submitted_by?.name || 'Prof. Augusto Vasconcelos'}
               </strong>
+              {work.submitted_by?.title_badge && (
+                <span className="text-ink-secondary dark:text-slateDark-muted">
+                  {' '}
+                  • {work.submitted_by.title_badge}
+                </span>
+              )}
             </span>
-          </div>
+          </Link>
 
           <div className="flex flex-wrap items-center gap-3">
             {/* Font Family Switch */}
@@ -321,12 +332,18 @@ export const WorkDetailPage: React.FC = () => {
           {/* End of Essay Footer & Affiliate Callout */}
           <div className="pt-8 border-t border-parchment-deep dark:border-slateDark-border space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-ink-muted dark:text-slateDark-muted">
-              <span>
-                Publicado por{' '}
-                <strong className="text-ink dark:text-slateDark-text">
-                  {work.submitted_by?.name || 'Conselho Editorial'}
-                </strong>
-              </span>
+              <Link
+                to={`/perfil/${work.submitted_by?.id || work.submitted_by_id || 1}`}
+                className="inline-flex items-center gap-2 hover:text-burgundy dark:hover:text-gold"
+              >
+                <span>
+                  Publicado por{' '}
+                  <strong className="text-ink dark:text-slateDark-text underline">
+                    {work.submitted_by?.name || 'Conselho Editorial'}
+                  </strong>{' '}
+                  — Ver todos os textos deste autor →
+                </span>
+              </Link>
 
               <button
                 onClick={() =>

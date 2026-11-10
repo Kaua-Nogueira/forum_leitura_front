@@ -55,6 +55,11 @@ interface AppContextType {
     bio?: string;
   }) => Promise<User>;
   logoutUser: () => Promise<void>;
+  updateUserProfile: (payload: {
+    name: string;
+    title_badge?: string;
+    bio?: string;
+  }) => Promise<void>;
   updateUserRoleRbac: (
     userId: number,
     payload: {
@@ -214,6 +219,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (data.topics?.length) setTopics(data.topics);
         if (data.moderation_flags) setModerationFlags(data.moderation_flags);
         if (data.settings) setSettings(data.settings);
+        if (data.users?.length) setUsersList(data.users);
         setApiConnected(true);
 
         // Fetch users list if Moderator or Admin
@@ -317,6 +323,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'Você está navegando agora como Visitante (somente leitura).',
       'info'
     );
+  };
+
+  const updateUserProfile = async (payload: {
+    name: string;
+    title_badge?: string;
+    bio?: string;
+  }) => {
+    try {
+      if (apiConnected) {
+        const res = await apiService.updateProfile(payload, currentUser.role);
+        setCurrentUser(res.user);
+        setUsersList((prev) =>
+          prev.map((u) => (u.id === res.user.id ? res.user : u))
+        );
+        showToast('Perfil atualizado!', res.message, 'success');
+        return;
+      }
+    } catch (err: any) {
+      showToast('Erro ao atualizar perfil', err.message, 'error');
+      return;
+    }
+
+    const updatedUser: User = {
+      ...currentUser,
+      name: payload.name,
+      title_badge: payload.title_badge ?? currentUser.title_badge,
+      bio: payload.bio ?? currentUser.bio,
+    };
+    setCurrentUser(updatedUser);
+    setUsersList((prev) =>
+      prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+    );
+    showToast('Perfil atualizado!', 'Suas informações foram salvas.', 'success');
   };
 
   const updateUserRoleRbac = async (
@@ -1001,6 +1040,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         loginWithCredentials,
         registerAccount,
         logoutUser,
+        updateUserProfile,
         updateUserRoleRbac,
         switchRole,
         isDark,

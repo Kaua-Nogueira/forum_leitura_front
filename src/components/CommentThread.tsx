@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   MessageSquare,
   ThumbsUp,
@@ -124,16 +125,22 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
         {/* Comment Header */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-burgundy/15 dark:bg-gold/20 border border-burgundy/30 dark:border-gold/40 flex items-center justify-center font-serif font-bold text-sm text-burgundy dark:text-gold">
+            <Link
+              to={`/perfil/${comment.author?.id || comment.author_id || 1}`}
+              className="w-9 h-9 rounded-full bg-burgundy/15 dark:bg-gold/20 border border-burgundy/30 dark:border-gold/40 flex items-center justify-center font-serif font-bold text-sm text-burgundy dark:text-gold hover:scale-105 transition-transform"
+            >
               {comment.author?.name?.charAt(0) || 'L'}
-            </div>
+            </Link>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-bold text-ink dark:text-slateDark-text">
+                <Link
+                  to={`/perfil/${comment.author?.id || comment.author_id || 1}`}
+                  className="text-sm font-bold text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold underline decoration-burgundy/30"
+                >
                   {comment.author?.name || 'Membro da Cátedra'}
-                </span>
+                </Link>
                 {comment.author?.title_badge && (
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-ink-muted dark:text-slateDark-muted">
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-slateDark-muted">
                     {comment.author.title_badge}
                   </span>
                 )}

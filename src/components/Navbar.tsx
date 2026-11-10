@@ -71,6 +71,20 @@ export const Navbar: React.FC = () => {
                 Leituras &amp; Ensaios
               </Link>
 
+              {isAuthenticated && (
+                <Link
+                  to="/perfil"
+                  className={`px-3 py-2 rounded-md text-xs sm:text-sm font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors ${
+                    location.pathname.startsWith('/perfil')
+                      ? 'bg-parchment-deep dark:bg-slateDark-elevated text-ink dark:text-white'
+                      : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
+                  }`}
+                >
+                  <UserIcon className="w-4 h-4 text-burgundy dark:text-gold shrink-0" />
+                  <span>Meu Perfil</span>
+                </Link>
+              )}
+
               {isAuthenticated && permissions.can_moderate_queue && (
                 <Link
                   to="/moderacao"
@@ -103,18 +117,22 @@ export const Navbar: React.FC = () => {
             {/* User Session / Login */}
             {isAuthenticated ? (
               <div className="flex items-center gap-2 pl-2.5 border-l border-parchment-deep dark:border-slateDark-border shrink-0">
-                <div className="hidden lg:flex flex-col text-right max-w-[150px]">
+                <Link
+                  to="/perfil"
+                  title="Ver meu perfil, textos e comentários"
+                  className="hidden lg:flex flex-col text-right max-w-[150px] hover:opacity-85 transition-opacity"
+                >
                   <span className="text-xs sm:text-sm font-bold text-ink dark:text-slateDark-text leading-tight truncate">
                     {currentUser.name}
                   </span>
-                  <span className="text-xs font-medium text-ink-secondary dark:text-slateDark-muted truncate">
+                  <span className="text-xs font-medium text-burgundy dark:text-gold truncate">
                     {currentUser.role === 'ADMIN'
                       ? 'Administrador'
                       : currentUser.role === 'MODERATOR'
                       ? 'Moderador'
-                      : 'Membro'}
+                      : 'Ver Perfil'}
                   </span>
-                </div>
+                </Link>
                 <button
                   type="button"
                   onClick={handleLogout}

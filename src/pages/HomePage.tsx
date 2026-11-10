@@ -550,13 +550,27 @@ export const HomePage: React.FC = () => {
                         </p>
                       )}
 
-                      <div className="pt-1 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
-                        <span>
-                          Resenha por{' '}
-                          <strong className="text-ink dark:text-slateDark-text">
-                            {work.submitted_by?.name || 'Prof. Augusto Vasconcelos'}
-                          </strong>
-                        </span>
+                      <div className="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+                        <Link
+                          to={`/perfil/${work.submitted_by?.id || work.submitted_by_id || 1}`}
+                          className="inline-flex items-center gap-2.5 group/author hover:opacity-90"
+                        >
+                          <span className="w-7 h-7 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-xs flex items-center justify-center shrink-0">
+                            {(work.submitted_by?.name || 'A').charAt(0).toUpperCase()}
+                          </span>
+                          <span>
+                            Escrito por{' '}
+                            <strong className="text-ink dark:text-slateDark-text group-hover/author:text-burgundy dark:group-hover/author:text-gold underline decoration-burgundy/40">
+                              {work.submitted_by?.name || 'Prof. Augusto Vasconcelos'}
+                            </strong>
+                            {work.submitted_by?.title_badge && (
+                              <span className="hidden sm:inline text-xs text-ink-muted dark:text-slateDark-muted">
+                                {' '}
+                                • {work.submitted_by.title_badge}
+                              </span>
+                            )}
+                          </span>
+                        </Link>
                         <span className="inline-flex items-center gap-1 text-gold font-bold">
                           <Star className="w-4 h-4 fill-gold text-gold" />
                           {work.editorial_rating.toFixed(1)}
@@ -727,9 +741,17 @@ export const HomePage: React.FC = () => {
                             className="p-4 rounded-lg bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border space-y-2"
                           >
                             <div className="flex items-center justify-between text-xs">
-                              <span className="font-bold text-ink dark:text-slateDark-text">
-                                {c.author?.name || 'Leitor'}
-                              </span>
+                              <Link
+                                to={`/perfil/${c.author?.id || c.author_id || 1}`}
+                                className="inline-flex items-center gap-2 font-bold text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                              >
+                                <span className="w-6 h-6 rounded-full bg-burgundy/15 dark:bg-gold/20 text-burgundy dark:text-gold font-serif text-xs flex items-center justify-center">
+                                  {(c.author?.name || 'L').charAt(0).toUpperCase()}
+                                </span>
+                                <span className="underline decoration-burgundy/30">
+                                  {c.author?.name || 'Leitor'}
+                                </span>
+                              </Link>
                               <button
                                 type="button"
                                 onClick={() => upvoteItem('COMMENT', c.id)}
@@ -787,9 +809,12 @@ export const HomePage: React.FC = () => {
                       {topic.category?.name}
                     </span>
                     <span className="text-ink-muted">•</span>
-                    <span className="font-medium text-ink-secondary dark:text-slateDark-muted">
-                      {topic.author?.name}
-                    </span>
+                    <Link
+                      to={`/perfil/${topic.author?.id || topic.author_id || 1}`}
+                      className="font-semibold text-ink-secondary dark:text-slateDark-muted hover:text-burgundy dark:hover:text-gold underline decoration-burgundy/30"
+                    >
+                      por {topic.author?.name}
+                    </Link>
                   </div>
 
                   <Link

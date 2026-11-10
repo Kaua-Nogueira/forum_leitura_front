@@ -217,13 +217,21 @@ export const TopicDetailPage: React.FC = () => {
             </h1>
 
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs sm:text-sm text-ink-muted dark:text-slateDark-muted">
-              <div>
-                Escrito por{' '}
-                <strong className="text-ink dark:text-slateDark-text">
-                  {topic.author?.name}
-                </strong>{' '}
-                ({topic.author?.title_badge || 'Membro'})
-              </div>
+              <Link
+                to={`/perfil/${topic.author?.id || topic.author_id || 1}`}
+                className="inline-flex items-center gap-2.5 hover:opacity-90 group"
+              >
+                <span className="w-8 h-8 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-sm flex items-center justify-center shrink-0">
+                  {(topic.author?.name || 'A').charAt(0).toUpperCase()}
+                </span>
+                <span>
+                  Escrito por{' '}
+                  <strong className="text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold underline">
+                    {topic.author?.name}
+                  </strong>{' '}
+                  ({topic.author?.title_badge || 'Membro'})
+                </span>
+              </Link>
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
                 {new Date(topic.created_at).toLocaleDateString('pt-BR')}
