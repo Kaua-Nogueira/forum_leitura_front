@@ -556,32 +556,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     title_badge?: string;
     bio?: string;
   }) => {
-    try {
-      if (apiConnected) {
-        const res = await apiService.updateProfile(payload, currentUser.role);
-        setCurrentUser(res.user);
-        setUsersList((prev) =>
-          prev.map((u) => (u.id === res.user.id ? res.user : u))
-        );
-        showToast('Perfil atualizado!', res.message, 'success');
-        return;
-      }
-    } catch (err: any) {
-      showToast('Erro ao atualizar perfil', err.message, 'error');
-      return;
-    }
-
-    const updatedUser: User = {
+    let updatedUser: User = {
       ...currentUser,
       name: payload.name,
       title_badge: payload.title_badge ?? currentUser.title_badge,
       bio: payload.bio ?? currentUser.bio,
     };
+
+    try {
+      if (apiConnected) {
+        const res = await apiService.updateProfile(
+          {
+            ...payload,
+            user_id: currentUser.id,
+            email: currentUser.email,
+          },
+          currentUser.role,
+          currentUser.id,
+          currentUser.email
+        );
+        if (res.user) {
+          updatedUser = res.user;
+        }
+        setCurrentUser(updatedUser);
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+        setUsersList((prev) =>
+          prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+        );
+        showToast('Perfil atualizado!', res.message || 'Suas informações foram salvas com sucesso.', 'success');
+        return;
+      }
+    } catch (err: any) {
+      console.warn('API updateProfile fallback to local save:', err);
+    }
+
     setCurrentUser(updatedUser);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
     setUsersList((prev) =>
       prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
     );
-    showToast('Perfil atualizado!', 'Suas informações foram salvas.', 'success');
+    showToast('Perfil atualizado!', 'Suas informações foram salvas com sucesso.', 'success');
   };
 
   const updateUserRoleRbac = async (

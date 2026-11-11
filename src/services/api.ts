@@ -126,11 +126,15 @@ async function request<T>(
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   const savedUserRaw = localStorage.getItem(USER_STORAGE_KEY);
   let currentUserId = '';
+  let currentUserEmail = '';
   if (savedUserRaw) {
     try {
       const parsed = JSON.parse(savedUserRaw);
       if (parsed?.id && parsed?.role !== 'VISITOR') {
         currentUserId = String(parsed.id);
+      }
+      if (parsed?.email && parsed?.role !== 'VISITOR') {
+        currentUserEmail = String(parsed.email);
       }
     } catch {
       // ignore
@@ -142,6 +146,7 @@ async function request<T>(
     Accept: 'application/json',
     'X-Demo-Role': currentRole,
     ...(currentUserId ? { 'X-User-Id': currentUserId } : {}),
+    ...(currentUserEmail ? { 'X-User-Email': currentUserEmail } : {}),
     ...((options.headers as Record<string, string>) || {}),
   };
 
@@ -221,14 +226,26 @@ export const apiService = {
       name: string;
       title_badge?: string;
       bio?: string;
+      user_id?: number;
+      email?: string;
     },
-    role: UserRole
+    role: UserRole = 'MEMBER',
+    userId?: number,
+    userEmail?: string
   ): Promise<{ user: User; message: string }> {
     return request<{ user: User; message: string }>(
       '/auth/profile',
       {
         method: 'PUT',
-        body: JSON.stringify(payload),
+        headers: {
+          ...(userId ? { 'X-User-Id': String(userId) } : {}),
+          ...(userEmail ? { 'X-User-Email': userEmail } : {}),
+        },
+        body: JSON.stringify({
+          ...payload,
+          ...(userId ? { user_id: userId } : {}),
+          ...(userEmail ? { email: userEmail } : {}),
+        }),
       },
       role
     );
