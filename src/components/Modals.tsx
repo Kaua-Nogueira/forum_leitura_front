@@ -133,7 +133,7 @@ export const GlobalModals: React.FC = () => {
       {/* 1. MODAL: INDICAR NOVA OBRA AO CATÁLOGO CURADO */}
       {isNewWorkModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border rounded-lg max-w-2xl w-full p-6 shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
+          <div className="bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border rounded-lg max-w-2xl w-full p-4 sm:p-6 shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-parchment-deep dark:border-slateDark-border pb-4 mb-5">
               <div className="flex items-center gap-2.5">
                 <BookOpen className="w-5 h-5 text-burgundy dark:text-gold" />
@@ -332,7 +332,7 @@ export const GlobalModals: React.FC = () => {
       {/* 2. MODAL: NOVO TÓPICO DE DEBATE COMUNITÁRIO */}
       {isNewTopicModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border rounded-lg max-w-2xl w-full p-6 shadow-2xl my-8">
+          <div className="bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border rounded-lg max-w-2xl w-full p-4 sm:p-6 shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-parchment-deep dark:border-slateDark-border pb-4 mb-5">
               <div className="flex items-center gap-2.5">
                 <MessageSquarePlus className="w-5 h-5 text-navy dark:text-gold" />
@@ -463,8 +463,8 @@ export const GlobalModals: React.FC = () => {
 
       {/* 3. MODAL: SINALIZAR CONTEÚDO PARA A FILA DE MODERAÇÃO */}
       {flagModalTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border rounded-lg max-w-md w-full p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border rounded-lg max-w-md w-full p-4 sm:p-6 shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-parchment-deep dark:border-slateDark-border pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <Flag className="w-4 h-4 text-burgundy dark:text-gold" />

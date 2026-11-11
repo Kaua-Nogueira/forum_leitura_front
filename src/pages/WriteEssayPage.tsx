@@ -305,9 +305,9 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 sm:space-y-8">
       {/* Top Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-parchment-deep dark:border-slateDark-border pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-parchment-deep dark:border-slateDark-border pb-5">
         <div className="space-y-1">
           <Link
             to="/"
@@ -317,19 +317,18 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
             <span>Voltar ao Acervo &amp; Leituras</span>
           </Link>
           <div className="flex items-center gap-2.5">
-            <Feather className="w-6 h-6 text-burgundy dark:text-gold" />
-            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
-              Scriptorium — Estúdio de Escrita &amp; Resenha Literária
+            <Feather className="w-5 h-5 sm:w-6 sm:h-6 text-burgundy dark:text-gold shrink-0" />
+            <h1 className="font-serif text-xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
+              Scriptorium — Estúdio de Escrita
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-ink-muted dark:text-slateDark-muted">
-            Um ambiente amplo, silencioso e agradável para redigir textos médios e longos
-            sobre grandes livros.
+            Um ambiente amplo, silencioso e agradável para redigir textos sobre grandes livros.
           </p>
         </div>
 
         {/* Layout Mode Selector (Escrita Focada / Split / Preview) */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <div className="inline-flex rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card p-1 text-xs">
             <button
               type="button"
@@ -346,14 +345,14 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
             <button
               type="button"
               onClick={() => setEditorLayout('SPLIT')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${
+              className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${
                 editorLayout === 'SPLIT'
                   ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg shadow-sm'
                   : 'text-ink-secondary dark:text-slateDark-muted hover:text-ink'
               }`}
             >
               <Columns className="w-3.5 h-3.5" />
-              <span>Lado a Lado (Ao Vivo)</span>
+              <span>Lado a Lado</span>
             </button>
             <button
               type="button"
@@ -613,15 +612,15 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
         {/* 2. FOLHA EDITORIAL DE ESCRITA E LEITURA (O CORAÇÃO DO SCRIPTORIUM) */}
         <div className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden">
           {/* Formatting & Comfort Toolbar */}
-          <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-1.5">
+          <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-3 sm:px-6 py-2.5 sm:py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1 shrink-0">
               <button
                 type="button"
                 onClick={() =>
                   insertAtCursor('\n\n## ', '\n\n', 'Título da Seção')
                 }
                 title="Inserir Subtítulo de Seção (##)"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy dark:hover:border-gold transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy dark:hover:border-gold transition-colors whitespace-nowrap shrink-0"
               >
                 <Heading2 className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
                 <span>Subtítulo</span>
@@ -637,17 +636,17 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                   )
                 }
                 title="Inserir Citação Longa / Blockquote (>)"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy dark:hover:border-gold transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy dark:hover:border-gold transition-colors whitespace-nowrap shrink-0"
               >
                 <Quote className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
-                <span>Citar Trecho (&gt;)</span>
+                <span>Citação (&gt;)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => insertAtCursor('**', '**', 'texto em destaque')}
                 title="Negrito (**texto**)"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy shrink-0"
               >
                 <Bold className="w-3.5 h-3.5" />
               </button>
@@ -656,7 +655,7 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                 type="button"
                 onClick={() => insertAtCursor('*', '*', 'termo em itálico')}
                 title="Itálico (*texto*)"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy shrink-0"
               >
                 <Italic className="w-3.5 h-3.5" />
               </button>
@@ -665,26 +664,26 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                 type="button"
                 onClick={() => insertAtCursor('\n\n* * *\n\n', '', '')}
                 title="Divisor de Seção Clássico (* * *)"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy whitespace-nowrap shrink-0"
               >
                 <Minus className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Divisor ✦</span>
+                <span>Divisor</span>
               </button>
 
               <button
                 type="button"
                 onClick={applyClassicalTemplate}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-burgundy/10 dark:bg-gold/15 border border-burgundy/25 dark:border-gold/30 text-xs font-semibold text-burgundy dark:text-gold hover:bg-burgundy hover:text-parchment transition-colors ml-1"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-burgundy/10 dark:bg-gold/15 border border-burgundy/25 dark:border-gold/30 text-xs font-semibold text-burgundy dark:text-gold hover:bg-burgundy hover:text-parchment transition-colors whitespace-nowrap shrink-0"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Carregar Estrutura de Resenha</span>
+                <span>Carregar Modelo</span>
               </button>
             </div>
 
             {/* Font comfort switch + live metrics */}
-            <div className="flex items-center gap-4 text-xs text-ink-muted dark:text-slateDark-muted">
-              <div className="hidden md:flex items-center gap-1">
-                <span>Fonte do Editor:</span>
+            <div className="flex items-center gap-3 text-xs text-ink-muted dark:text-slateDark-muted self-end md:self-auto shrink-0">
+              <div className="hidden sm:flex items-center gap-1">
+                <span>Fonte:</span>
                 <button
                   type="button"
                   onClick={() =>
@@ -698,13 +697,13 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
 
               <span className="inline-flex items-center gap-1 font-medium text-ink-secondary dark:text-slateDark-text">
                 <Clock className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
-                {metrics.words} palavras • ~{metrics.minutes} min de leitura
+                {metrics.words} palavras • ~{metrics.minutes} min
               </span>
             </div>
           </div>
 
           {/* Title & Subtitle Inputs inside the Editorial Sheet */}
-          <div className="px-6 sm:px-12 pt-8 pb-5 border-b border-parchment-deep dark:border-slateDark-border space-y-3.5 max-w-5xl mx-auto">
+          <div className="px-4 sm:px-12 pt-6 sm:pt-8 pb-4 sm:pb-5 border-b border-parchment-deep dark:border-slateDark-border space-y-2 sm:space-y-3.5 max-w-5xl mx-auto">
             <input
               ref={titleInputRef}
               type="text"
@@ -715,10 +714,10 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
               }}
               placeholder={
                 postMode === 'NEW_BOOK_ESSAY'
-                  ? 'Título do Livro ou da Obra * (Ex: Os Irmãos Karamázov)'
+                  ? 'Título do Livro * (Ex: Os Irmãos Karamázov)'
                   : 'Título do seu Ensaio sobre o Livro *...'
               }
-              className={`w-full bg-transparent font-serif text-3xl sm:text-4xl font-bold text-ink dark:text-slateDark-text focus:outline-none rounded px-2 py-1 -mx-2 ${
+              className={`w-full bg-transparent font-serif text-xl sm:text-4xl font-bold text-ink dark:text-slateDark-text focus:outline-none rounded px-2 py-1 -mx-2 ${
                 submitErrors.length > 0 && !essayTitle.trim()
                   ? 'border-2 border-red-600 bg-red-500/5'
                   : ''
@@ -728,8 +727,8 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
               type="text"
               value={essaySubtitle}
               onChange={(e) => setEssaySubtitle(e.target.value)}
-              placeholder="Subtítulo da sua análise (Opcional — Ex: O problema do mal e a redenção pelo amor ativo em Dostoiévski)"
-              className="w-full bg-transparent font-literary italic text-xl sm:text-2xl text-ink-secondary dark:text-slateDark-muted focus:outline-none"
+              placeholder="Subtítulo da sua reflexão (Opcional)"
+              className="w-full bg-transparent font-literary italic text-base sm:text-2xl text-ink-secondary dark:text-slateDark-muted focus:outline-none"
             />
           </div>
 
@@ -743,21 +742,21 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
           >
             {/* Editor Pane */}
             {editorLayout !== 'PREVIEW' && (
-              <div className="p-6 sm:p-10 lg:p-12">
+              <div className="p-3.5 sm:p-10 lg:p-12">
                 <div className="max-w-3xl mx-auto">
                   <textarea
                     ref={textareaRef}
-                    rows={22}
+                    rows={18}
                     value={essayBody}
                     onChange={(e) => {
                       setEssayBody(e.target.value);
                       if (submitErrors.length) setSubmitErrors([]);
                     }}
-                    placeholder={`Comece a escrever seu texto aqui com calma...\n\nDicas rápidas de formatação:\n• Deixe uma linha em branco entre os parágrafos.\n• Digite "## Título" para criar uma nova seção.\n• Digite "> texto" no início de uma linha para destacar uma citação longa do livro.\n• Digite "* * *" em uma linha isolada para criar um divisor clássico (✦ ✦ ✦).`}
-                    className={`w-full min-h-[520px] bg-transparent resize-y focus:outline-none text-ink dark:text-slateDark-text leading-[1.9] rounded p-2 -m-2 ${
+                    placeholder={`Comece a escrever seu texto aqui com calma...\n\nDicas rápidas:\n• Deixe uma linha em branco entre os parágrafos.\n• Digite "## Título" para uma nova seção.\n• Digite "> texto" para destacar uma citação.`}
+                    className={`w-full min-h-[380px] sm:min-h-[520px] bg-transparent resize-y focus:outline-none text-ink dark:text-slateDark-text leading-[1.8] sm:leading-[1.9] rounded p-2 -m-2 ${
                       writerFont === 'serif'
-                        ? 'font-literary text-[20px]'
-                        : 'font-sans text-[18px]'
+                        ? 'font-literary text-lg sm:text-[20px]'
+                        : 'font-sans text-base sm:text-[18px]'
                     } ${
                       submitErrors.length > 0 && !essayBody.trim()
                         ? 'border-2 border-red-600 bg-red-500/5'
@@ -815,13 +814,13 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
 
           {/* Visible Validation / Submission Error Banner right above the Submit Button */}
           {submitErrors.length > 0 && (
-            <div className="mx-6 mb-4 p-4 rounded-lg bg-red-50 dark:bg-red-950/60 border-2 border-red-600 dark:border-red-500 text-red-900 dark:text-red-200 flex items-start gap-3 shadow-sm">
+            <div className="mx-4 sm:mx-6 mb-4 p-3.5 sm:p-4 rounded-lg bg-red-50 dark:bg-red-950/60 border-2 border-red-600 dark:border-red-500 text-red-900 dark:text-red-200 flex items-start gap-3 shadow-sm">
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
               <div className="space-y-1 text-sm">
-                <p className="font-serif font-bold text-base">
+                <p className="font-serif font-bold text-sm sm:text-base">
                   Não foi possível publicar ainda — verifique os itens abaixo:
                 </p>
-                <ul className="list-disc list-inside space-y-1 font-medium">
+                <ul className="list-disc list-inside space-y-1 font-medium text-xs sm:text-sm">
                   {submitErrors.map((err, index) => (
                     <li key={index}>{err}</li>
                   ))}
@@ -831,11 +830,11 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
           )}
 
           {/* Bottom Bar: Draft Status & Submit */}
-          <div className="bg-parchment-warm dark:bg-slateDark-elevated border-t border-parchment-deep dark:border-slateDark-border px-6 py-5 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm text-ink-secondary dark:text-slateDark-muted">
-              <CheckCircle2 className="w-4 h-4 text-forest dark:text-emerald-400" />
+          <div className="bg-parchment-warm dark:bg-slateDark-elevated border-t border-parchment-deep dark:border-slateDark-border px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+              <CheckCircle2 className="w-4 h-4 text-forest dark:text-emerald-400 shrink-0" />
               <span>
-                Rascunho salvo automaticamente no navegador
+                Rascunho salvo no navegador
                 {currentUser.role !== 'VISITOR' && (
                   <>
                     {' '}
@@ -848,23 +847,23 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
               <Link
                 to="/"
-                className="px-4 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border text-sm font-semibold text-ink dark:text-slateDark-text hover:bg-parchment"
+                className="px-4 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border text-xs sm:text-sm font-semibold text-ink dark:text-slateDark-text hover:bg-parchment text-center"
               >
                 Cancelar
               </Link>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-sm sm:text-base font-semibold tracking-wide shadow-sm transition-all disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-xs sm:text-sm md:text-base font-semibold tracking-wide shadow-sm transition-all disabled:opacity-60 text-center"
               >
-                <Feather className="w-4 h-4" />
+                <Feather className="w-4 h-4 shrink-0" />
                 <span>
                   {isSubmitting
                     ? 'Enviando para revisão...'
-                    : 'Enviar Texto para Revisão da Moderação'}
+                    : 'Enviar Texto para Revisão'}
                 </span>
               </button>
             </div>

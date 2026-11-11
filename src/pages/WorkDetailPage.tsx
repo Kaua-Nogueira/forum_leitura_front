@@ -69,9 +69,9 @@ export const WorkDetailPage: React.FC = () => {
   const commentsCount = work.comments?.length || 0;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+    <div className="max-w-5xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 sm:space-y-10">
       {/* Top Breadcrumb */}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted dark:text-slateDark-muted">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-ink-muted dark:text-slateDark-muted">
         <Link
           to="/"
           className="inline-flex items-center gap-1.5 font-medium text-ink-secondary dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold transition-colors"
@@ -152,15 +152,15 @@ export const WorkDetailPage: React.FC = () => {
       )}
 
       {/* 1. DOSSIÊ DA OBRA (CAPA + FICHA + COMPRA AFILIADO) */}
-      <section className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/80 dark:bg-slateDark-card p-6 sm:p-8 shadow-editorial">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+      <section className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/80 dark:bg-slateDark-card p-4 sm:p-8 shadow-editorial">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-center">
           {/* Book Cover */}
           <div className="md:col-span-4 lg:col-span-3 flex justify-center">
-            <div className="relative w-48 sm:w-56 rounded-lg overflow-hidden shadow-xl border border-parchment-deep dark:border-slateDark-border bg-ink">
+            <div className="relative w-40 sm:w-56 rounded-lg overflow-hidden shadow-xl border border-parchment-deep dark:border-slateDark-border bg-ink">
               <img
                 src={work.cover_url}
                 alt={work.title}
-                className="w-full h-72 object-cover"
+                className="w-full h-56 sm:h-72 object-cover"
               />
               <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded bg-black/80 text-gold-light text-xs font-bold flex items-center gap-1">
                 <Star className="w-3.5 h-3.5 fill-gold text-gold" />
@@ -170,29 +170,29 @@ export const WorkDetailPage: React.FC = () => {
           </div>
 
           {/* Book Info & Affiliate Action */}
-          <div className="md:col-span-8 lg:col-span-9 space-y-5">
+          <div className="md:col-span-8 lg:col-span-9 space-y-4 sm:space-y-5">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="px-2.5 py-0.5 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-semibold uppercase tracking-wider">
+                <span className="px-2.5 py-0.5 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-semibold uppercase tracking-wider text-[11px] sm:text-xs">
                   {work.category?.name || 'Letras & Teologia'}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-slateDark-muted font-medium">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-slateDark-muted font-medium text-[11px] sm:text-xs">
                   <Clock className="w-3 h-3 text-burgundy dark:text-gold" />
                   {metrics.words} palavras • ~{metrics.minutes} min de leitura
                 </span>
               </div>
 
-              <h1 className="font-serif text-3xl sm:text-4xl lg:text-[42px] font-bold text-ink dark:text-slateDark-text leading-tight">
+              <h1 className="font-serif text-2xl sm:text-4xl lg:text-[40px] font-bold text-ink dark:text-slateDark-text leading-tight">
                 {work.title}
               </h1>
 
               {work.subtitle && (
-                <p className="font-literary italic text-lg sm:text-xl text-ink-secondary dark:text-slateDark-muted leading-snug">
+                <p className="font-literary italic text-base sm:text-xl text-ink-secondary dark:text-slateDark-muted leading-snug">
                   {work.subtitle}
                 </p>
               )}
 
-              <div className="pt-1 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+              <div className="pt-1 flex flex-wrap items-center gap-x-4 sm:gap-x-5 gap-y-1.5 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
                 <span>
                   Autor: <strong className="text-ink dark:text-white">{work.creator}</strong>
                 </span>
@@ -225,15 +225,15 @@ export const WorkDetailPage: React.FC = () => {
       {/* 2. BARRA DE CONFORTO DE LEITURA & CITAÇÕES PERENES */}
       <article className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden">
         {/* Reading Comfort Control Bar */}
-        <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <Link
             to={`/perfil/${work.submitted_by?.id || work.submitted_by_id || 1}`}
-            className="flex items-center gap-2.5 text-ink dark:text-slateDark-text font-medium hover:text-burgundy dark:hover:text-gold group"
+            className="flex items-center gap-2.5 text-ink dark:text-slateDark-text font-medium hover:text-burgundy dark:hover:text-gold group truncate"
           >
             <span className="w-7 h-7 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-xs flex items-center justify-center shrink-0">
               {(work.submitted_by?.name || 'A').charAt(0).toUpperCase()}
             </span>
-            <span>
+            <span className="truncate">
               Texto escrito por{' '}
               <strong className="underline decoration-burgundy/40">
                 {work.submitted_by?.name || 'Prof. Augusto Vasconcelos'}
@@ -247,7 +247,7 @@ export const WorkDetailPage: React.FC = () => {
             </span>
           </Link>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2.5 self-end sm:self-auto overflow-x-auto no-scrollbar">
             {/* Font Family Switch */}
             <div className="inline-flex items-center rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5">
               <button
@@ -310,7 +310,7 @@ export const WorkDetailPage: React.FC = () => {
         </div>
 
         {/* Main Reading Sheet (Wide, Generous Padding, Ideal Line Width) */}
-        <div className="px-6 sm:px-12 lg:px-20 py-10 sm:py-14 max-w-4xl mx-auto space-y-10">
+        <div className="px-4 sm:px-12 lg:px-20 py-6 sm:py-14 max-w-4xl mx-auto space-y-8 sm:space-y-10">
           {/* Notable Quotes Epigraph */}
           {work.notable_quotes && work.notable_quotes.length > 0 && (
             <div className="space-y-4 pb-4 border-b border-parchment-deep/70 dark:border-slateDark-border">
@@ -322,9 +322,9 @@ export const WorkDetailPage: React.FC = () => {
                 {work.notable_quotes.map((q, idx) => (
                   <blockquote
                     key={idx}
-                    className="p-5 sm:p-6 rounded-lg bg-parchment-warm/70 dark:bg-slateDark-elevated border-l-4 border-burgundy dark:border-gold"
+                    className="p-4 sm:p-6 rounded-lg bg-parchment-warm/70 dark:bg-slateDark-elevated border-l-4 border-burgundy dark:border-gold"
                   >
-                    <p className="font-literary italic text-xl sm:text-2xl text-ink dark:text-slateDark-text leading-relaxed">
+                    <p className="font-literary italic text-base sm:text-2xl text-ink dark:text-slateDark-text leading-relaxed">
                       “{q.quote_text}”
                     </p>
                     <footer className="mt-2.5 text-xs font-sans font-semibold uppercase tracking-wider text-burgundy dark:text-gold-light">

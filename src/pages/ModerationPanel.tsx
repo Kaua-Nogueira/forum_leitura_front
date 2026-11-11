@@ -215,7 +215,7 @@ export const ModerationPanel: React.FC = () => {
             <ShieldAlert className="w-4 h-4" />
             <span>Governança Comunitária, RBAC &amp; Curadoria Ética</span>
           </div>
-          <h1 className="font-serif text-3xl font-bold text-ink dark:text-slateDark-text">
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
             Painel de Moderação, RBAC &amp; Afiliados
           </h1>
           <p className="text-xs sm:text-sm text-ink-muted dark:text-slateDark-muted">
@@ -227,11 +227,11 @@ export const ModerationPanel: React.FC = () => {
         </div>
 
         {/* Tab Selector: Fila, Exclusão de Conteúdos, Logs de Auditoria, e Usuários RBAC */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 sm:flex-wrap no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
           <button
             type="button"
             onClick={() => setActiveTab('QUEUE')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'QUEUE'
                 ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg'
                 : 'bg-parchment-warm dark:bg-slateDark-card text-ink-secondary dark:text-slateDark-muted border-parchment-deep dark:border-slateDark-border'
@@ -247,7 +247,7 @@ export const ModerationPanel: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('CONTENT_MANAGER')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'CONTENT_MANAGER'
                 ? 'bg-red-700 text-white border-red-700'
                 : 'bg-parchment-warm dark:bg-slateDark-card text-ink-secondary dark:text-slateDark-muted border-parchment-deep dark:border-slateDark-border'
@@ -263,7 +263,7 @@ export const ModerationPanel: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('AUDIT_LOGS')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'AUDIT_LOGS'
                 ? 'bg-forest text-parchment border-forest dark:bg-emerald-500 dark:text-slateDark-bg'
                 : 'bg-parchment-warm dark:bg-slateDark-card text-ink-secondary dark:text-slateDark-muted border-parchment-deep dark:border-slateDark-border'
@@ -276,7 +276,7 @@ export const ModerationPanel: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('RBAC_USERS')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'RBAC_USERS'
                 ? 'bg-navy text-parchment border-navy dark:bg-gold dark:text-slateDark-bg'
                 : 'bg-parchment-warm dark:bg-slateDark-card text-ink-secondary dark:text-slateDark-muted border-parchment-deep dark:border-slateDark-border'

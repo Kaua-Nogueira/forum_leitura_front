@@ -20,7 +20,7 @@ const ToastBanner: React.FC = () => {
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-50 max-w-md rounded-xl border-2 px-5 py-4 shadow-2xl flex items-start gap-3.5 animate-fade-in ${
+      className={`fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-50 sm:max-w-md rounded-xl border-2 px-4 sm:px-5 py-3.5 sm:py-4 shadow-2xl flex items-start gap-3 animate-fade-in ${
         isError
           ? 'bg-red-950 text-white border-red-500'
           : 'bg-ink text-parchment dark:bg-slateDark-elevated dark:text-slateDark-text border-parchment-deep dark:border-gold/50'
@@ -113,7 +113,7 @@ export const App: React.FC = () => {
   return (
     <AppProvider>
       <BrowserRouter>
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col overflow-x-hidden w-full">
           <Navbar />
           <div className="flex-1">
             <Routes>

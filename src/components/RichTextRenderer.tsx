@@ -126,10 +126,10 @@ export const RichTextRenderer: React.FC<RichTextRendererProps> = ({
           return (
             <blockquote
               key={index}
-              className="editorial-blockquote my-7 py-5 pl-6 pr-5 rounded-r-lg relative shadow-sm"
+              className="editorial-blockquote my-6 py-4 sm:py-5 pl-4 sm:pl-6 pr-3.5 sm:pr-5 rounded-r-lg relative shadow-sm"
             >
-              <Quote className="w-5 h-5 text-burgundy/40 dark:text-gold/50 mb-2" />
-              <p className="font-literary italic text-xl sm:text-[22px] text-ink dark:text-slateDark-text leading-[1.75]">
+              <Quote className="w-4 sm:w-5 h-4 sm:h-5 text-burgundy/40 dark:text-gold/50 mb-2" />
+              <p className="font-literary italic text-base sm:text-[22px] text-ink dark:text-slateDark-text leading-[1.7]">
                 “{formatInline(quoteText)}”
               </p>
             </blockquote>

@@ -101,3 +101,12 @@
   background: #2D3340;
   border-radius: 4px;
 }
+
+/* Utility to hide scrollbars for horizontal pill navigation on mobile */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -198,21 +198,21 @@ export const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-12">
       {/* 1. HERO EDITORIAL & CHAMADA PARA ESCRITA */}
-      <section className="relative rounded-xl border border-parchment-deep dark:border-slateDark-border bg-gradient-to-br from-parchment-warm via-parchment to-parchment-deep/40 dark:from-slateDark-card dark:via-slateDark-bg dark:to-slateDark-elevated p-6 sm:p-10 shadow-editorial">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-8 space-y-4">
+      <section className="relative rounded-xl border border-parchment-deep dark:border-slateDark-border bg-gradient-to-br from-parchment-warm via-parchment to-parchment-deep/40 dark:from-slateDark-card dark:via-slateDark-bg dark:to-slateDark-elevated p-4 sm:p-8 lg:p-10 shadow-editorial">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+          <div className="lg:col-span-8 space-y-3 sm:space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-burgundy/10 dark:bg-gold/15 border border-burgundy/20 dark:border-gold/30 text-burgundy dark:text-gold text-xs font-semibold tracking-wider uppercase">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Revista Comunitária de Ensaios &amp; Resenhas Literárias</span>
             </div>
 
-            <h2 className="font-serif text-3xl sm:text-4xl lg:text-[42px] font-bold text-ink dark:text-slateDark-text leading-[1.16] tracking-tight">
+            <h2 className="font-serif text-2xl sm:text-3xl lg:text-[40px] font-bold text-ink dark:text-slateDark-text leading-[1.18] tracking-tight">
               Textos profundos sobre grandes livros, escritos para serem lidos sem pressa.
             </h2>
 
-            <p className="text-ink-secondary dark:text-slateDark-muted text-base sm:text-lg leading-relaxed">
+            <p className="text-ink-secondary dark:text-slateDark-muted text-sm sm:text-lg leading-relaxed">
               Cada postagem em nossa comunidade é um ensaio ou resenha meditada sobre uma
               obra clássica, teológica ou educativa — com espaço confortável para leitura,
               citações destacadas e diálogo aberto nos comentários.
@@ -220,10 +220,10 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Quick Action Card to Open the Scriptorium */}
-          <div className="lg:col-span-4 p-6 rounded-xl bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border shadow-editorial space-y-4">
+          <div className="lg:col-span-4 p-4 sm:p-6 rounded-xl bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border shadow-editorial space-y-3 sm:space-y-4">
             <div className="flex items-center gap-2.5 text-burgundy dark:text-gold">
               <Feather className="w-5 h-5" />
-              <h3 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text">
+              <h3 className="font-serif text-base sm:text-lg font-bold text-ink dark:text-slateDark-text">
                 Publique sua Leitura
               </h3>
             </div>
@@ -233,7 +233,7 @@ export const HomePage: React.FC = () => {
             </p>
             <Link
               to="/escrever"
-              className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-xs sm:text-sm font-semibold tracking-wide transition-colors shadow-sm"
+              className="w-full inline-flex items-center justify-center gap-2 py-2.5 sm:py-3 px-4 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-xs sm:text-sm font-semibold tracking-wide transition-colors shadow-sm"
             >
               <Feather className="w-4 h-4" />
               <span>Abrir Estúdio de Escrita</span>
@@ -242,8 +242,8 @@ export const HomePage: React.FC = () => {
         </div>
 
         {/* Search & Media Filter Bar */}
-        <div className="mt-8 pt-6 border-t border-parchment-deep/80 dark:border-slateDark-border flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-parchment-deep/80 dark:border-slateDark-border flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 sm:flex-wrap no-scrollbar -mx-1 px-1">
             {mediaFilters.map((filter) => {
               const Icon = filter.icon;
               const active = selectedMediaFilter === filter.id;
@@ -251,7 +251,7 @@ export const HomePage: React.FC = () => {
                 <button
                   key={filter.id}
                   onClick={() => setSelectedMediaFilter(filter.id)}
-                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-all ${
+                  className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-md text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
                     active
                       ? 'bg-ink text-parchment dark:bg-gold dark:text-slateDark-bg shadow-sm'
                       : 'bg-parchment dark:bg-slateDark-elevated text-ink-secondary dark:text-slateDark-muted border border-parchment-deep dark:border-slateDark-border hover:border-burgundy/40'
@@ -511,8 +511,8 @@ export const HomePage: React.FC = () => {
                 className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden transition-all"
               >
                 {/* Cabeçalho do Livro + Autor da Postagem */}
-                <div className="p-6 sm:p-8 bg-parchment-warm/70 dark:bg-slateDark-elevated/60 border-b border-parchment-deep/80 dark:border-slateDark-border">
-                  <div className="flex flex-col sm:flex-row gap-6 items-start">
+                <div className="p-4 sm:p-8 bg-parchment-warm/70 dark:bg-slateDark-elevated/60 border-b border-parchment-deep/80 dark:border-slateDark-border">
+                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
                     {/* Capa do Livro */}
                     <Link
                       to={`/obras/${work.slug}`}
@@ -521,34 +521,34 @@ export const HomePage: React.FC = () => {
                       <img
                         src={work.cover_url}
                         alt={work.title}
-                        className="w-32 sm:w-36 h-48 sm:h-52 object-cover rounded-lg shadow-md border border-parchment-deep dark:border-slateDark-border hover:scale-[1.02] transition-transform"
+                        className="w-28 sm:w-36 h-40 sm:h-52 object-cover rounded-lg shadow-md border border-parchment-deep dark:border-slateDark-border hover:scale-[1.02] transition-transform"
                       />
                     </Link>
 
                     {/* Metadados do Livro & Título do Ensaio */}
-                    <div className="flex-1 min-w-0 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="px-2.5 py-1 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold uppercase tracking-wider text-xs">
+                    <div className="flex-1 min-w-0 space-y-2.5 sm:space-y-3">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
+                        <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold uppercase tracking-wider text-[11px] sm:text-xs">
                           {mediaLabelMap[work.media_type]}
                         </span>
                         {work.category && (
-                          <span className="px-2.5 py-1 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border font-semibold text-ink dark:text-slateDark-text text-xs">
+                          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border font-semibold text-ink dark:text-slateDark-text text-[11px] sm:text-xs">
                             {work.category.name}
                           </span>
                         )}
-                        <span className="inline-flex items-center gap-1.5 text-ink-secondary dark:text-slateDark-muted font-medium ml-auto">
-                          <Clock className="w-4 h-4 text-burgundy dark:text-gold" />
-                          {metrics.words} palavras • ~{metrics.minutes} min de leitura
+                        <span className="inline-flex items-center gap-1 text-ink-secondary dark:text-slateDark-muted font-medium ml-auto text-[11px] sm:text-xs">
+                          <Clock className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
+                          {metrics.words} palavras • ~{metrics.minutes} min
                         </span>
                       </div>
 
                       <div>
                         <Link to={`/obras/${work.slug}`} className="group">
-                          <h4 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold transition-colors leading-tight">
+                          <h4 className="font-serif text-xl sm:text-3xl font-bold text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold transition-colors leading-tight">
                             {work.title}
                           </h4>
                         </Link>
-                        <p className="text-sm font-semibold text-burgundy dark:text-gold mt-1">
+                        <p className="text-xs sm:text-sm font-semibold text-burgundy dark:text-gold mt-1">
                           Obra de {work.creator} ({work.release_year}) •{' '}
                           <span className="font-medium text-ink-secondary dark:text-slateDark-muted">
                             {work.publisher_or_studio}
@@ -557,20 +557,20 @@ export const HomePage: React.FC = () => {
                       </div>
 
                       {work.subtitle && (
-                        <p className="font-literary italic text-lg sm:text-xl text-ink dark:text-slateDark-text leading-snug">
+                        <p className="font-literary italic text-base sm:text-xl text-ink dark:text-slateDark-text leading-snug">
                           “{work.subtitle}”
                         </p>
                       )}
 
-                      <div className="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+                      <div className="pt-1 flex flex-wrap items-center justify-between gap-2.5 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
                         <Link
                           to={`/perfil/${work.submitted_by?.id || work.submitted_by_id || 1}`}
-                          className="inline-flex items-center gap-2.5 group/author hover:opacity-90"
+                          className="inline-flex items-center gap-2 group/author hover:opacity-90 min-w-0"
                         >
-                          <span className="w-7 h-7 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-xs flex items-center justify-center shrink-0">
+                          <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-xs flex items-center justify-center shrink-0">
                             {(work.submitted_by?.name || 'A').charAt(0).toUpperCase()}
                           </span>
-                          <span>
+                          <span className="truncate">
                             Escrito por{' '}
                             <strong className="text-ink dark:text-slateDark-text group-hover/author:text-burgundy dark:group-hover/author:text-gold underline decoration-burgundy/40">
                               {work.submitted_by?.name || 'Prof. Augusto Vasconcelos'}
@@ -583,7 +583,7 @@ export const HomePage: React.FC = () => {
                             )}
                           </span>
                         </Link>
-                        <span className="inline-flex items-center gap-1 text-gold font-bold">
+                        <span className="inline-flex items-center gap-1 text-gold font-bold shrink-0">
                           <Star className="w-4 h-4 fill-gold text-gold" />
                           {work.editorial_rating.toFixed(1)}
                         </span>
@@ -593,13 +593,13 @@ export const HomePage: React.FC = () => {
                 </div>
 
                 {/* Corpo do Texto sobre o Livro (Espaço Agradável de Leitura) */}
-                <div className="p-6 sm:p-10 space-y-6">
+                <div className="p-4 sm:p-8 lg:p-10 space-y-5 sm:space-y-6">
                   {firstQuote && (
-                    <blockquote className="p-4 sm:p-5 rounded-lg bg-parchment-warm/70 dark:bg-slateDark-elevated border-l-4 border-burgundy dark:border-gold">
-                      <p className="font-literary italic text-lg sm:text-xl text-ink dark:text-slateDark-text leading-relaxed">
+                    <blockquote className="p-3.5 sm:p-5 rounded-lg bg-parchment-warm/70 dark:bg-slateDark-elevated border-l-4 border-burgundy dark:border-gold">
+                      <p className="font-literary italic text-base sm:text-xl text-ink dark:text-slateDark-text leading-relaxed">
                         “{firstQuote.quote_text}”
                       </p>
-                      <footer className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-burgundy dark:text-gold-light">
+                      <footer className="mt-1 text-xs font-semibold uppercase tracking-wider text-burgundy dark:text-gold-light">
                         — {firstQuote.source_note}
                       </footer>
                     </blockquote>
@@ -615,22 +615,21 @@ export const HomePage: React.FC = () => {
                     />
 
                     {!isExpanded && work.synopsis.length > previewParagraphs.length && (
-                      <div className="mt-4 pt-4 border-t border-dashed border-parchment-deep dark:border-slateDark-border flex flex-wrap items-center justify-between gap-3">
+                      <div className="mt-4 pt-4 border-t border-dashed border-parchment-deep dark:border-slateDark-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                         <button
                           type="button"
                           onClick={() => toggleExpandWork(work.id)}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-parchment-warm dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-xs sm:text-sm font-semibold text-burgundy dark:text-gold hover:border-burgundy transition-colors"
+                          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-md bg-parchment-warm dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-xs sm:text-sm font-semibold text-burgundy dark:text-gold hover:border-burgundy transition-colors"
                         >
                           <ChevronDown className="w-4 h-4" />
                           <span>
-                            Continuar Lendo o Texto Completo Aqui ({metrics.words}{' '}
-                            palavras)
+                            Continuar Lendo o Texto Completo ({metrics.words} palavras)
                           </span>
                         </button>
 
                         <Link
                           to={`/obras/${work.slug}`}
-                          className="text-xs font-semibold text-ink-secondary dark:text-slateDark-muted hover:text-burgundy dark:hover:text-gold underline"
+                          className="text-xs font-semibold text-ink-secondary dark:text-slateDark-muted hover:text-burgundy dark:hover:text-gold underline text-center sm:text-left"
                         >
                           Abrir em tela de leitura dedicada →
                         </Link>
@@ -638,7 +637,7 @@ export const HomePage: React.FC = () => {
                     )}
 
                     {isExpanded && (
-                      <div className="mt-6 pt-4 border-t border-dashed border-parchment-deep dark:border-slateDark-border flex items-center justify-between">
+                      <div className="mt-5 pt-3.5 border-t border-dashed border-parchment-deep dark:border-slateDark-border flex items-center justify-between">
                         <button
                           type="button"
                           onClick={() => toggleExpandWork(work.id)}
@@ -652,19 +651,19 @@ export const HomePage: React.FC = () => {
                           to={`/obras/${work.slug}`}
                           className="text-xs font-semibold text-burgundy dark:text-gold hover:underline"
                         >
-                          Abrir em Modo Leitura Tela Cheia →
+                          Modo Leitura Tela Cheia →
                         </Link>
                       </div>
                     )}
                   </div>
 
                   {/* Barra de Ações da Postagem: Compra Afiliada + Botão de Comentários */}
-                  <div className="pt-4 border-t border-parchment-deep dark:border-slateDark-border grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                    <div className="md:col-span-7">
+                  <div className="pt-4 border-t border-parchment-deep dark:border-slateDark-border flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+                    <div className="w-full md:w-auto md:flex-1 max-w-md">
                       <AffiliateButton work={work} variant="compact" />
                     </div>
 
-                    <div className="md:col-span-5 flex flex-wrap items-center justify-end gap-2.5">
+                    <div className="flex flex-wrap items-center justify-end gap-2 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-parchment-deep/40 dark:border-slateDark-border/40">
                       {permissions.can_moderate_queue && (
                         <button
                           type="button"
@@ -679,11 +678,11 @@ export const HomePage: React.FC = () => {
                               'Remoção pela Moderação por inadequação às diretrizes editoriais.'
                             );
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 transition-colors"
+                          className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-2 rounded-md text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 transition-colors"
                           title="Excluir esta obra/resenha (registrado no Log de Auditoria)"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>Excluir (Mod)</span>
+                          <span>Excluir</span>
                         </button>
                       )}
                       <button
@@ -697,16 +696,16 @@ export const HomePage: React.FC = () => {
                             target_author_name: work.submitted_by?.name || work.creator,
                           })
                         }
-                        className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md text-xs font-semibold text-ink-secondary dark:text-slateDark-muted hover:text-burgundy dark:hover:text-gold border border-parchment-deep dark:border-slateDark-border hover:border-burgundy dark:hover:border-gold transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-semibold text-ink-secondary dark:text-slateDark-muted hover:text-burgundy dark:hover:text-gold border border-parchment-deep dark:border-slateDark-border hover:border-burgundy dark:hover:border-gold transition-colors"
                         title="Sinalizar conteúdo impróprio à moderação"
                       >
                         <Flag className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Sinalizar</span>
+                        <span>Sinalizar</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => toggleCommentsDrawer(work.id)}
-                        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-xs font-semibold border transition-colors ${
+                        className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-md text-xs font-semibold border transition-colors ${
                           isCommentsOpen
                             ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg'
                             : 'bg-parchment-warm dark:bg-slateDark-elevated text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border hover:border-burgundy'
@@ -714,26 +713,26 @@ export const HomePage: React.FC = () => {
                       >
                         <MessageCircle className="w-4 h-4" />
                         <span>
-                          Comentários ({commentsList.length}) • Comentar
+                          Comentários ({commentsList.length})
                         </span>
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Gaveta Inline de Comentários (Ler e Digitar Comentário Direto no Post!) */}
+                {/* Gaveta Inline de Comentários */}
                 {isCommentsOpen && (
-                  <div className="p-6 sm:p-8 bg-parchment-warm/60 dark:bg-slateDark-elevated/50 border-t border-parchment-deep dark:border-slateDark-border space-y-5">
+                  <div className="p-4 sm:p-7 bg-parchment-warm/60 dark:bg-slateDark-elevated/50 border-t border-parchment-deep dark:border-slateDark-border space-y-4">
                     <div className="flex items-center justify-between">
-                      <h5 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
-                        <MessageCircle className="w-4 h-4 text-burgundy dark:text-gold" />
-                        <span>
+                      <h5 className="font-serif text-base sm:text-lg font-bold text-ink dark:text-slateDark-text flex items-center gap-2 truncate">
+                        <MessageCircle className="w-4 h-4 text-burgundy dark:text-gold shrink-0" />
+                        <span className="truncate">
                           Comentários sobre “{work.title}” ({commentsList.length})
                         </span>
                       </h5>
                       <Link
                         to={`/obras/${work.slug}#comentarios`}
-                        className="text-xs font-semibold text-burgundy dark:text-gold hover:underline"
+                        className="text-xs font-semibold text-burgundy dark:text-gold hover:underline shrink-0 ml-2"
                       >
                         Ver thread completa →
                       </Link>
@@ -755,9 +754,9 @@ export const HomePage: React.FC = () => {
                           }))
                         }
                         placeholder={`Escreva seu comentário sobre "${work.title}"... (Use '>' para citar um trecho)`}
-                        className="w-full px-4 py-3 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-base font-literary leading-relaxed focus:outline-none focus:border-burgundy"
+                        className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm sm:text-base font-literary leading-relaxed focus:outline-none focus:border-burgundy"
                       />
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                         <span className="text-xs text-ink-muted dark:text-slateDark-muted">
                           {isAuthenticated ? (
                             <>
@@ -774,7 +773,7 @@ export const HomePage: React.FC = () => {
                         </span>
                         <button
                           type="submit"
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-xs font-semibold shadow-sm"
+                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-xs font-semibold shadow-sm w-full sm:w-auto"
                         >
                           <Send className="w-3.5 h-3.5" />
                           <span>Publicar Comentário</span>
@@ -877,7 +876,7 @@ export const HomePage: React.FC = () => {
         {/* Coluna Lateral: Ensaios Temáticos da Comunidade & Carta de Princípios (4 colunas) */}
         <aside className="lg:col-span-4 space-y-6 sticky top-24">
           {/* Ensaios e Diálogos dos Membros */}
-          <div className="p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card space-y-4 shadow-editorial">
+          <div className="p-4 sm:p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card space-y-4 shadow-editorial">
             <div className="flex items-center justify-between border-b border-parchment-deep dark:border-slateDark-border pb-3">
               <div>
                 <span className="text-xs uppercase tracking-widest font-bold text-navy dark:text-gold block">
@@ -997,7 +996,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Carta de Princípios */}
-          <div className="p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/90 dark:bg-slateDark-card space-y-3 shadow-editorial">
+          <div className="p-4 sm:p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/90 dark:bg-slateDark-card space-y-3 shadow-editorial">
             <div className="flex items-center gap-2 text-burgundy dark:text-gold">
               <Award className="w-5 h-5" />
               <h4 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text">

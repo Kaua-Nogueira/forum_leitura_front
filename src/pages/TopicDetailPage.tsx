@@ -68,17 +68,17 @@ export const TopicDetailPage: React.FC = () => {
   const commentsCount = topic.comments?.length || 0;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-      <div className="flex items-center justify-between text-xs text-ink-muted dark:text-slateDark-muted">
+    <div className="max-w-5xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 sm:space-y-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-ink-muted dark:text-slateDark-muted">
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 font-medium text-ink-secondary dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+          className="inline-flex items-center gap-1.5 font-medium text-ink-secondary dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Voltar aos Ensaios &amp; Leituras</span>
         </Link>
 
-        <span className="font-medium text-burgundy dark:text-gold">
+        <span className="font-medium text-burgundy dark:text-gold self-start sm:self-auto">
           {topic.category?.name || 'Diálogos Abertos'}
         </span>
       </div>
@@ -86,7 +86,7 @@ export const TopicDetailPage: React.FC = () => {
       {/* Banner de Status de Revisão da Moderação (quando PENDING ou REJECTED) */}
       {topic.status !== 'APPROVED' && (
         <div
-          className={`p-5 rounded-xl border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm ${
+          className={`p-4 sm:p-5 rounded-xl border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm ${
             topic.status === 'PENDING'
               ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-950 dark:text-amber-200'
               : 'bg-red-50 dark:bg-red-950/50 border-red-500 text-red-950 dark:text-red-200'
@@ -146,8 +146,15 @@ export const TopicDetailPage: React.FC = () => {
       {/* Main Essay Sheet */}
       <article className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden">
         {/* Reading Comfort Bar */}
-        <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-3 text-ink-secondary dark:text-slateDark-text">
+            <span className="inline-flex items-center gap-1 font-medium">
+              <Clock className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
+              {metrics.words} palavras • ~{metrics.minutes} min de leitura
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5 self-end sm:self-auto overflow-x-auto no-scrollbar">
             <span className="inline-flex items-center gap-1 font-medium">
               <Clock className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
               {metrics.words} palavras • ~{metrics.minutes} min de leitura
@@ -215,8 +222,8 @@ export const TopicDetailPage: React.FC = () => {
         </div>
 
         {/* Reading Column */}
-        <div className="px-6 sm:px-12 lg:px-20 py-10 sm:py-14 max-w-4xl mx-auto space-y-8">
-          <header className="space-y-4 border-b border-parchment-deep dark:border-slateDark-border pb-6">
+        <div className="px-4 sm:px-12 lg:px-20 py-6 sm:py-14 max-w-4xl mx-auto space-y-6 sm:space-y-8">
+          <header className="space-y-3 sm:space-y-4 border-b border-parchment-deep dark:border-slateDark-border pb-5 sm:pb-6">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               {topic.is_pinned && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-burgundy/10 dark:bg-gold/15 text-burgundy dark:text-gold font-semibold">
@@ -229,7 +236,7 @@ export const TopicDetailPage: React.FC = () => {
               </span>
             </div>
 
-            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-ink dark:text-slateDark-text leading-tight">
+            <h1 className="font-serif text-2xl sm:text-4xl font-bold text-ink dark:text-slateDark-text leading-tight">
               {topic.title}
             </h1>
 

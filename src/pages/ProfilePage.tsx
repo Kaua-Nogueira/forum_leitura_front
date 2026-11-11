@@ -205,13 +205,13 @@ export const ProfilePage: React.FC = () => {
     userTopics.filter((t) => t.status === 'PENDING').length;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* 1. CABEÇALHO DO PERFIL DO AUTOR */}
-      <section className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card p-6 sm:p-8 shadow-editorial space-y-6">
+      <section className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card p-4 sm:p-8 shadow-editorial space-y-6">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5">
             {/* Avatar */}
-            <div className="w-20 h-20 rounded-2xl bg-burgundy dark:bg-slateDark-elevated border-2 border-burgundy/30 dark:border-gold/50 flex items-center justify-center font-serif text-3xl font-bold text-parchment dark:text-gold shadow-md shrink-0">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-burgundy dark:bg-slateDark-elevated border-2 border-burgundy/30 dark:border-gold/50 flex items-center justify-center font-serif text-2xl sm:text-3xl font-bold text-parchment dark:text-gold shadow-md shrink-0">
               {profileUser.name.charAt(0).toUpperCase()}
             </div>
 
@@ -379,24 +379,24 @@ export const ProfilePage: React.FC = () => {
       </section>
 
       {/* 2. ABAS: RESENHAS DE OBRAS | ENSAIOS | COMENTÁRIOS */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-parchment-deep dark:border-slateDark-border pb-3">
+      <div className="flex items-center gap-2 overflow-x-auto pb-3 sm:flex-wrap no-scrollbar -mx-3.5 px-3.5 sm:mx-0 sm:px-0 border-b border-parchment-deep dark:border-slateDark-border">
         <button
           type="button"
           onClick={() => setActiveTab('WORKS')}
-          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
+          className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold border transition-all whitespace-nowrap shrink-0 ${
             activeTab === 'WORKS'
               ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg dark:border-gold shadow-sm'
               : 'bg-parchment-warm dark:bg-slateDark-card text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border'
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          <span>Resenhas de Livros &amp; Obras ({userWorks.length})</span>
+          <span>Resenhas de Obras ({userWorks.length})</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('TOPICS')}
-          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
+          className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold border transition-all whitespace-nowrap shrink-0 ${
             activeTab === 'TOPICS'
               ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg dark:border-gold shadow-sm'
               : 'bg-parchment-warm dark:bg-slateDark-card text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border'
@@ -409,14 +409,14 @@ export const ProfilePage: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('COMMENTS')}
-          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
+          className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold border transition-all whitespace-nowrap shrink-0 ${
             activeTab === 'COMMENTS'
               ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg dark:border-gold shadow-sm'
               : 'bg-parchment-warm dark:bg-slateDark-card text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border'
           }`}
         >
           <MessageSquare className="w-4 h-4" />
-          <span>Comentários Publicados ({userComments.length})</span>
+          <span>Comentários ({userComments.length})</span>
         </button>
       </div>
 
@@ -424,19 +424,19 @@ export const ProfilePage: React.FC = () => {
       {activeTab === 'WORKS' && (
         <div className="space-y-4">
           {userWorks.length === 0 ? (
-            <div className="p-10 rounded-xl border border-dashed border-parchment-deep dark:border-slateDark-border bg-parchment-warm/50 dark:bg-slateDark-card text-center space-y-3">
+            <div className="p-8 sm:p-10 rounded-xl border border-dashed border-parchment-deep dark:border-slateDark-border bg-parchment-warm/50 dark:bg-slateDark-card text-center space-y-3">
               <BookOpen className="w-8 h-8 text-burgundy dark:text-gold mx-auto" />
-              <p className="font-serif text-xl font-bold text-ink dark:text-slateDark-text">
+              <p className="font-serif text-lg sm:text-xl font-bold text-ink dark:text-slateDark-text">
                 Nenhuma resenha de obra publicada ainda
               </p>
-              <p className="text-sm text-ink-secondary dark:text-slateDark-muted">
+              <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
                 Quando {isOwnProfile ? 'você escrever' : 'este autor escrever'} uma
                 resenha sobre um livro, ela aparecerá listada aqui.
               </p>
               {isOwnProfile && (
                 <Link
                   to="/escrever"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-sm font-semibold"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-xs sm:text-sm font-semibold"
                 >
                   <Feather className="w-4 h-4" />
                   <span>Escrever Minha Primeira Resenha</span>
@@ -449,9 +449,9 @@ export const ProfilePage: React.FC = () => {
               return (
                 <div
                   key={work.id}
-                  className="p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial flex flex-col sm:flex-row gap-6 items-start"
+                  className="p-4 sm:p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial flex flex-col sm:flex-row gap-4 sm:gap-6 items-start"
                 >
-                  <Link to={`/obras/${work.slug}`} className="shrink-0">
+                  <Link to={`/obras/${work.slug}`} className="shrink-0 mx-auto sm:mx-0">
                     <img
                       src={work.cover_url}
                       alt={work.title}
@@ -553,7 +553,7 @@ export const ProfilePage: React.FC = () => {
               return (
                 <div
                   key={topic.id}
-                  className="p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial space-y-3"
+                  className="p-4 sm:p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial space-y-3"
                 >
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <span
@@ -642,7 +642,7 @@ export const ProfilePage: React.FC = () => {
               return (
                 <div
                   key={`uc-${comment.id}`}
-                  className="p-5 sm:p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial space-y-3"
+                  className="p-4 sm:p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial space-y-3"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-parchment-deep dark:border-slateDark-border text-xs">
                     <div className="flex flex-wrap items-center gap-2">

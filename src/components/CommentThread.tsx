@@ -125,37 +125,37 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
         key={comment.id}
         className={`${
           depth > 0
-            ? 'mt-5 ml-4 sm:ml-9 pl-5 border-l-2 border-burgundy/25 dark:border-gold/30'
-            : 'p-6 sm:p-7 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/60 dark:bg-slateDark-card shadow-editorial'
+            ? 'mt-3.5 sm:mt-5 ml-2 sm:ml-8 pl-2.5 sm:pl-5 border-l-2 border-burgundy/25 dark:border-gold/30'
+            : 'p-4 sm:p-7 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/60 dark:bg-slateDark-card shadow-editorial'
         }`}
       >
         {/* Comment Header */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <Link
               to={`/perfil/${comment.author?.id || comment.author_id || 1}`}
-              className="w-9 h-9 rounded-full bg-burgundy/15 dark:bg-gold/20 border border-burgundy/30 dark:border-gold/40 flex items-center justify-center font-serif font-bold text-sm text-burgundy dark:text-gold hover:scale-105 transition-transform"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-burgundy/15 dark:bg-gold/20 border border-burgundy/30 dark:border-gold/40 flex items-center justify-center font-serif font-bold text-xs sm:text-sm text-burgundy dark:text-gold hover:scale-105 transition-transform"
             >
               {comment.author?.name?.charAt(0) || 'L'}
             </Link>
             <div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <Link
                   to={`/perfil/${comment.author?.id || comment.author_id || 1}`}
-                  className="text-sm font-bold text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold underline decoration-burgundy/30"
+                  className="text-xs sm:text-sm font-bold text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold underline decoration-burgundy/30"
                 >
                   {comment.author?.name || 'Membro da Cátedra'}
                 </Link>
                 {comment.author?.title_badge && (
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-slateDark-muted">
+                  <span className="text-[11px] sm:text-xs px-2 py-0.5 rounded-full bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-slateDark-muted">
                     {comment.author.title_badge}
                   </span>
                 )}
               </div>
-              <span className="text-xs text-ink-muted dark:text-slateDark-muted">
+              <span className="text-[11px] sm:text-xs text-ink-muted dark:text-slateDark-muted">
                 {new Date(comment.created_at).toLocaleDateString('pt-BR', {
                   day: '2-digit',
-                  month: 'long',
+                  month: 'short',
                   year: 'numeric',
                 })}
               </span>
@@ -163,11 +163,11 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           </div>
 
           {comment.rating && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border">
+            <div className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border">
               {Array.from({ length: 5 }).map((_, idx) => (
                 <Star
                   key={idx}
-                  className={`w-3.5 h-3.5 ${
+                  className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${
                     idx < comment.rating! ? 'fill-gold text-gold' : 'opacity-25'
                   }`}
                 />
@@ -184,56 +184,58 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
         />
 
         {/* Comment Footer Actions */}
-        <div className="mt-5 pt-3 border-t border-parchment-deep/60 dark:border-slateDark-border/60 flex flex-wrap items-center gap-4 text-xs text-ink-muted dark:text-slateDark-muted">
-          {(() => {
-            const alreadyLiked = hasUserUpvoted('COMMENT', comment.id);
-            return (
-              <button
-                type="button"
-                onClick={() => upvoteItem('COMMENT', comment.id)}
-                title={
-                  !isAuthenticated
-                    ? 'Faça login na sua conta para curtir'
-                    : alreadyLiked
-                    ? 'Você já curtiu este comentário (1 curtida por usuário)'
-                    : 'Curtir comentário'
+        <div className="mt-4 pt-3 border-t border-parchment-deep/60 dark:border-slateDark-border/60 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted dark:text-slateDark-muted">
+          <div className="flex flex-wrap items-center gap-2">
+            {(() => {
+              const alreadyLiked = hasUserUpvoted('COMMENT', comment.id);
+              return (
+                <button
+                  type="button"
+                  onClick={() => upvoteItem('COMMENT', comment.id)}
+                  title={
+                    !isAuthenticated
+                      ? 'Faça login na sua conta para curtir'
+                      : alreadyLiked
+                      ? 'Você já curtiu este comentário (1 curtida por usuário)'
+                      : 'Curtir comentário'
+                  }
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded font-semibold transition-colors ${
+                    alreadyLiked
+                      ? 'bg-burgundy/15 text-burgundy dark:bg-gold/20 dark:text-gold border border-burgundy/30 dark:border-gold/40'
+                      : 'hover:bg-burgundy/10 dark:hover:bg-gold/15 hover:text-burgundy dark:hover:text-gold'
+                  }`}
+                >
+                  <ThumbsUp
+                    className={`w-3.5 h-3.5 ${alreadyLiked ? 'fill-current' : ''}`}
+                  />
+                  <span>
+                    {alreadyLiked ? 'Curtido' : 'Curtir'} ({comment.upvotes_count})
+                  </span>
+                </button>
+              );
+            })()}
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!isAuthenticated) {
+                  showToast(
+                    'Conta necessária para comentar',
+                    'Faça login ou crie uma conta para responder a comentários.',
+                    'warning'
+                  );
+                  return;
                 }
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded font-semibold transition-colors ${
-                  alreadyLiked
-                    ? 'bg-burgundy/15 text-burgundy dark:bg-gold/20 dark:text-gold border border-burgundy/30 dark:border-gold/40'
-                    : 'hover:bg-burgundy/10 dark:hover:bg-gold/15 hover:text-burgundy dark:hover:text-gold'
-                }`}
-              >
-                <ThumbsUp
-                  className={`w-3.5 h-3.5 ${alreadyLiked ? 'fill-current' : ''}`}
-                />
-                <span>
-                  {alreadyLiked ? 'Curtido' : 'Curtir'} ({comment.upvotes_count})
-                </span>
-              </button>
-            );
-          })()}
+                setReplyingToId(replyingToId === comment.id ? null : comment.id);
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded hover:bg-parchment dark:hover:bg-slateDark-elevated hover:text-ink dark:hover:text-white font-semibold transition-colors"
+            >
+              <Reply className="w-3.5 h-3.5" />
+              <span>Responder</span>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (!isAuthenticated) {
-                showToast(
-                  'Conta necessária para comentar',
-                  'Faça login ou crie uma conta para responder a comentários.',
-                  'warning'
-                );
-                return;
-              }
-              setReplyingToId(replyingToId === comment.id ? null : comment.id);
-            }}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded hover:bg-parchment dark:hover:bg-slateDark-elevated hover:text-ink dark:hover:text-white font-semibold transition-colors"
-          >
-            <Reply className="w-3.5 h-3.5" />
-            <span>Responder a {comment.author?.name?.split(' ')[0]}</span>
-          </button>
-
-          <div className="ml-auto flex items-center gap-3">
+          <div className="flex items-center gap-2 ml-auto sm:ml-0">
             {permissions.can_moderate_queue && (
               <button
                 type="button"
@@ -247,7 +249,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
                 title="Excluir comentário (ação auditada no Log da Moderação)"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Excluir (Mod)</span>
+                <span className="hidden sm:inline">Excluir (Mod)</span>
               </button>
             )}
 
@@ -262,7 +264,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
                   target_author_name: comment.author?.name || 'Membro',
                 });
               }}
-              className="inline-flex items-center gap-1 text-ink-muted hover:text-burgundy dark:hover:text-gold transition-colors"
+              className="inline-flex items-center gap-1 text-ink-muted hover:text-burgundy dark:hover:text-gold transition-colors p-1"
               title="Sinalizar comentário impróprio à moderação"
             >
               <Flag className="w-3.5 h-3.5" />
@@ -387,11 +389,11 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
         className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card shadow-editorial overflow-hidden"
       >
         {/* Composer Header */}
-        <div className="px-6 py-4 bg-parchment dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border flex flex-wrap items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-3.5 bg-parchment dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <MessageSquare className="w-5 h-5 text-burgundy dark:text-gold" />
+            <MessageSquare className="w-5 h-5 text-burgundy dark:text-gold shrink-0" />
             <div>
-              <h4 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text">
+              <h4 className="font-serif text-base sm:text-lg font-bold text-ink dark:text-slateDark-text">
                 {allowRating
                   ? 'Deixar Comentário ou Nota de Leitura sobre o Livro'
                   : 'Participar da Discussão'}
@@ -404,7 +406,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           </div>
 
           {allowRating && (
-            <div className="flex items-center gap-2 bg-parchment-warm dark:bg-slateDark-card px-3 py-1.5 rounded-lg border border-parchment-deep dark:border-slateDark-border">
+            <div className="flex items-center gap-2 bg-parchment-warm dark:bg-slateDark-card px-3 py-1.5 rounded-lg border border-parchment-deep dark:border-slateDark-border self-start sm:self-auto">
               <span className="text-xs font-medium text-ink-secondary dark:text-slateDark-muted">
                 Avaliação:
               </span>
@@ -431,14 +433,14 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
         </div>
 
         {/* Formatting Toolbar for Comments */}
-        <div className="px-6 py-2.5 bg-parchment-warm/60 dark:bg-slateDark-card border-b border-parchment-deep/60 dark:border-slateDark-border flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="px-3.5 sm:px-6 py-2 bg-parchment-warm/60 dark:bg-slateDark-card border-b border-parchment-deep/60 dark:border-slateDark-border flex items-center justify-between gap-2 text-xs overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() =>
                 insertFormatting('> “Cite aqui um trecho do livro ou do texto...”\n\n')
               }
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border font-medium text-ink-secondary dark:text-slateDark-text hover:border-burgundy"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border font-medium text-ink-secondary dark:text-slateDark-text hover:border-burgundy whitespace-nowrap"
             >
               <Quote className="w-3 h-3 text-burgundy dark:text-gold" />
               <span>Citar Trecho (&gt;)</span>
@@ -447,7 +449,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
             <button
               type="button"
               onClick={() => setNewBody((p) => `${p} **destaque** `)}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border font-medium text-ink-secondary dark:text-slateDark-text hover:border-burgundy"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border font-medium text-ink-secondary dark:text-slateDark-text hover:border-burgundy whitespace-nowrap"
             >
               <Bold className="w-3 h-3" />
               <span>Negrito</span>
@@ -456,7 +458,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
             <button
               type="button"
               onClick={() => setNewBody((p) => `${p} *itálico* `)}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border font-medium text-ink-secondary dark:text-slateDark-text hover:border-burgundy"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border font-medium text-ink-secondary dark:text-slateDark-text hover:border-burgundy whitespace-nowrap"
             >
               <Italic className="w-3 h-3" />
               <span>Itálico</span>
@@ -466,7 +468,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           <button
             type="button"
             onClick={() => setPreviewComment((prev) => !prev)}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-slateDark-muted hover:text-ink"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-slateDark-muted hover:text-ink whitespace-nowrap shrink-0"
           >
             {previewComment ? (
               <>
@@ -476,14 +478,14 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
             ) : (
               <>
                 <Eye className="w-3 h-3" />
-                <span>Pré-visualizar Comentário</span>
+                <span>Pré-visualizar</span>
               </>
             )}
           </button>
         </div>
 
         {/* Spacious Writing Area */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {!isAuthenticated ? (
             <div className="p-5 rounded-lg bg-parchment dark:bg-slateDark-elevated border border-burgundy/30 dark:border-gold/30 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
