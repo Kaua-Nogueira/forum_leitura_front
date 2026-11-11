@@ -203,22 +203,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return INITIAL_MODERATION_FLAGS;
   });
-  const [moderationLogs, setModerationLogs] = useState<ModerationLog[]>([
-    {
-      id: 1,
-      actor_id: 2,
-      actor_name: 'Helena Monteiro de Barros',
-      actor_role: 'MODERATOR',
-      action_type: 'APPROVE_WORK',
-      target_type: 'WORK',
-      target_id: 1,
-      target_title: 'Confissões (Santo Agostinho)',
-      target_author_name: 'Prof. Augusto Vasconcelos',
-      reason: 'Revisão editorial inicial concluída: tradução e aparato crítico verificados.',
-      ip_address: '127.0.0.1',
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-    },
-  ]);
+  const [moderationLogs, setModerationLogs] = useState<ModerationLog[]>([]);
   const [upvotesList, setUpvotesList] = useState<UpvoteRecord[]>(() => {
     const raw = localStorage.getItem('veritas_upvotes');
     if (raw) {

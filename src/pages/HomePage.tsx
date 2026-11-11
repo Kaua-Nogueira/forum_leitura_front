@@ -871,6 +871,27 @@ export const HomePage: React.FC = () => {
               </article>
             );
           })}
+
+          {approvedWorks.length === 0 && (
+            <div className="p-8 sm:p-14 text-center rounded-xl border border-dashed border-parchment-deep dark:border-slateDark-border bg-parchment-warm/60 dark:bg-slateDark-card/60 space-y-4">
+              <BookOpen className="w-12 h-12 mx-auto text-burgundy/60 dark:text-gold/60" />
+              <div className="space-y-1.5">
+                <h4 className="font-serif text-xl sm:text-2xl font-bold text-ink dark:text-slateDark-text">
+                  Nenhuma obra ou resenha publicada ainda
+                </h4>
+                <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted max-w-md mx-auto leading-relaxed">
+                  O acervo está pronto e limpo. Seja o primeiro a inaugurar a cátedra com uma nova resenha ou ensaio literário!
+                </p>
+              </div>
+              <Link
+                to="/escrever"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light dark:text-slateDark-bg text-parchment text-xs sm:text-sm font-semibold transition-colors shadow-sm"
+              >
+                <Feather className="w-4 h-4" />
+                <span>Escrever Primeira Publicação</span>
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Coluna Lateral: Ensaios Temáticos da Comunidade & Carta de Princípios (4 colunas) */}
@@ -895,6 +916,20 @@ export const HomePage: React.FC = () => {
             </div>
 
             <div className="divide-y divide-parchment-deep dark:divide-slateDark-border">
+              {filteredTopics.length === 0 && (
+                <div className="py-8 text-center space-y-3">
+                  <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+                    Nenhum ensaio aberto no fórum ainda.
+                  </p>
+                  <Link
+                    to="/escrever"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-burgundy dark:text-gold hover:underline"
+                  >
+                    <Feather className="w-3.5 h-3.5" />
+                    <span>Iniciar Diálogo Clássico</span>
+                  </Link>
+                </div>
+              )}
               {filteredTopics.map((topic) => (
                 <div key={topic.id} className="py-4 first:pt-1 last:pb-1 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs">
