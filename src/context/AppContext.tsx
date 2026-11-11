@@ -177,38 +177,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [works, setWorks] = useState<Work[]>(() => {
-    const cached = localStorage.getItem('veritas_cache_works_v2');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch {
-        // ignore
-      }
+    try {
+      localStorage.removeItem('veritas_cache_works_v2');
+      localStorage.removeItem('veritas_cache_works');
+    } catch {
+      // ignore
     }
     return INITIAL_WORKS;
   });
   const [topics, setTopics] = useState<Topic[]>(() => {
-    const cached = localStorage.getItem('veritas_cache_topics_v2');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch {
-        // ignore
-      }
+    try {
+      localStorage.removeItem('veritas_cache_topics_v2');
+      localStorage.removeItem('veritas_cache_topics');
+    } catch {
+      // ignore
     }
     return INITIAL_TOPICS;
   });
   const [moderationFlags, setModerationFlags] = useState<ModerationFlag[]>(() => {
-    const cached = localStorage.getItem('veritas_cache_flags_v2');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) return parsed;
-      } catch {
-        // ignore
-      }
+    try {
+      localStorage.removeItem('veritas_cache_flags_v2');
+      localStorage.removeItem('veritas_cache_flags');
+    } catch {
+      // ignore
     }
     return INITIAL_MODERATION_FLAGS;
   });
@@ -268,18 +259,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [upvotesList]);
 
   useEffect(() => {
-    localStorage.setItem('veritas_cache_works_v2', JSON.stringify(works));
-  }, [works]);
-
-  useEffect(() => {
-    localStorage.setItem('veritas_cache_topics_v2', JSON.stringify(topics));
-  }, [topics]);
-
-  useEffect(() => {
-    localStorage.setItem('veritas_cache_flags_v2', JSON.stringify(moderationFlags));
-  }, [moderationFlags]);
-
-  useEffect(() => {
     const root = document.documentElement;
     if (isDark) {
       root.classList.add('dark');
@@ -320,103 +299,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!mounted) return;
         if (data.categories?.length) setCategories(data.categories);
 
-        let mergedWorks = data.works || [];
-        if (data.works?.length) {
-          setWorks((prev) => {
-            const localOnly = prev.filter(
-              (lw) =>
-                lw.id > 1000000000 &&
-                !data.works.some((sw) => sw.slug === lw.slug || sw.id === lw.id)
-            );
-            mergedWorks = [...localOnly, ...data.works];
-            return mergedWorks;
-          });
+        if (data.works && Array.isArray(data.works)) {
+          setWorks(data.works);
         }
 
-        let mergedTopics = data.topics || [];
-        if (data.topics?.length) {
-          setTopics((prev) => {
-            const localOnly = prev.filter(
-              (lt) =>
-                lt.id > 1000000000 &&
-                !data.topics.some((st) => st.slug === lt.slug || st.id === lt.id)
-            );
-            mergedTopics = [...localOnly, ...data.topics];
-            return mergedTopics;
-          });
+        if (data.topics && Array.isArray(data.topics)) {
+          setTopics(data.topics);
         }
 
-        setModerationFlags((prev) => {
-          const serverFlags = data.moderation_flags || [];
-          const localOnlyFlags = prev.filter(
-            (pf) =>
-              !serverFlags.some(
-                (sf) =>
-                  sf.id === pf.id ||
-                  (sf.target_type === pf.target_type &&
-                    sf.target_id === pf.target_id &&
-                    sf.status === pf.status)
-              )
-          );
-
-          const combined = [...localOnlyFlags, ...serverFlags];
-
-          // Ensure every PENDING work or topic has a visible entry in the moderation queue
-          for (const w of mergedWorks) {
-            if (
-              w.status === 'PENDING' &&
-              !combined.some((f) => f.target_type === 'WORK' && f.target_id === w.id)
-            ) {
-              combined.unshift({
-                id: 900000 + w.id,
-                target_type: 'WORK',
-                target_id: w.id,
-                target_title: `Revisão de Nova Obra/Resenha: ${w.title}`,
-                target_excerpt: (w.synopsis || '').slice(0, 180),
-                target_author_id: w.submitted_by_id || 1,
-                target_author_name: w.submitted_by?.name || w.creator || 'Membro',
-                reporter_id: w.submitted_by_id || 1,
-                reporter_name: 'Fila Obrigatória de Revisão Editorial',
-                reason: 'BROKEN_AFFILIATE_LINK',
-                details:
-                  'Todo texto publicado aguarda revisão obrigatória da moderação antes de ir ao ar.',
-                status: 'PENDING',
-                created_at: w.created_at || new Date().toISOString(),
-              });
-            }
-          }
-
-          for (const t of mergedTopics) {
-            if (
-              t.status === 'PENDING' &&
-              !combined.some((f) => f.target_type === 'TOPIC' && f.target_id === t.id)
-            ) {
-              combined.unshift({
-                id: 800000 + t.id,
-                target_type: 'TOPIC',
-                target_id: t.id,
-                target_title: `Revisão de Novo Ensaio: ${t.title}`,
-                target_excerpt: t.excerpt || (t.body || '').slice(0, 180),
-                target_author_id: t.author_id || 1,
-                target_author_name: t.author?.name || 'Membro',
-                reporter_id: t.author_id || 1,
-                reporter_name: 'Fila Obrigatória de Revisão Editorial',
-                reason: 'GUIDELINE_VIOLATION',
-                details:
-                  'Todo ensaio publicado aguarda revisão obrigatória da moderação antes de ir ao ar.',
-                status: 'PENDING',
-                created_at: t.created_at || new Date().toISOString(),
-              });
-            }
-          }
-
-          return combined;
-        });
+        if (data.moderation_flags && Array.isArray(data.moderation_flags)) {
+          setModerationFlags(data.moderation_flags);
+        }
 
         if (data.moderation_logs?.length) setModerationLogs(data.moderation_logs);
         if (data.upvotes) setUpvotesList(data.upvotes);
         if (data.settings) setSettings(data.settings);
-        if (data.users?.length) setUsersList(data.users);
+        if (data.users?.length) {
+          setUsersList(data.users);
+          // Sync currentUser with real DB record (e.g. correct ID, name, role, badges)
+          if (currentUser.role !== 'VISITOR' && currentUser.email) {
+            const dbMatch = data.users.find(
+              (u) => u.email.toLowerCase() === currentUser.email.toLowerCase()
+            );
+            if (dbMatch) {
+              setCurrentUser((prev) => {
+                const updated = { ...prev, ...dbMatch };
+                localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updated));
+                return updated;
+              });
+            }
+          }
+        }
         setApiConnected(true);
 
         // Fetch users list if Moderator or Admin
@@ -698,15 +611,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       if (apiConnected) {
-        const res = await apiService.createWork(data, effectiveRole);
-        const pendingWork: Work = { ...res.work, status: 'PENDING' };
-        setWorks((prev) => [pendingWork, ...prev]);
+        const payload = {
+          ...data,
+          user_id: currentUser.id,
+          author_id: currentUser.id,
+          submitted_by_id: currentUser.id,
+          email: currentUser.email,
+        };
+        const res = await apiService.createWork(payload, effectiveRole);
+        const pendingWork: Work = {
+          ...res.work,
+          status: 'PENDING',
+          submitted_by: res.work.submitted_by || currentUser,
+          submitted_by_id: res.work.submitted_by_id || currentUser.id,
+        };
+        setWorks((prev) => [pendingWork, ...prev.filter((w) => w.id !== pendingWork.id)]);
         if (res.flag) {
-          setModerationFlags((prev) => [res.flag!, ...prev]);
+          setModerationFlags((prev) => [res.flag!, ...prev.filter((f) => f.id !== res.flag!.id)]);
         }
         showToast(
           'Enviado para Revisão da Moderação!',
-          `“${pendingWork.title}” foi salvo e aguarda aprovação de um moderador antes de ficar público.`,
+          `“${pendingWork.title}” foi salvo no banco e aguarda aprovação de um moderador antes de ficar público.`,
           'info'
         );
         return pendingWork;
@@ -738,7 +663,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: data.title || 'Nova Obra Clássica',
       subtitle: data.subtitle || '',
       slug,
-      creator: data.creator || 'Autor Clássico',
+      creator: data.creator || currentUser.name,
       media_type: data.media_type || 'BOOK',
       release_year: Number(data.release_year) || 1950,
       category_id: cat.id,
@@ -807,15 +732,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       if (apiConnected) {
-        const res = await apiService.createTopic(data, effectiveRole);
-        const pendingTopic: Topic = { ...res.topic, status: 'PENDING' };
-        setTopics((prev) => [pendingTopic, ...prev]);
+        const payload = {
+          ...data,
+          user_id: currentUser.id,
+          author_id: currentUser.id,
+          email: currentUser.email,
+        };
+        const res = await apiService.createTopic(payload, effectiveRole);
+        const pendingTopic: Topic = {
+          ...res.topic,
+          status: 'PENDING',
+          author: res.topic.author || currentUser,
+          author_id: res.topic.author_id || currentUser.id,
+        };
+        setTopics((prev) => [pendingTopic, ...prev.filter((t) => t.id !== pendingTopic.id)]);
         if (res.flag) {
-          setModerationFlags((prev) => [res.flag!, ...prev]);
+          setModerationFlags((prev) => [res.flag!, ...prev.filter((f) => f.id !== res.flag!.id)]);
         }
         showToast(
           'Ensaio enviado para Revisão da Moderação!',
-          `“${pendingTopic.title}” aguarda aprovação de um moderador antes de ser publicado.`,
+          `“${pendingTopic.title}” foi salvo no banco e aguarda aprovação de um moderador antes de ser publicado.`,
           'info'
         );
         return pendingTopic;
@@ -940,7 +876,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       if (apiConnected) {
-        const res = await apiService.createComment(payload, currentUser.role);
+        const payloadWithUser = {
+          ...payload,
+          user_id: currentUser.id,
+          author_id: currentUser.id,
+          email: currentUser.email,
+        };
+        const res = await apiService.createComment(payloadWithUser, currentUser.role);
         createdComment = res.comment;
       }
     } catch (err: any) {
@@ -965,6 +907,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         replies: [],
         created_at: new Date().toISOString(),
       };
+    }
+
+    // Ensure author relation always references currentUser
+    if (!createdComment.author || !createdComment.author.name) {
+      createdComment.author = currentUser;
+      createdComment.author_id = currentUser.id;
     }
 
     if (payload.work_id) {

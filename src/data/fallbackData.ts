@@ -53,7 +53,7 @@ export const DEMO_USERS: Record<string, User> = {
     created_at: '2025-05-01T09:15:00Z',
   },
   MOD_EDITORIAL: {
-    id: 4,
+    id: 5,
     name: 'Moderador Editorial',
     username: 'moderador.veritas',
     email: 'mod@veritas.com',
@@ -65,7 +65,7 @@ export const DEMO_USERS: Record<string, User> = {
     created_at: '2026-11-10T15:23:31Z',
   },
   ADMIN_GERAL: {
-    id: 5,
+    id: 6,
     name: 'Administrador Geral',
     username: 'admin.veritas',
     email: 'admin@veritas.com',

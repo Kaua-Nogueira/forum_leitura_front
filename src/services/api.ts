@@ -280,7 +280,12 @@ export const apiService = {
   },
 
   async createWork(
-    payload: Partial<Work>,
+    payload: Partial<Work> & {
+      user_id?: number;
+      author_id?: number;
+      submitted_by_id?: number;
+      email?: string;
+    },
     role: UserRole
   ): Promise<{ work: Work; flag?: ModerationFlag }> {
     return request<{ work: Work; flag?: ModerationFlag }>(
@@ -305,7 +310,11 @@ export const apiService = {
   },
 
   async createTopic(
-    payload: Partial<Topic>,
+    payload: Partial<Topic> & {
+      user_id?: number;
+      author_id?: number;
+      email?: string;
+    },
     role: UserRole
   ): Promise<{ topic: Topic; flag?: ModerationFlag }> {
     return request<{ topic: Topic; flag?: ModerationFlag }>(
@@ -381,6 +390,9 @@ export const apiService = {
       work_id?: number | null;
       topic_id?: number | null;
       parent_id?: number | null;
+      user_id?: number;
+      author_id?: number;
+      email?: string;
     },
     role: UserRole
   ): Promise<{ comment: Comment }> {
