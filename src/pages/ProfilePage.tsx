@@ -17,6 +17,7 @@ import {
   ArrowRight,
   ShieldCheck,
   LogIn,
+  Trash2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Comment, Work, Topic } from '../types/schema';
@@ -39,6 +40,7 @@ export const ProfilePage: React.FC = () => {
     works,
     topics,
     updateUserProfile,
+    deleteContent,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'WORKS' | 'TOPICS' | 'COMMENTS'>('WORKS');
@@ -513,13 +515,30 @@ export const ProfilePage: React.FC = () => {
                       <span className="text-ink-muted dark:text-slateDark-muted">
                         {work.comments?.length || 0} comentários recebidos
                       </span>
-                      <Link
-                        to={`/obras/${work.slug}`}
-                        className="inline-flex items-center gap-1 font-semibold text-burgundy dark:text-gold hover:underline"
-                      >
-                        <span>Abrir texto completo</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
+                      <div className="flex items-center gap-3">
+                        {isOwnProfile && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`Tem certeza que deseja apagar a resenha "${work.title}"?`)) {
+                                deleteContent('WORK', work.id, work.title);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-red-700 dark:text-red-400 hover:underline font-semibold"
+                            title="Apagar resenha"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Apagar</span>
+                          </button>
+                        )}
+                        <Link
+                          to={`/obras/${work.slug}`}
+                          className="inline-flex items-center gap-1 font-semibold text-burgundy dark:text-gold hover:underline"
+                        >
+                          <span>Abrir texto completo</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -604,13 +623,30 @@ export const ProfilePage: React.FC = () => {
                         {topic.comments_count} comentários
                       </span>
                     </div>
-                    <Link
-                      to={`/topicos/${topic.slug}`}
-                      className="inline-flex items-center gap-1 font-semibold text-burgundy dark:text-gold hover:underline"
-                    >
-                      <span>Ler ensaio</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      {isOwnProfile && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Tem certeza que deseja apagar o ensaio "${topic.title}"?`)) {
+                              deleteContent('TOPIC', topic.id, topic.title);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-red-700 dark:text-red-400 hover:underline font-semibold"
+                          title="Apagar ensaio"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Apagar</span>
+                        </button>
+                      )}
+                      <Link
+                        to={`/topicos/${topic.slug}`}
+                        className="inline-flex items-center gap-1 font-semibold text-burgundy dark:text-gold hover:underline"
+                      >
+                        <span>Ler ensaio</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );
@@ -681,13 +717,30 @@ export const ProfilePage: React.FC = () => {
                       <ThumbsUp className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
                       {comment.upvotes_count} apreciações
                     </span>
-                    <Link
-                      to={targetUrl}
-                      className="inline-flex items-center gap-1 font-semibold text-burgundy dark:text-gold hover:underline"
-                    >
-                      <span>Ver na discussão original</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      {isOwnProfile && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('Tem certeza que deseja apagar este comentário?')) {
+                              deleteContent('COMMENT', comment.id, `Comentário em ${targetTitle}`);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-red-700 dark:text-red-400 hover:underline font-semibold"
+                          title="Apagar comentário"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Apagar</span>
+                        </button>
+                      )}
+                      <Link
+                        to={targetUrl}
+                        className="inline-flex items-center gap-1 font-semibold text-burgundy dark:text-gold hover:underline"
+                      >
+                        <span>Ver na discussão original</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );

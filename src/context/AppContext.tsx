@@ -130,6 +130,13 @@ interface AppContextType {
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
     note?: string
   ) => Promise<void>;
+  deleteContent: (
+    targetType: 'WORK' | 'TOPIC' | 'COMMENT',
+    targetId: number,
+    targetTitle?: string,
+    reason?: string,
+    targetAuthorName?: string
+  ) => Promise<void>;
   deleteByModerator: (
     targetType: 'WORK' | 'TOPIC' | 'COMMENT',
     targetId: number,
@@ -954,6 +961,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return c;
     });
 
+  const decrementCommentUpvote = (list: Comment[], commentId: number): Comment[] =>
+    list.map((c) => {
+      if (c.id === commentId) {
+        return { ...c, upvotes_count: Math.max(0, c.upvotes_count - 1) };
+      }
+      if (c.replies?.length) {
+        return { ...c, replies: decrementCommentUpvote(c.replies, commentId) };
+      }
+      return c;
+    });
+
   const upvoteItem = async (targetType: 'TOPIC' | 'COMMENT', targetId: number) => {
     if (!isAuthenticated) {
       showToast(
@@ -964,8 +982,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    if (hasUserUpvoted(targetType, targetId)) {
-      return;
+    const alreadyLiked = hasUserUpvoted(targetType, targetId);
+
+    // Toggle upvote in local state (add or remove)
+    if (alreadyLiked) {
+      setUpvotesList((prev) =>
+        prev.filter(
+          (u) =>
+            !(
+              u.user_id === currentUser.id &&
+              u.target_type === targetType &&
+              u.target_id === targetId
+            )
+        )
+      );
+
+      if (targetType === 'TOPIC') {
+        setTopics((prev) =>
+          prev.map((t) =>
+            t.id === targetId
+              ? { ...t, upvotes_count: Math.max(0, t.upvotes_count - 1) }
+              : t
+          )
+        );
+      } else {
+        setWorks((prev) =>
+          prev.map((w) => ({
+            ...w,
+            comments: decrementCommentUpvote(w.comments || [], targetId),
+          }))
+        );
+        setTopics((prev) =>
+          prev.map((t) => ({
+            ...t,
+            comments: decrementCommentUpvote(t.comments || [], targetId),
+          }))
+        );
+      }
+    } else {
+      setUpvotesList((prev) => [
+        ...prev,
+        {
+          user_id: currentUser.id,
+          target_type: targetType,
+          target_id: targetId,
+        },
+      ]);
+
+      if (targetType === 'TOPIC') {
+        setTopics((prev) =>
+          prev.map((t) =>
+            t.id === targetId ? { ...t, upvotes_count: t.upvotes_count + 1 } : t
+          )
+        );
+      } else {
+        setWorks((prev) =>
+          prev.map((w) => ({
+            ...w,
+            comments: incrementCommentUpvote(w.comments || [], targetId),
+          }))
+        );
+        setTopics((prev) =>
+          prev.map((t) => ({
+            ...t,
+            comments: incrementCommentUpvote(t.comments || [], targetId),
+          }))
+        );
+      }
     }
 
     try {
@@ -973,51 +1056,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await apiService.toggleUpvote(targetType, targetId, currentUser.role);
       }
     } catch (err: any) {
-      if (err?.message && err.message.includes('já deu curtida')) {
-        setUpvotesList((prev) => [
-          ...prev,
-          {
-            user_id: currentUser.id,
-            target_type: targetType,
-            target_id: targetId,
-          },
-        ]);
-        return;
-      }
       if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
-        showToast('Não foi possível curtir', err.message, 'warning');
-        return;
+        showToast('Não foi possível atualizar a curtida', err.message, 'warning');
       }
-    }
-
-    setUpvotesList((prev) => [
-      ...prev,
-      {
-        user_id: currentUser.id,
-        target_type: targetType,
-        target_id: targetId,
-      },
-    ]);
-
-    if (targetType === 'TOPIC') {
-      setTopics((prev) =>
-        prev.map((t) =>
-          t.id === targetId ? { ...t, upvotes_count: t.upvotes_count + 1 } : t
-        )
-      );
-    } else {
-      setWorks((prev) =>
-        prev.map((w) => ({
-          ...w,
-          comments: incrementCommentUpvote(w.comments || [], targetId),
-        }))
-      );
-      setTopics((prev) =>
-        prev.map((t) => ({
-          ...t,
-          comments: incrementCommentUpvote(t.comments || [], targetId),
-        }))
-      );
     }
   };
 
@@ -1376,31 +1417,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         replies: c.replies?.length ? removeCommentFromTree(c.replies, commentId) : [],
       }));
 
-  const deleteByModerator = async (
+  const deleteContent = async (
     targetType: 'WORK' | 'TOPIC' | 'COMMENT',
     targetId: number,
-    targetTitle: string,
-    reason: string,
+    targetTitle?: string,
+    reason?: string,
     targetAuthorName?: string
   ) => {
-    if (!permissions.can_moderate_queue) {
+    if (!isAuthenticated) {
       showToast(
-        'Acesso negado (RBAC)',
-        'Apenas Moderadores e Administradores podem excluir conteúdos.',
+        'Acesso negado',
+        'Você precisa estar logado para excluir conteúdos.',
         'error'
       );
       return;
     }
 
-    const cleanReason = reason.trim();
-    if (cleanReason.length < 3) {
-      showToast(
-        'Justificativa obrigatória',
-        'Informe o motivo da exclusão (mínimo de 3 caracteres) para registro no Log de Auditoria.',
-        'warning'
-      );
-      return;
-    }
+    const cleanReason = (reason && reason.trim())
+      ? reason.trim()
+      : (permissions.can_moderate_queue ? 'Excluído pela Moderação' : 'Excluído pelo autor');
 
     let serverLog: ModerationLog | undefined;
     try {
@@ -1457,35 +1492,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ? {
               ...f,
               status: 'RESOLVED_HIDDEN',
-              moderator_note: `Excluído pela Moderação: ${cleanReason}`,
+              moderator_note: `Excluído: ${cleanReason}`,
               resolved_at: new Date().toISOString(),
             }
           : f
       )
     );
 
-    const logEntry: ModerationLog = serverLog || {
-      id: Date.now(),
-      actor_id: currentUser.id,
-      actor_name: currentUser.name,
-      actor_role: currentUser.role,
-      action_type: `DELETE_${targetType}`,
-      target_type: targetType,
-      target_id: targetId,
-      target_title: targetTitle,
-      target_author_name: targetAuthorName || 'Membro da Comunidade',
-      reason: cleanReason,
-      ip_address: '127.0.0.1',
-      created_at: new Date().toISOString(),
-    };
+    if (serverLog) {
+      setModerationLogs((prev) => [serverLog!, ...prev]);
+    } else if (permissions.can_moderate_queue) {
+      const logEntry: ModerationLog = {
+        id: Date.now(),
+        actor_id: currentUser.id,
+        actor_name: currentUser.name,
+        actor_role: currentUser.role,
+        action_type: `DELETE_${targetType}`,
+        target_type: targetType,
+        target_id: targetId,
+        target_title: targetTitle || 'Conteúdo',
+        target_author_name: targetAuthorName || 'Membro da Comunidade',
+        reason: cleanReason,
+        ip_address: '127.0.0.1',
+        created_at: new Date().toISOString(),
+      };
+      setModerationLogs((prev) => [logEntry, ...prev]);
+    }
 
-    setModerationLogs((prev) => [logEntry, ...prev]);
-
+    const isSelf = !permissions.can_moderate_queue;
     showToast(
-      'Conteúdo excluído pela Moderação',
-      `Exclusão registrada no Log de Auditoria por ${currentUser.name}.`,
-      'warning'
+      isSelf ? 'Conteúdo excluído' : 'Conteúdo excluído pela Moderação',
+      isSelf
+        ? 'Seu conteúdo foi removido com sucesso.'
+        : `Exclusão registrada no Log de Auditoria por ${currentUser.name}.`,
+      'success'
     );
+  };
+
+  const deleteByModerator = async (
+    targetType: 'WORK' | 'TOPIC' | 'COMMENT',
+    targetId: number,
+    targetTitle: string,
+    reason: string,
+    targetAuthorName?: string
+  ) => {
+    return deleteContent(targetType, targetId, targetTitle, reason, targetAuthorName);
   };
 
   const updateGlobalSettings = async (newSettings: Partial<PlatformSettings>) => {
@@ -1573,6 +1624,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resolveFlag,
         moderateWorkStatus,
         moderateTopicStatus,
+        deleteContent,
         deleteByModerator,
         updateGlobalSettings,
         trackAffiliateClick,

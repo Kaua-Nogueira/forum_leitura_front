@@ -43,6 +43,7 @@ export const HomePage: React.FC = () => {
     permissions,
     moderateWorkStatus,
     moderateTopicStatus,
+    deleteContent,
     deleteByModerator,
     addComment,
     upvoteItem,
@@ -664,7 +665,10 @@ export const HomePage: React.FC = () => {
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-2 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-parchment-deep/40 dark:border-slateDark-border/40">
-                      {permissions.can_moderate_queue && (
+                      {(permissions.can_moderate_queue ||
+                        (isAuthenticated &&
+                          currentUser.id ===
+                            (work.submitted_by?.id || work.submitted_by_id))) && (
                         <button
                           type="button"
                           onClick={() => {
@@ -675,11 +679,13 @@ export const HomePage: React.FC = () => {
                               authorName: work.submitted_by?.name || work.creator,
                             });
                             setDeleteReasonText(
-                              'Remoção pela Moderação por inadequação às diretrizes editoriais.'
+                              permissions.can_moderate_queue
+                                ? 'Remoção pela Moderação por inadequação às diretrizes editoriais.'
+                                : 'Excluído pelo autor.'
                             );
                           }}
                           className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-2 rounded-md text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 transition-colors"
-                          title="Excluir esta obra/resenha (registrado no Log de Auditoria)"
+                          title="Excluir esta publicação"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           <span>Excluir</span>
@@ -802,7 +808,10 @@ export const HomePage: React.FC = () => {
                                 </span>
                               </Link>
                               <div className="flex items-center gap-3">
-                                {permissions.can_moderate_queue && (
+                                {(permissions.can_moderate_queue ||
+                                  (isAuthenticated &&
+                                    currentUser.id ===
+                                      (c.author?.id || c.author_id))) && (
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -813,11 +822,13 @@ export const HomePage: React.FC = () => {
                                         authorName: c.author?.name || 'Leitor',
                                       });
                                       setDeleteReasonText(
-                                        'Comentário removido pela Moderação.'
+                                        permissions.can_moderate_queue
+                                          ? 'Comentário removido pela Moderação.'
+                                          : 'Excluído pelo autor.'
                                       );
                                     }}
                                     className="inline-flex items-center gap-1 text-red-700 dark:text-red-300 hover:underline font-semibold"
-                                    title="Excluir comentário (registrado no Log)"
+                                    title="Excluir comentário"
                                   >
                                     <Trash2 className="w-3 h-3" />
                                     <span>Excluir</span>
@@ -987,7 +998,10 @@ export const HomePage: React.FC = () => {
                       <MessageCircle className="w-3.5 h-3.5" />
                       <span>{topic.comments_count} comentários</span>
                     </Link>
-                    {permissions.can_moderate_queue && (
+                    {(permissions.can_moderate_queue ||
+                      (isAuthenticated &&
+                        currentUser.id ===
+                          (topic.author?.id || topic.author_id))) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -998,11 +1012,13 @@ export const HomePage: React.FC = () => {
                             authorName: topic.author?.name || 'Membro',
                           });
                           setDeleteReasonText(
-                            'Ensaio removido pela Moderação.'
+                            permissions.can_moderate_queue
+                              ? 'Ensaio removido pela Moderação.'
+                              : 'Excluído pelo autor.'
                           );
                         }}
                         className="inline-flex items-center gap-1 text-red-700 dark:text-red-300 hover:underline font-semibold"
-                        title="Excluir ensaio (registrado no Log de Auditoria)"
+                        title="Excluir ensaio"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>Excluir</span>
@@ -1063,14 +1079,16 @@ export const HomePage: React.FC = () => {
         </aside>
       </section>
 
-      {/* Modal de Exclusão Auditada da Moderação */}
-      {deletePromptTarget && permissions.can_moderate_queue && (
+      {/* Modal de Exclusão (Moderação ou Autor) */}
+      {deletePromptTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-xl border-2 border-red-600/60 bg-parchment dark:bg-slateDark-card p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-2.5 text-red-700 dark:text-red-400">
               <Trash2 className="w-5 h-5 shrink-0" />
               <h4 className="font-serif text-lg font-bold">
-                Confirmar Exclusão pela Moderação
+                {permissions.can_moderate_queue
+                  ? 'Confirmar Exclusão pela Moderação'
+                  : 'Confirmar Exclusão'}
               </h4>
             </div>
             <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
@@ -1078,20 +1096,24 @@ export const HomePage: React.FC = () => {
               <strong className="text-ink dark:text-white">
                 “{deletePromptTarget.title}”
               </strong>
-              . Toda exclusão realizada pela moderação exige justificativa e fica
-              registrada permanentemente no Log de Auditoria.
+              .{' '}
+              {permissions.can_moderate_queue
+                ? 'Toda exclusão realizada pela moderação exige justificativa e fica registrada permanentemente no Log de Auditoria.'
+                : 'Tem certeza de que deseja apagar permanentemente? Esta ação não pode ser desfeita.'}
             </p>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold uppercase tracking-wider text-ink-secondary dark:text-slateDark-muted">
-                Motivo / Justificativa para o Log
-              </label>
-              <textarea
-                rows={3}
-                value={deleteReasonText}
-                onChange={(e) => setDeleteReasonText(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-sm text-ink dark:text-slateDark-text focus:outline-none focus:border-red-600"
-              />
-            </div>
+            {permissions.can_moderate_queue && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-ink-secondary dark:text-slateDark-muted">
+                  Motivo / Justificativa para o Log
+                </label>
+                <textarea
+                  rows={3}
+                  value={deleteReasonText}
+                  onChange={(e) => setDeleteReasonText(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-sm text-ink dark:text-slateDark-text focus:outline-none focus:border-red-600"
+                />
+              </div>
+            )}
             <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
                 type="button"
@@ -1103,11 +1125,11 @@ export const HomePage: React.FC = () => {
               <button
                 type="button"
                 onClick={async () => {
-                  await deleteByModerator(
+                  await deleteContent(
                     deletePromptTarget.type,
                     deletePromptTarget.id,
                     deletePromptTarget.title,
-                    deleteReasonText,
+                    deleteReasonText || 'Excluído pelo autor.',
                     deletePromptTarget.authorName
                   );
                   setDeletePromptTarget(null);
@@ -1115,7 +1137,7 @@ export const HomePage: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Excluir e Registrar Log</span>
+                <span>Confirmar Exclusão</span>
               </button>
             </div>
           </div>

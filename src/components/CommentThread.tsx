@@ -40,6 +40,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
     addComment,
     upvoteItem,
     hasUserUpvoted,
+    deleteContent,
     deleteByModerator,
     setFlagModalTarget,
     showToast,
@@ -236,22 +237,38 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           </div>
 
           <div className="flex items-center gap-2 ml-auto sm:ml-0">
-            {permissions.can_moderate_queue && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDeletingCommentId(
-                    deletingCommentId === comment.id ? null : comment.id
-                  );
-                  setDeleteReason('Violação das diretrizes editoriais da comunidade.');
-                }}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 font-semibold transition-colors"
-                title="Excluir comentário (ação auditada no Log da Moderação)"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Excluir (Mod)</span>
-              </button>
-            )}
+            {(() => {
+              const isAuthor = isAuthenticated && (currentUser.id === comment.author?.id || currentUser.id === (comment as any).author_id);
+              const canDelete = permissions.can_moderate_queue || isAuthor;
+              if (!canDelete) return null;
+
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeletingCommentId(
+                      deletingCommentId === comment.id ? null : comment.id
+                    );
+                    setDeleteReason(
+                      permissions.can_moderate_queue
+                        ? 'Violação das diretrizes editoriais da comunidade.'
+                        : 'Excluído pelo autor.'
+                    );
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 font-semibold transition-colors"
+                  title={
+                    permissions.can_moderate_queue
+                      ? 'Excluir comentário (ação auditada no Log da Moderação)'
+                      : 'Excluir meu comentário'
+                  }
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">
+                    {permissions.can_moderate_queue ? 'Excluir (Mod)' : 'Excluir'}
+                  </span>
+                </button>
+              );
+            })()}
 
             <button
               type="button"
@@ -273,49 +290,63 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           </div>
         </div>
 
-        {/* Moderator Deletion Box with Mandatory Log Reason */}
-        {permissions.can_moderate_queue && deletingCommentId === comment.id && (
-          <div className="mt-4 p-4 rounded-lg bg-red-950/10 dark:bg-red-950/30 border border-red-600/40 space-y-3">
-            <div className="flex items-center justify-between text-xs font-bold text-red-800 dark:text-red-300">
-              <span>
-                Exclusão pela Moderação (Registro Obrigatório no Log de Auditoria)
-              </span>
-              <button
-                type="button"
-                onClick={() => setDeletingCommentId(null)}
-                className="underline"
-              >
-                Cancelar
-              </button>
+        {/* Deletion Box (Author or Moderator) */}
+        {(() => {
+          const isAuthor = isAuthenticated && (currentUser.id === comment.author?.id || currentUser.id === (comment as any).author_id);
+          const canDelete = permissions.can_moderate_queue || isAuthor;
+          if (!canDelete || deletingCommentId !== comment.id) return null;
+
+          return (
+            <div className="mt-4 p-4 rounded-lg bg-red-950/10 dark:bg-red-950/30 border border-red-600/40 space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold text-red-800 dark:text-red-300">
+                <span>
+                  {permissions.can_moderate_queue
+                    ? 'Exclusão pela Moderação (Registro Obrigatório no Log de Auditoria)'
+                    : 'Excluir Meu Comentário'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDeletingCommentId(null)}
+                  className="underline hover:text-red-900 dark:hover:text-red-100"
+                >
+                  Cancelar
+                </button>
+              </div>
+              {permissions.can_moderate_queue ? (
+                <input
+                  type="text"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="Informe o motivo da exclusão para o log de auditoria..."
+                  className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-bg text-xs sm:text-sm text-ink dark:text-slateDark-text focus:outline-none"
+                />
+              ) : (
+                <p className="text-xs text-red-700 dark:text-red-300">
+                  Tem certeza de que deseja apagar permanentemente este comentário? Esta ação não pode ser desfeita.
+                </p>
+              )}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await deleteContent(
+                      'COMMENT',
+                      comment.id,
+                      `Comentário #${comment.id}: ${comment.body.slice(0, 80)}`,
+                      deleteReason,
+                      comment.author?.name || 'Membro'
+                    );
+                    setDeletingCommentId(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Confirmar Exclusão</span>
+                </button>
+              </div>
             </div>
-            <input
-              type="text"
-              value={deleteReason}
-              onChange={(e) => setDeleteReason(e.target.value)}
-              placeholder="Informe o motivo da exclusão para o log de auditoria..."
-              className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-bg text-xs sm:text-sm text-ink dark:text-slateDark-text focus:outline-none"
-            />
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={async () => {
-                  await deleteByModerator(
-                    'COMMENT',
-                    comment.id,
-                    `Comentário #${comment.id}: ${comment.body.slice(0, 80)}`,
-                    deleteReason,
-                    comment.author?.name || 'Membro'
-                  );
-                  setDeletingCommentId(null);
-                }}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Confirmar Exclusão e Registrar Log</span>
-              </button>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Spacious Inline Reply Box */}
         {replyingToId === comment.id && (

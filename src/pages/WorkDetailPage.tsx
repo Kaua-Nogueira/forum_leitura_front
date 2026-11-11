@@ -34,9 +34,11 @@ export const WorkDetailPage: React.FC = () => {
   const {
     works,
     topics,
+    currentUser,
     isAuthenticated,
     permissions,
     moderateWorkStatus,
+    deleteContent,
     deleteByModerator,
     setFlagModalTarget,
     showToast,
@@ -361,14 +363,21 @@ export const WorkDetailPage: React.FC = () => {
               </Link>
 
               <div className="flex items-center gap-4">
-                {permissions.can_moderate_queue && (
+                {(permissions.can_moderate_queue ||
+                  (isAuthenticated &&
+                    currentUser.id ===
+                      (work.submitted_by?.id || work.submitted_by_id))) && (
                   <button
                     type="button"
                     onClick={() => setShowDeleteBox((prev) => !prev)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 font-semibold"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Excluir Obra (Moderação)</span>
+                    <span>
+                      {permissions.can_moderate_queue
+                        ? 'Excluir Obra (Moderação)'
+                        : 'Excluir Publicação'}
+                    </span>
                   </button>
                 )}
 
@@ -392,45 +401,53 @@ export const WorkDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {showDeleteBox && permissions.can_moderate_queue && (
-              <div className="p-4 rounded-lg bg-red-950/10 dark:bg-red-950/30 border border-red-600/40 space-y-3">
-                <p className="text-xs font-bold text-red-800 dark:text-red-300">
-                  Exclusão pela Moderação — Informe o motivo para registro obrigatório no Log de Auditoria:
-                </p>
-                <input
-                  type="text"
-                  value={deleteReason}
-                  onChange={(e) => setDeleteReason(e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-bg text-sm text-ink dark:text-slateDark-text"
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteBox(false)}
-                    className="px-3 py-1.5 text-xs font-semibold text-ink-muted"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await deleteByModerator(
-                        'WORK',
-                        work.id,
-                        work.title,
-                        deleteReason,
-                        work.submitted_by?.name || work.creator
-                      );
-                      navigate('/');
-                    }}
-                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Confirmar Exclusão e Registrar Log</span>
-                  </button>
+            {showDeleteBox &&
+              (permissions.can_moderate_queue ||
+                (isAuthenticated &&
+                  currentUser.id ===
+                    (work.submitted_by?.id || work.submitted_by_id))) && (
+                <div className="p-4 rounded-lg bg-red-950/10 dark:bg-red-950/30 border border-red-600/40 space-y-3">
+                  <p className="text-xs font-bold text-red-800 dark:text-red-300">
+                    {permissions.can_moderate_queue
+                      ? 'Exclusão pela Moderação — Informe o motivo para registro obrigatório no Log de Auditoria:'
+                      : 'Tem certeza de que deseja apagar permanentemente esta publicação? Esta ação não pode ser desfeita.'}
+                  </p>
+                  {permissions.can_moderate_queue && (
+                    <input
+                      type="text"
+                      value={deleteReason}
+                      onChange={(e) => setDeleteReason(e.target.value)}
+                      className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-bg text-sm text-ink dark:text-slateDark-text"
+                    />
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteBox(false)}
+                      className="px-3 py-1.5 text-xs font-semibold text-ink-muted"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await deleteContent(
+                          'WORK',
+                          work.id,
+                          work.title,
+                          deleteReason || 'Excluído pelo autor.',
+                          work.submitted_by?.name || work.creator
+                        );
+                        navigate('/');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Confirmar Exclusão</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             <AffiliateButton work={work} variant="full" />
           </div>
