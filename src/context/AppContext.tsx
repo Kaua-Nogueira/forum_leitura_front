@@ -980,11 +980,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (hasUserUpvoted(targetType, targetId)) {
-      showToast(
-        'Curtida já registrada',
-        'Cada usuário só pode dar curtida uma única vez neste item.',
-        'info'
-      );
       return;
     }
 
@@ -1002,11 +997,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             target_id: targetId,
           },
         ]);
-        showToast(
-          'Curtida já registrada',
-          'Cada usuário só pode dar curtida uma única vez neste item.',
-          'info'
-        );
         return;
       }
       if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
