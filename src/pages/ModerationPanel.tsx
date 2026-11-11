@@ -20,6 +20,9 @@ import {
   Clock,
   BookOpen,
   MessageSquare,
+  RefreshCw,
+  Search,
+  Calendar,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { FlagReason, Comment } from '../types/schema';
@@ -30,6 +33,7 @@ export const ModerationPanel: React.FC = () => {
     currentUser,
     permissions,
     usersList,
+    refreshUsersList,
     updateUserRoleRbac,
     moderationFlags,
     moderationLogs,
@@ -48,6 +52,47 @@ export const ModerationPanel: React.FC = () => {
   >('QUEUE');
   const [filterStatus, setFilterStatus] = useState<'PENDING' | 'ALL'>('PENDING');
   const [notesByFlagId, setNotesByFlagId] = useState<Record<number, string>>({});
+  const [isRefreshingUsers, setIsRefreshingUsers] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<
+    'ALL' | 'ADMIN' | 'MODERATOR' | 'MEMBER' | 'BANNED'
+  >('ALL');
+
+  React.useEffect(() => {
+    if (activeTab === 'RBAC_USERS') {
+      refreshUsersList();
+    }
+  }, [activeTab, refreshUsersList]);
+
+  const handleRefreshUsers = async () => {
+    setIsRefreshingUsers(true);
+    try {
+      await refreshUsersList();
+    } finally {
+      setIsRefreshingUsers(false);
+    }
+  };
+
+  const filteredUsers = React.useMemo(() => {
+    return usersList.filter((u) => {
+      if (userRoleFilter === 'BANNED') {
+        if (!u.is_banned) return false;
+      } else if (userRoleFilter !== 'ALL') {
+        if (u.role !== userRoleFilter) return false;
+      }
+
+      if (userSearchQuery.trim()) {
+        const query = userSearchQuery.toLowerCase();
+        const matchesName = (u.name || '').toLowerCase().includes(query);
+        const matchesEmail = (u.email || '').toLowerCase().includes(query);
+        const matchesUsername = (u.username || '').toLowerCase().includes(query);
+        const matchesBadge = (u.title_badge || '').toLowerCase().includes(query);
+        return matchesName || matchesEmail || matchesUsername || matchesBadge;
+      }
+
+      return true;
+    });
+  }, [usersList, userRoleFilter, userSearchQuery]);
   const [deleteTarget, setDeleteTarget] = useState<{
     type: 'WORK' | 'TOPIC' | 'COMMENT';
     id: number;
@@ -851,17 +896,27 @@ export const ModerationPanel: React.FC = () => {
           ) : (
             /* TAB 4: GESTÃO DE USUÁRIOS & PAPÉIS RBAC */
             <div className="space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-parchment-deep dark:border-slateDark-border pb-4">
                 <div>
                   <h2 className="font-serif text-2xl font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
                     <Users className="w-5 h-5 text-burgundy dark:text-gold" />
                     <span>Controle de Acesso Baseado em Papéis (RBAC)</span>
                   </h2>
                   <p className="text-xs text-ink-muted dark:text-slateDark-muted mt-0.5">
-                    Gerencie os privilégios de cada membro cadastrado no banco de dados
-                    Laravel.
+                    {usersList.length} contas cadastradas no banco de dados oficial do sistema.
                   </p>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleRefreshUsers}
+                  disabled={isRefreshingUsers}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card text-xs font-semibold text-ink dark:text-slateDark-text hover:bg-parchment transition-all shrink-0 shadow-sm disabled:opacity-60"
+                  title="Sincronizar e recarregar lista do servidor"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingUsers ? 'animate-spin text-burgundy dark:text-gold' : ''}`} />
+                  <span>{isRefreshingUsers ? 'Sincronizando...' : 'Recarregar Usuários'}</span>
+                </button>
               </div>
 
               {!isAdmin && (
@@ -869,84 +924,179 @@ export const ModerationPanel: React.FC = () => {
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span>
                     Você está autenticado como <strong>MODERATOR</strong>. Você pode
-                    visualizar o quadro de membros, mas apenas o papel{' '}
-                    <strong>ADMIN</strong> pode promover/rebaixar papéis ou banir contas.
+                    visualizar o quadro completo de membros, mas apenas o papel{' '}
+                    <strong>ADMIN</strong> pode alterar privilégios ou suspender contas.
                   </span>
                 </div>
               )}
 
+              {/* Filtros e Busca de Usuários */}
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-ink-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    placeholder="Filtrar por nome, e-mail, @username ou título..."
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text focus:outline-none focus:border-burgundy dark:focus:border-gold"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                  {(['ALL', 'ADMIN', 'MODERATOR', 'MEMBER', 'BANNED'] as const).map((r) => {
+                    const count =
+                      r === 'ALL'
+                        ? usersList.length
+                        : r === 'BANNED'
+                        ? usersList.filter((u) => u.is_banned).length
+                        : usersList.filter((u) => u.role === r).length;
+
+                    const label =
+                      r === 'ALL'
+                        ? 'Todos'
+                        : r === 'ADMIN'
+                        ? 'Admins'
+                        : r === 'MODERATOR'
+                        ? 'Moderadores'
+                        : r === 'MEMBER'
+                        ? 'Membros'
+                        : 'Banidos';
+
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setUserRoleFilter(r)}
+                        className={`px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                          userRoleFilter === r
+                            ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg shadow-sm'
+                            : 'bg-parchment-warm dark:bg-slateDark-card text-ink-secondary dark:text-slateDark-muted border border-parchment-deep dark:border-slateDark-border'
+                        }`}
+                      >
+                        {label} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Lista Filtrada de Usuários */}
               <div className="space-y-3">
-                {usersList.map((u) => (
-                  <div
-                    key={u.id}
-                    className="p-5 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-card flex flex-wrap items-center justify-between gap-4 shadow-editorial"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-serif font-bold text-base text-ink dark:text-slateDark-text">
-                          {u.name}
-                        </span>
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            u.role === 'ADMIN'
-                              ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
-                              : u.role === 'MODERATOR'
-                              ? 'bg-navy text-parchment'
-                              : 'bg-forest/15 text-forest dark:text-emerald-300'
-                          }`}
-                        >
-                          {u.role}
-                        </span>
-                        {u.is_banned && (
-                          <span className="px-2 py-0.5 rounded bg-red-600 text-white text-[10px] font-bold uppercase">
-                            Banido
+                {filteredUsers.length === 0 ? (
+                  <div className="p-8 rounded-xl border border-dashed border-parchment-deep dark:border-slateDark-border bg-parchment-warm/50 dark:bg-slateDark-card text-center space-y-2">
+                    <Users className="w-8 h-8 text-burgundy dark:text-gold mx-auto opacity-60" />
+                    <p className="font-serif text-base font-bold text-ink dark:text-slateDark-text">
+                      Nenhum usuário encontrado com os filtros atuais
+                    </p>
+                    <p className="text-xs text-ink-muted dark:text-slateDark-muted">
+                      Tente alterar o termo de busca ou limpar o filtro de papel.
+                    </p>
+                  </div>
+                ) : (
+                  filteredUsers.map((u) => (
+                    <div
+                      key={u.id}
+                      className="p-4 sm:p-5 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-card flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-editorial"
+                    >
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-burgundy/15 dark:bg-gold/20 text-burgundy dark:text-gold font-serif font-bold text-sm flex items-center justify-center shrink-0 border border-burgundy/20 dark:border-gold/30">
+                          {u.name.charAt(0).toUpperCase()}
+                        </div>
+
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-serif font-bold text-base text-ink dark:text-slateDark-text">
+                              {u.name}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                u.role === 'ADMIN'
+                                  ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
+                                  : u.role === 'MODERATOR'
+                                  ? 'bg-navy text-parchment'
+                                  : 'bg-forest/15 text-forest dark:text-emerald-300'
+                              }`}
+                            >
+                              {u.role}
+                            </span>
+                            {u.is_banned && (
+                              <span className="px-2 py-0.5 rounded bg-red-600 text-white text-[10px] font-bold uppercase">
+                                Suspenso / Banido
+                              </span>
+                            )}
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-parchment dark:bg-slateDark-elevated text-ink-muted dark:text-slateDark-muted border border-parchment-deep/60 dark:border-slateDark-border">
+                              #{u.id}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ink-muted dark:text-slateDark-muted font-mono">
+                            <span className="text-ink dark:text-slateDark-text font-sans font-medium">
+                              {u.email}
+                            </span>
+                            {u.username && <span>@{u.username}</span>}
+                            {u.created_at && (
+                              <span className="inline-flex items-center gap-1 font-sans text-ink-muted">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(u.created_at).toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
+
+                          {u.title_badge && (
+                            <p className="text-xs text-burgundy dark:text-gold font-medium">
+                              {u.title_badge}
+                            </p>
+                          )}
+
+                          {u.bio && (
+                            <p className="text-xs text-ink-secondary dark:text-slateDark-muted line-clamp-1 italic">
+                              “{u.bio}”
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2.5 pt-2 md:pt-0 border-t md:border-t-0 border-parchment-deep dark:border-slateDark-border justify-end shrink-0">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <span className="text-ink-muted dark:text-slateDark-muted">
+                            Papel RBAC:
                           </span>
+                          <select
+                            disabled={!isAdmin}
+                            value={u.role}
+                            onChange={(e) =>
+                              updateUserRoleRbac(u.id, {
+                                role: e.target.value as 'MEMBER' | 'MODERATOR' | 'ADMIN',
+                              })
+                            }
+                            className="px-2.5 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs font-semibold disabled:opacity-50"
+                          >
+                            <option value="MEMBER">MEMBER (Membro)</option>
+                            <option value="MODERATOR">MODERATOR (Moderador)</option>
+                            <option value="ADMIN">ADMIN (Administrador)</option>
+                          </select>
+                        </div>
+
+                        {isAdmin && u.id !== currentUser.id && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateUserRoleRbac(u.id, { is_banned: !u.is_banned })
+                            }
+                            className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
+                              u.is_banned
+                                ? 'bg-forest text-parchment'
+                                : 'bg-burgundy/15 text-burgundy dark:text-red-300 hover:bg-burgundy hover:text-parchment'
+                            }`}
+                          >
+                            {u.is_banned ? 'Reativar Conta' : 'Suspender / Banir'}
+                          </button>
                         )}
                       </div>
-                      <p className="text-xs text-ink-muted dark:text-slateDark-muted font-mono">
-                        {u.email} • {u.title_badge || 'Membro'}
-                      </p>
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <div className="flex items-center gap-1.5 text-xs">
-                        <span className="text-ink-muted dark:text-slateDark-muted">
-                          Papel RBAC:
-                        </span>
-                        <select
-                          disabled={!isAdmin}
-                          value={u.role}
-                          onChange={(e) =>
-                            updateUserRoleRbac(u.id, {
-                              role: e.target.value as 'MEMBER' | 'MODERATOR' | 'ADMIN',
-                            })
-                          }
-                          className="px-2.5 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs font-semibold disabled:opacity-50"
-                        >
-                          <option value="MEMBER">MEMBER (Membro)</option>
-                          <option value="MODERATOR">MODERATOR (Moderador)</option>
-                          <option value="ADMIN">ADMIN (Administrador)</option>
-                        </select>
-                      </div>
-
-                      {isAdmin && u.id !== currentUser.id && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateUserRoleRbac(u.id, { is_banned: !u.is_banned })
-                          }
-                          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
-                            u.is_banned
-                              ? 'bg-forest text-parchment'
-                              : 'bg-burgundy/15 text-burgundy dark:text-red-300 hover:bg-burgundy hover:text-parchment'
-                          }`}
-                        >
-                          {u.is_banned ? 'Reativar Conta' : 'Suspender / Banir'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}

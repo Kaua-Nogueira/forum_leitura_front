@@ -48,6 +48,7 @@ interface AppContextType {
   isAuthenticated: boolean;
   permissions: UserPermissions;
   usersList: User[];
+  refreshUsersList: () => Promise<void>;
   loginWithCredentials: (email: string, password: string) => Promise<User>;
   registerAccount: (payload: {
     name: string;
@@ -145,6 +146,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const INITIAL_USERS_LIST: User[] = [
   DEMO_USERS.ADMIN,
   DEMO_USERS.MODERATOR,
+  DEMO_USERS.MOD_EDITORIAL,
+  DEMO_USERS.ADMIN_GERAL,
   DEMO_USERS.MEMBER,
 ];
 
@@ -441,6 +444,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [currentUser.role]);
 
+  const refreshUsersList = useCallback(async () => {
+    try {
+      const uRes = await apiService.listUsers(currentUser.role);
+      if (uRes.users && Array.isArray(uRes.users) && uRes.users.length > 0) {
+        setUsersList(uRes.users);
+        return;
+      }
+    } catch {
+      // ignore, fallback below
+    }
+
+    try {
+      const boot = await apiService.getBootstrap(currentUser.role);
+      if (boot.users && Array.isArray(boot.users) && boot.users.length > 0) {
+        setUsersList(boot.users);
+      }
+    } catch {
+      // ignore
+    }
+  }, [currentUser.role]);
+
   const loginWithCredentials = async (
     email: string,
     password: string
@@ -455,6 +479,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Autenticado com papel RBAC: ${res.user.role}`,
       'success'
     );
+    try {
+      const uRes = await apiService.listUsers(res.user.role);
+      if (uRes.users?.length) {
+        setUsersList(uRes.users);
+      }
+    } catch {
+      // ignore
+    }
     return res.user;
   };
 
@@ -1570,6 +1602,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isAuthenticated,
         permissions,
         usersList,
+        refreshUsersList,
         loginWithCredentials,
         registerAccount,
         logoutUser,
