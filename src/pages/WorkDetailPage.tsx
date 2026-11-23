@@ -17,13 +17,15 @@ import {
   CheckCircle2,
   XCircle,
   Trash2,
+  AlignJustify,
+  AlignLeft,
+  AlignCenter,
+  ShoppingBag,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { AffiliateButton } from '../components/AffiliateButton';
 import {
   RichTextRenderer,
-  ReadingFontSize,
-  ReadingFontFamily,
   getReadingMetrics,
 } from '../components/RichTextRenderer';
 import { CommentThread } from '../components/CommentThread';
@@ -34,34 +36,77 @@ export const WorkDetailPage: React.FC = () => {
   const {
     works,
     topics,
+    settings,
     currentUser,
     isAuthenticated,
     permissions,
+    fontSize,
+    setFontSize,
+    fontFamily,
+    setFontFamily,
+    textAlign,
+    setTextAlign,
     moderateWorkStatus,
+    updateWorkAffiliate,
     deleteContent,
     deleteByModerator,
     setFlagModalTarget,
     showToast,
   } = useApp();
 
-  const [fontSize, setFontSize] = useState<ReadingFontSize>('large');
-  const [fontFamily, setFontFamily] = useState<ReadingFontFamily>('serif');
   const [showDeleteBox, setShowDeleteBox] = useState(false);
   const [deleteReason, setDeleteReason] = useState(
     'Obra/resenha excluída pela Moderação após revisão.'
   );
 
-  const work = works.find((w) => w.slug === slug) || works[0];
+  const work = works.find((w) => w.slug === slug);
+  const [modAffiliateUrl, setModAffiliateUrl] = useState<string>(
+    work?.affiliate_url || ''
+  );
+  const [modAffiliatePriceHint, setModAffiliatePriceHint] = useState<string>(
+    work?.affiliate_price_hint || ''
+  );
+  const [isSavingAffiliate, setIsSavingAffiliate] = useState(false);
+  const [showRejectBox, setShowRejectBox] = useState(false);
+  const [rejectFeedback, setRejectFeedback] = useState('');
+
+  React.useEffect(() => {
+    setModAffiliateUrl(work?.affiliate_url || '');
+    setModAffiliatePriceHint(work?.affiliate_price_hint || '');
+  }, [work?.id, work?.affiliate_url, work?.affiliate_price_hint]);
+
+  const isAuthor =
+    isAuthenticated &&
+    !!work &&
+    currentUser.id === (work.submitted_by?.id || work.submitted_by_id);
+
   const relatedTopics = topics.filter(
     (t) => t.work_id === work?.id && t.status === 'APPROVED'
   );
 
-  if (!work) {
+  if (
+    !work ||
+    (work.status !== 'APPROVED' && !permissions.can_moderate_queue && !isAuthor)
+  ) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <h2 className="font-serif text-2xl font-bold">Obra não localizada</h2>
-        <Link to="/" className="mt-4 inline-block text-sm text-burgundy underline">
-          Voltar ao Catálogo Editorial
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center space-y-4">
+        <ShieldAlert className="w-10 h-10 text-burgundy dark:text-gold mx-auto" />
+        <h2 className="font-serif text-2xl font-bold text-ink dark:text-slateDark-text">
+          {work && work.status !== 'APPROVED'
+            ? 'Texto aguardando aprovação da moderação'
+            : 'Obra não localizada ou indisponível'}
+        </h2>
+        <p className="text-sm text-ink-secondary dark:text-slateDark-muted max-w-lg mx-auto">
+          {work && work.status !== 'APPROVED'
+            ? 'Este texto ainda não foi aprovado pelo Conselho Editorial e não está liberado para leitura pública.'
+            : 'A obra solicitada não foi encontrada ou ainda não está liberada para leitura pública.'}
+        </p>
+        <Link
+          to="/"
+          className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-sm font-semibold"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Voltar ao Catálogo Editorial</span>
         </Link>
       </div>
     );
@@ -96,58 +141,119 @@ export const WorkDetailPage: React.FC = () => {
       {/* Banner de Status de Revisão da Moderação (quando PENDING ou REJECTED) */}
       {work.status !== 'APPROVED' && (
         <div
-          className={`p-5 rounded-xl border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm ${
+          className={`p-5 rounded-xl border-2 space-y-4 shadow-sm ${
             work.status === 'PENDING'
               ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-950 dark:text-amber-200'
               : 'bg-red-50 dark:bg-red-950/50 border-red-500 text-red-950 dark:text-red-200'
           }`}
         >
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="w-6 h-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <span className="inline-block px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-900 dark:text-amber-200">
-                {work.status === 'PENDING'
-                  ? 'Aguardando Revisão da Moderação'
-                  : 'Publicação Reprovada / Ocultada'}
-              </span>
-              <p className="text-sm font-medium leading-relaxed">
-                {work.status === 'PENDING'
-                  ? 'Nenhum texto é publicado sem revisão. Este texto foi salvo com sucesso e ficará visível no feed público assim que for aprovado pela moderação.'
-                  : 'Este texto foi ocultado ou reprovado pela moderação.'}
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="w-6 h-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1.5">
+                <span className="inline-block px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-900 dark:text-amber-200">
+                  {work.status === 'PENDING'
+                    ? 'Aguardando Revisão da Moderação'
+                    : 'Publicação Reprovada — Requer Ajustes'}
+                </span>
+                <p className="text-sm font-medium leading-relaxed">
+                  {work.status === 'PENDING'
+                    ? 'Nenhum texto é publicado sem revisão. Este texto foi salvo com sucesso e ficará visível no feed público assim que for aprovado pela moderação.'
+                    : 'Este texto foi reprovado pela moderação. Veja o comentário abaixo, faça os ajustes e reenvie para nova aprovação.'}
+                </p>
+                {work.moderation_note && (
+                  <div className="mt-2 p-3 rounded-lg bg-white/80 dark:bg-slateDark-bg/80 border border-red-400/50 text-sm text-ink dark:text-slateDark-text">
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-burgundy dark:text-gold mb-1">
+                      Comentário da Moderação:
+                    </span>
+                    <p className="whitespace-pre-line">{work.moderation_note}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              {isAuthor && (
+                <Link
+                  to={`/escrever?editWork=${work.id}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover text-parchment dark:bg-gold dark:text-slateDark-bg text-xs sm:text-sm font-semibold shadow-sm transition-colors"
+                >
+                  <Feather className="w-4 h-4" />
+                  <span>Editar e Reenviar</span>
+                </Link>
+              )}
+
+              {permissions.can_moderate_queue && work.status === 'PENDING' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      moderateWorkStatus(
+                        work.id,
+                        'APPROVED',
+                        'Texto revisado e aprovado pela Moderação.',
+                        {
+                          affiliate_url: modAffiliateUrl.trim(),
+                          affiliate_price_hint: modAffiliatePriceHint.trim() || undefined,
+                        }
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-forest hover:bg-forest-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Aprovar &amp; Publicar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRejectBox((prev) => !prev)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    <span>Reprovar / Pedir Ajustes</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          {permissions.can_moderate_queue && work.status === 'PENDING' && (
-            <div className="flex items-center gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={() =>
-                  moderateWorkStatus(
-                    work.id,
-                    'APPROVED',
-                    'Texto revisado e aprovado pela Moderação.'
-                  )
-                }
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-forest hover:bg-forest-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Aprovar &amp; Publicar</span>
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  moderateWorkStatus(
-                    work.id,
-                    'REJECTED',
-                    'Reprovado na revisão editorial.'
-                  )
-                }
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
-              >
-                <XCircle className="w-4 h-4" />
-                <span>Reprovar</span>
-              </button>
+          {permissions.can_moderate_queue && showRejectBox && (
+            <div className="p-4 rounded-lg bg-white/80 dark:bg-slateDark-bg/80 border border-red-500/40 space-y-3">
+              <label className="block text-xs font-bold text-red-800 dark:text-red-300">
+                Comentário para o Autor (ele verá esta mensagem e poderá editar e reenviar o texto):
+              </label>
+              <textarea
+                rows={3}
+                value={rejectFeedback}
+                onChange={(e) => setRejectFeedback(e.target.value)}
+                placeholder="Descreva o que precisa ser ajustado para que o texto seja aprovado..."
+                className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-card text-sm text-ink dark:text-slateDark-text focus:outline-none"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRejectBox(false)}
+                  className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await moderateWorkStatus(
+                      work.id,
+                      'REJECTED',
+                      rejectFeedback.trim() ||
+                        'Reprovado na revisão editorial. Ajuste o texto e reenvie para nova análise.'
+                    );
+                    setShowRejectBox(false);
+                    setRejectFeedback('');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-burgundy hover:bg-burgundy-hover text-parchment text-xs font-bold shadow-xs"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>Confirmar Reprovação e Enviar Feedback</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -217,8 +323,58 @@ export const WorkDetailPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="max-w-xl">
+            <div className="max-w-xl space-y-3">
               <AffiliateButton work={work} variant="compact" />
+
+              {permissions.can_moderate_queue && (
+                <div className="p-3.5 rounded-lg border border-forest/35 bg-forest/5 dark:bg-forest-light/10 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-forest dark:text-emerald-300">
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      Link de Afiliado Amazon (Moderação)
+                    </span>
+                    <span className="text-[11px] font-mono text-ink-muted dark:text-slateDark-muted">
+                      tag: {settings.amazon_associate_tag}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                    <input
+                      type="url"
+                      value={modAffiliateUrl}
+                      onChange={(e) => setModAffiliateUrl(e.target.value)}
+                      placeholder="https://www.amazon.com.br/dp/..."
+                      className="sm:col-span-7 px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-xs text-ink dark:text-slateDark-text focus:outline-none focus:border-forest"
+                    />
+                    <input
+                      type="text"
+                      value={modAffiliatePriceHint}
+                      onChange={(e) => setModAffiliatePriceHint(e.target.value)}
+                      placeholder="Edição / Preço (opcional)"
+                      className="sm:col-span-5 px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-xs text-ink dark:text-slateDark-text focus:outline-none focus:border-forest"
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      disabled={isSavingAffiliate}
+                      onClick={async () => {
+                        setIsSavingAffiliate(true);
+                        try {
+                          await updateWorkAffiliate(work.id, {
+                            affiliate_url: modAffiliateUrl.trim(),
+                            affiliate_price_hint: modAffiliatePriceHint.trim() || undefined,
+                          });
+                        } finally {
+                          setIsSavingAffiliate(false);
+                        }
+                      }}
+                      className="px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-semibold shadow-xs transition-colors disabled:opacity-60"
+                    >
+                      {isSavingAffiliate ? 'Salvando...' : 'Salvar Link de Afiliado'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -301,6 +457,52 @@ export const WorkDetailPage: React.FC = () => {
               ))}
             </div>
 
+            {/* Text Alignment / Justification Switch */}
+            <div className="inline-flex items-center rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5">
+              <button
+                type="button"
+                onClick={() => setTextAlign('justify')}
+                title="Texto Justificado (Estilo Editorial)"
+                aria-label="Texto Justificado"
+                className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 font-semibold transition-colors ${
+                  textAlign === 'justify'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    : 'text-ink-muted hover:text-ink dark:hover:text-white'
+                }`}
+              >
+                <AlignJustify className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Justificado</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTextAlign('left')}
+                title="Alinhar à Esquerda"
+                aria-label="Alinhar à Esquerda"
+                className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 font-semibold transition-colors ${
+                  textAlign === 'left'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    : 'text-ink-muted hover:text-ink dark:hover:text-white'
+                }`}
+              >
+                <AlignLeft className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Esquerda</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTextAlign('center')}
+                title="Centralizar Texto"
+                aria-label="Centralizar Texto"
+                className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 font-semibold transition-colors ${
+                  textAlign === 'center'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    : 'text-ink-muted hover:text-ink dark:hover:text-white'
+                }`}
+              >
+                <AlignCenter className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Centro</span>
+              </button>
+            </div>
+
             <a
               href="#comentarios"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-burgundy/10 dark:bg-gold/15 text-burgundy dark:text-gold font-semibold hover:opacity-90"
@@ -344,6 +546,7 @@ export const WorkDetailPage: React.FC = () => {
             dropcap={true}
             fontSize={fontSize}
             fontFamily={fontFamily}
+            textAlign={textAlign}
           />
 
           {/* End of Essay Footer & Affiliate Callout */}

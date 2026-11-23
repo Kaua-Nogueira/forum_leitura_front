@@ -298,6 +298,36 @@ export const apiService = {
     );
   },
 
+  async updateWork(
+    workId: number,
+    payload: Partial<Work>,
+    role: UserRole
+  ): Promise<{ work: Work; message?: string }> {
+    return request<{ work: Work; message?: string }>(
+      `/works/${workId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+      role
+    );
+  },
+
+  async updateTopic(
+    topicId: number,
+    payload: Partial<Topic>,
+    role: UserRole
+  ): Promise<{ topic: Topic; message?: string }> {
+    return request<{ topic: Topic; message?: string }>(
+      `/topics/${topicId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+      role
+    );
+  },
+
   async trackAffiliateClick(
     workId: number,
     role: UserRole
@@ -331,13 +361,41 @@ export const apiService = {
     workId: number,
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
     moderationNote: string,
-    role: UserRole
+    role: UserRole,
+    affiliate?: {
+      affiliate_url?: string;
+      affiliate_cta_label?: string;
+      affiliate_price_hint?: string;
+    }
   ): Promise<{ work: Work; log?: ModerationLog }> {
     return request<{ work: Work; log?: ModerationLog }>(
       `/moderation/works/${workId}/status`,
       {
         method: 'POST',
-        body: JSON.stringify({ status, moderation_note: moderationNote }),
+        body: JSON.stringify({
+          status,
+          moderation_note: moderationNote,
+          ...(affiliate || {}),
+        }),
+      },
+      role
+    );
+  },
+
+  async updateWorkAffiliate(
+    workId: number,
+    payload: {
+      affiliate_url: string;
+      affiliate_cta_label?: string;
+      affiliate_price_hint?: string;
+    },
+    role: UserRole
+  ): Promise<{ work: Work; log?: ModerationLog; message?: string }> {
+    return request<{ work: Work; log?: ModerationLog; message?: string }>(
+      `/moderation/works/${workId}/affiliate`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
       },
       role
     );

@@ -14,6 +14,11 @@ export const AffiliateButton: React.FC<AffiliateButtonProps> = ({
   variant = 'compact',
 }) => {
   const { settings, trackAffiliateClick } = useApp();
+
+  if (!work.affiliate_url || !work.affiliate_url.trim()) {
+    return null;
+  }
+
   const finalAffiliateUrl = buildAffiliateUrl(
     work.affiliate_url,
     settings.amazon_associate_tag

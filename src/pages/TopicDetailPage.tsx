@@ -14,12 +14,14 @@ import {
   CheckCircle2,
   XCircle,
   Trash2,
+  AlignJustify,
+  AlignLeft,
+  AlignCenter,
+  Feather,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   RichTextRenderer,
-  ReadingFontSize,
-  ReadingFontFamily,
   getReadingMetrics,
 } from '../components/RichTextRenderer';
 import { CommentThread } from '../components/CommentThread';
@@ -34,6 +36,12 @@ export const TopicDetailPage: React.FC = () => {
     currentUser,
     isAuthenticated,
     permissions,
+    fontSize,
+    setFontSize,
+    fontFamily,
+    setFontFamily,
+    textAlign,
+    setTextAlign,
     moderateTopicStatus,
     deleteContent,
     deleteByModerator,
@@ -43,24 +51,51 @@ export const TopicDetailPage: React.FC = () => {
     showToast,
   } = useApp();
 
-  const [fontSize, setFontSize] = useState<ReadingFontSize>('large');
-  const [fontFamily, setFontFamily] = useState<ReadingFontFamily>('serif');
   const [showDeleteBox, setShowDeleteBox] = useState(false);
   const [deleteReason, setDeleteReason] = useState(
     'Ensaio excluído pela Moderação após revisão.'
   );
+  const [showRejectBox, setShowRejectBox] = useState(false);
+  const [rejectFeedback, setRejectFeedback] = useState('');
 
-  const topic = topics.find((t) => t.slug === slug) || topics[0];
-  const linkedWork = topic?.work_id
+  const topic = topics.find((t) => t.slug === slug);
+  const isAuthor =
+    isAuthenticated &&
+    !!topic &&
+    currentUser.id === (topic.author?.id || topic.author_id);
+
+  const rawLinkedWork = topic?.work_id
     ? works.find((w) => w.id === topic.work_id) || topic.work
     : null;
+  const linkedWork =
+    rawLinkedWork &&
+    (rawLinkedWork.status === 'APPROVED' || permissions.can_moderate_queue)
+      ? rawLinkedWork
+      : null;
 
-  if (!topic) {
+  if (
+    !topic ||
+    (topic.status !== 'APPROVED' && !permissions.can_moderate_queue && !isAuthor)
+  ) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <h2 className="font-serif text-2xl font-bold">Ensaio não encontrado</h2>
-        <Link to="/" className="mt-4 inline-block text-sm text-burgundy underline">
-          Voltar ao Fórum
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center space-y-4">
+        <ShieldAlert className="w-10 h-10 text-burgundy dark:text-gold mx-auto" />
+        <h2 className="font-serif text-2xl font-bold text-ink dark:text-slateDark-text">
+          {topic && topic.status !== 'APPROVED'
+            ? 'Ensaio aguardando aprovação da moderação'
+            : 'Ensaio não encontrado ou indisponível'}
+        </h2>
+        <p className="text-sm text-ink-secondary dark:text-slateDark-muted max-w-lg mx-auto">
+          {topic && topic.status !== 'APPROVED'
+            ? 'Este ensaio ainda não foi aprovado pelo Conselho Editorial e não está liberado para leitura pública.'
+            : 'O ensaio solicitado não foi encontrado ou ainda não está liberado para leitura pública.'}
+        </p>
+        <Link
+          to="/"
+          className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-sm font-semibold"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Voltar ao Fórum</span>
         </Link>
       </div>
     );
@@ -88,58 +123,115 @@ export const TopicDetailPage: React.FC = () => {
       {/* Banner de Status de Revisão da Moderação (quando PENDING ou REJECTED) */}
       {topic.status !== 'APPROVED' && (
         <div
-          className={`p-4 sm:p-5 rounded-xl border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm ${
+          className={`p-4 sm:p-5 rounded-xl border-2 space-y-4 shadow-sm ${
             topic.status === 'PENDING'
               ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-950 dark:text-amber-200'
               : 'bg-red-50 dark:bg-red-950/50 border-red-500 text-red-950 dark:text-red-200'
           }`}
         >
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="w-6 h-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <span className="inline-block px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-900 dark:text-amber-200">
-                {topic.status === 'PENDING'
-                  ? 'Aguardando Revisão da Moderação'
-                  : 'Ensaio Reprovado / Ocultado'}
-              </span>
-              <p className="text-sm font-medium leading-relaxed">
-                {topic.status === 'PENDING'
-                  ? 'Nenhum texto é publicado sem revisão. Este ensaio foi salvo com sucesso e ficará visível no feed público assim que for aprovado pela moderação.'
-                  : 'Este ensaio foi ocultado ou reprovado pela moderação.'}
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="w-6 h-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1.5">
+                <span className="inline-block px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-900 dark:text-amber-200">
+                  {topic.status === 'PENDING'
+                    ? 'Aguardando Revisão da Moderação'
+                    : 'Ensaio Reprovado — Requer Ajustes'}
+                </span>
+                <p className="text-sm font-medium leading-relaxed">
+                  {topic.status === 'PENDING'
+                    ? 'Nenhum texto é publicado sem revisão. Este ensaio foi salvo com sucesso e ficará visível no feed público assim que for aprovado pela moderação.'
+                    : 'Este ensaio foi reprovado pela moderação. Veja o comentário abaixo, faça os ajustes e reenvie para nova aprovação.'}
+                </p>
+                {topic.moderation_note && (
+                  <div className="mt-2 p-3 rounded-lg bg-white/80 dark:bg-slateDark-bg/80 border border-red-400/50 text-sm text-ink dark:text-slateDark-text">
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-burgundy dark:text-gold mb-1">
+                      Comentário da Moderação:
+                    </span>
+                    <p className="whitespace-pre-line">{topic.moderation_note}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              {isAuthor && (
+                <Link
+                  to={`/escrever?editTopic=${topic.id}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover text-parchment dark:bg-gold dark:text-slateDark-bg text-xs sm:text-sm font-semibold shadow-sm transition-colors"
+                >
+                  <Feather className="w-4 h-4" />
+                  <span>Editar e Reenviar</span>
+                </Link>
+              )}
+
+              {permissions.can_moderate_queue && topic.status === 'PENDING' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      moderateTopicStatus(
+                        topic.id,
+                        'APPROVED',
+                        'Ensaio revisado e aprovado pela Moderação.'
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-forest hover:bg-forest-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Aprovar &amp; Publicar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRejectBox((prev) => !prev)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    <span>Reprovar / Pedir Ajustes</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          {permissions.can_moderate_queue && topic.status === 'PENDING' && (
-            <div className="flex items-center gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={() =>
-                  moderateTopicStatus(
-                    topic.id,
-                    'APPROVED',
-                    'Ensaio revisado e aprovado pela Moderação.'
-                  )
-                }
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-forest hover:bg-forest-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Aprovar &amp; Publicar</span>
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  moderateTopicStatus(
-                    topic.id,
-                    'REJECTED',
-                    'Reprovado na revisão editorial.'
-                  )
-                }
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
-              >
-                <XCircle className="w-4 h-4" />
-                <span>Reprovar</span>
-              </button>
+          {permissions.can_moderate_queue && showRejectBox && (
+            <div className="p-4 rounded-lg bg-white/80 dark:bg-slateDark-bg/80 border border-red-500/40 space-y-3">
+              <label className="block text-xs font-bold text-red-800 dark:text-red-300">
+                Comentário para o Autor (ele verá esta mensagem e poderá editar e reenviar o ensaio):
+              </label>
+              <textarea
+                rows={3}
+                value={rejectFeedback}
+                onChange={(e) => setRejectFeedback(e.target.value)}
+                placeholder="Descreva o que precisa ser ajustado para que o ensaio seja aprovado..."
+                className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-card text-sm text-ink dark:text-slateDark-text focus:outline-none"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRejectBox(false)}
+                  className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await moderateTopicStatus(
+                      topic.id,
+                      'REJECTED',
+                      rejectFeedback.trim() ||
+                        'Ensaio reprovado na revisão editorial. Ajuste o texto e reenvie para nova análise.'
+                    );
+                    setShowRejectBox(false);
+                    setRejectFeedback('');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-burgundy hover:bg-burgundy-hover text-parchment text-xs font-bold shadow-xs"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>Confirmar Reprovação e Enviar Feedback</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -213,6 +305,52 @@ export const TopicDetailPage: React.FC = () => {
               ))}
             </div>
 
+            {/* Text Alignment / Justification Switch */}
+            <div className="inline-flex items-center rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5">
+              <button
+                type="button"
+                onClick={() => setTextAlign('justify')}
+                title="Texto Justificado (Estilo Editorial)"
+                aria-label="Texto Justificado"
+                className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 font-semibold transition-colors ${
+                  textAlign === 'justify'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    : 'text-ink-muted hover:text-ink dark:hover:text-white'
+                }`}
+              >
+                <AlignJustify className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Justificado</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTextAlign('left')}
+                title="Alinhar à Esquerda"
+                aria-label="Alinhar à Esquerda"
+                className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 font-semibold transition-colors ${
+                  textAlign === 'left'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    : 'text-ink-muted hover:text-ink dark:hover:text-white'
+                }`}
+              >
+                <AlignLeft className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Esquerda</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTextAlign('center')}
+                title="Centralizar Texto"
+                aria-label="Centralizar Texto"
+                className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 font-semibold transition-colors ${
+                  textAlign === 'center'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    : 'text-ink-muted hover:text-ink dark:hover:text-white'
+                }`}
+              >
+                <AlignCenter className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Centro</span>
+              </button>
+            </div>
+
             <a
               href="#comentarios-topico"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-burgundy/10 dark:bg-gold/15 text-burgundy dark:text-gold font-semibold"
@@ -270,6 +408,7 @@ export const TopicDetailPage: React.FC = () => {
             dropcap={true}
             fontSize={fontSize}
             fontFamily={fontFamily}
+            textAlign={textAlign}
           />
 
           <footer className="pt-6 border-t border-parchment-deep dark:border-slateDark-border flex flex-wrap items-center justify-between gap-4">

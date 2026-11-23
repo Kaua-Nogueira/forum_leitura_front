@@ -20,6 +20,10 @@ import {
   Plus,
   Trash2,
   AlertCircle,
+  AlignJustify,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { RichTextRenderer, getReadingMetrics } from '../components/RichTextRenderer';
@@ -32,20 +36,36 @@ export const WriteEssayPage: React.FC = () => {
   const {
     categories,
     works,
+    topics,
     settings,
     currentUser,
+    permissions,
+    textAlign,
+    setTextAlign,
     switchRole,
     createWork,
+    updateWork,
     createTopic,
+    updateTopic,
     showToast,
   } = useApp();
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedWorkId = searchParams.get('obra');
+  const editWorkIdParam = searchParams.get('editWork');
+  const editTopicIdParam = searchParams.get('editTopic');
+
+  const editingWork = editWorkIdParam
+    ? works.find((w) => w.id === Number(editWorkIdParam))
+    : undefined;
+  const editingTopic = editTopicIdParam
+    ? topics.find((t) => t.id === Number(editTopicIdParam))
+    : undefined;
+  const isEditingExisting = Boolean(editingWork || editingTopic);
 
   const [postMode, setPostMode] = useState<PostMode>(
-    preselectedWorkId ? 'EXISTING_BOOK_ESSAY' : 'NEW_BOOK_ESSAY'
+    editingTopic || preselectedWorkId ? 'EXISTING_BOOK_ESSAY' : 'NEW_BOOK_ESSAY'
   );
   const [editorLayout, setEditorLayout] = useState<EditorLayout>('SPLIT');
   const [writerFont, setWriterFont] = useState<'serif' | 'sans'>('serif');
@@ -95,13 +115,47 @@ export const WriteEssayPage: React.FC = () => {
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const authorInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Auto-save draft
+  // Populate fields when editing an existing Work or Topic
   useEffect(() => {
+    if (editingWork) {
+      setPostMode('NEW_BOOK_ESSAY');
+      setEssayTitle(editingWork.title || '');
+      setEssaySubtitle(editingWork.subtitle || '');
+      setCategoryId(editingWork.category_id || 1);
+      setEssayBody(editingWork.synopsis || '');
+      setBookAuthor(editingWork.creator || '');
+      setMediaType(editingWork.media_type || 'BOOK');
+      setReleaseYear(editingWork.release_year || 1950);
+      setPublisher(editingWork.publisher_or_studio || '');
+      setCoverUrl(
+        editingWork.cover_url ||
+          'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=900&q=85'
+      );
+      setAffiliateUrl(editingWork.affiliate_url || '');
+      setQuotes(
+        editingWork.notable_quotes?.length
+          ? editingWork.notable_quotes
+          : [{ quote_text: '', source_note: '' }]
+      );
+    } else if (editingTopic) {
+      setPostMode('EXISTING_BOOK_ESSAY');
+      setEssayTitle(editingTopic.title || '');
+      setEssaySubtitle(editingTopic.excerpt || '');
+      setCategoryId(editingTopic.category_id || 1);
+      setEssayBody(editingTopic.body || '');
+      setSelectedWorkId(editingTopic.work_id ? String(editingTopic.work_id) : '');
+      setTagsInput((editingTopic.tags || []).join(', '));
+    }
+  }, [editingWork?.id, editingTopic?.id]);
+
+  // Auto-save draft (only when creating new content)
+  useEffect(() => {
+    if (isEditingExisting) return;
     localStorage.setItem('veritas_draft_title', essayTitle);
     localStorage.setItem('veritas_draft_subtitle', essaySubtitle);
     localStorage.setItem('veritas_draft_body', essayBody);
     localStorage.setItem('veritas_draft_author', bookAuthor);
-  }, [essayTitle, essaySubtitle, essayBody, bookAuthor]);
+  }, [essayTitle, essaySubtitle, essayBody, bookAuthor, isEditingExisting]);
 
   const metrics = getReadingMetrics(essayBody);
 
@@ -234,7 +288,41 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
         await switchRole('MEMBER');
       }
 
-      if (postMode === 'NEW_BOOK_ESSAY') {
+      if (editingWork) {
+        const validQuotes = quotes.filter((q) => q.quote_text.trim().length > 0);
+        await updateWork(editingWork.id, {
+          title: essayTitle.trim(),
+          subtitle:
+            essaySubtitle.trim() ||
+            `Ensaio crítico e resenha literária por ${currentUser.name}`,
+          creator: bookAuthor.trim() || 'Autor Clássico',
+          media_type: mediaType,
+          release_year: releaseYear || 1950,
+          category_id: categoryId,
+          cover_url:
+            coverUrl.trim() ||
+            'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=900&q=85',
+          synopsis: essayBody.trim(),
+          notable_quotes: validQuotes.length ? validQuotes : editingWork.notable_quotes,
+          publisher_or_studio: publisher.trim() || 'Edição Recomendada',
+        });
+        navigate('/perfil');
+      } else if (editingTopic) {
+        await updateTopic(editingTopic.id, {
+          title: essayTitle.trim(),
+          excerpt:
+            essaySubtitle.trim() ||
+            essayBody.replace(/>/g, '').replace(/#/g, '').slice(0, 180) + '...',
+          body: essayBody.trim(),
+          category_id: categoryId,
+          work_id: selectedWorkId ? Number(selectedWorkId) : null,
+          tags: tagsInput
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean),
+        });
+        navigate('/perfil');
+      } else if (postMode === 'NEW_BOOK_ESSAY') {
         const validQuotes = quotes.filter((q) => q.quote_text.trim().length > 0);
         const createdWork = await createWork({
           title: essayTitle.trim(),
@@ -258,9 +346,7 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                   source_note: essayTitle.trim(),
                 },
               ],
-          affiliate_url:
-            affiliateUrl.trim() ||
-            `https://www.amazon.com.br/s?k=${encodeURIComponent(essayTitle.trim())}`,
+          affiliate_url: permissions.can_moderate_queue ? affiliateUrl.trim() : '',
           affiliate_cta_label: affiliateCta,
           affiliate_price_hint: affiliatePriceHint,
           publisher_or_studio: publisher.trim() || 'Edição Recomendada',
@@ -271,7 +357,11 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
         localStorage.removeItem('veritas_draft_subtitle');
         localStorage.removeItem('veritas_draft_body');
         localStorage.removeItem('veritas_draft_author');
-        navigate(`/obras/${createdWork.slug}`);
+        if (createdWork.status === 'APPROVED' || permissions.can_moderate_queue) {
+          navigate(`/obras/${createdWork.slug}`);
+        } else {
+          navigate('/');
+        }
       } else {
         const createdTopic = await createTopic({
           title: essayTitle.trim(),
@@ -291,7 +381,11 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
         localStorage.removeItem('veritas_draft_subtitle');
         localStorage.removeItem('veritas_draft_body');
         localStorage.removeItem('veritas_draft_author');
-        navigate(`/topicos/${createdTopic.slug}`);
+        if (createdTopic.status === 'APPROVED' || permissions.can_moderate_queue) {
+          navigate(`/topicos/${createdTopic.slug}`);
+        } else {
+          navigate('/');
+        }
       }
     } catch (err: any) {
       const errorMessage =
@@ -319,11 +413,15 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
           <div className="flex items-center gap-2.5">
             <Feather className="w-5 h-5 sm:w-6 sm:h-6 text-burgundy dark:text-gold shrink-0" />
             <h1 className="font-serif text-xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
-              Scriptorium — Estúdio de Escrita
+              {isEditingExisting
+                ? 'Revisar & Reenviar Publicação'
+                : 'Scriptorium — Estúdio de Escrita'}
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-ink-muted dark:text-slateDark-muted">
-            Um ambiente amplo, silencioso e agradável para redigir textos sobre grandes livros.
+            {isEditingExisting
+              ? 'Faça os ajustes solicitados pela moderação e reenvie seu texto para aprovação.'
+              : 'Um ambiente amplo, silencioso e agradável para redigir textos sobre grandes livros.'}
           </p>
         </div>
 
@@ -369,6 +467,18 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
           </div>
         </div>
       </div>
+
+      {(editingWork?.moderation_note || editingTopic?.moderation_note) && (
+        <div className="p-4 sm:p-5 rounded-xl border-2 border-red-500/70 bg-red-50 dark:bg-red-950/40 text-red-950 dark:text-red-200 space-y-1.5 shadow-sm">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-burgundy dark:text-gold">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>Comentário da Moderação — Ajustes Solicitados</span>
+          </div>
+          <p className="text-sm leading-relaxed whitespace-pre-line">
+            {editingWork?.moderation_note || editingTopic?.moderation_note}
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} noValidate className="space-y-8">
         {/* 1. Escolha do Tipo de Publicação e Dados do Livro */}
@@ -506,19 +616,21 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-forest dark:text-emerald-300 mb-1.5 flex items-center gap-1">
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>Link Amazon (Opcional • Tag: {settings.amazon_associate_tag})</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={affiliateUrl}
-                    onChange={(e) => setAffiliateUrl(e.target.value)}
-                    placeholder="https://www.amazon.com.br/dp/... (ou automático)"
-                    className="w-full px-3.5 py-2.5 rounded-md border border-forest/40 bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
-                  />
-                </div>
+                {permissions.can_moderate_queue && (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-forest dark:text-emerald-300 mb-1.5 flex items-center gap-1">
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>Link de Afiliado Amazon (Exclusivo Moderação • Tag: {settings.amazon_associate_tag})</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={affiliateUrl}
+                      onChange={(e) => setAffiliateUrl(e.target.value)}
+                      placeholder="https://www.amazon.com.br/dp/..."
+                      className="w-full px-3.5 py-2.5 rounded-md border border-forest/40 bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Notable Quotes Builder */}
@@ -586,11 +698,13 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                   className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
                 >
                   <option value="">Ensaio Livre (Sem livro específico)</option>
-                  {works.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.title} — {w.creator} ({w.release_year})
-                    </option>
-                  ))}
+                  {works
+                    .filter((w) => w.status === 'APPROVED')
+                    .map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.title} — {w.creator} ({w.release_year})
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -680,8 +794,64 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
               </button>
             </div>
 
-            {/* Font comfort switch + live metrics */}
-            <div className="flex items-center gap-3 text-xs text-ink-muted dark:text-slateDark-muted self-end md:self-auto shrink-0">
+            {/* Font comfort switch + Text Alignment + live metrics */}
+            <div className="flex flex-wrap items-center gap-2.5 text-xs text-ink-muted dark:text-slateDark-muted self-end md:self-auto shrink-0">
+              {/* Text Alignment / Justification Switch */}
+              <div className="inline-flex items-center rounded border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setTextAlign('justify')}
+                  title="Justificar Texto (Editorial)"
+                  aria-label="Justificar Texto"
+                  className={`p-1 rounded transition-colors ${
+                    textAlign === 'justify'
+                      ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
+                      : 'text-ink-muted hover:text-ink dark:hover:text-white'
+                  }`}
+                >
+                  <AlignJustify className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTextAlign('left')}
+                  title="Alinhar à Esquerda"
+                  aria-label="Alinhar à Esquerda"
+                  className={`p-1 rounded transition-colors ${
+                    textAlign === 'left'
+                      ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
+                      : 'text-ink-muted hover:text-ink dark:hover:text-white'
+                  }`}
+                >
+                  <AlignLeft className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTextAlign('center')}
+                  title="Centralizar Texto"
+                  aria-label="Centralizar Texto"
+                  className={`p-1 rounded transition-colors ${
+                    textAlign === 'center'
+                      ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
+                      : 'text-ink-muted hover:text-ink dark:hover:text-white'
+                  }`}
+                >
+                  <AlignCenter className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTextAlign('right')}
+                  title="Alinhar à Direita"
+                  aria-label="Alinhar à Direita"
+                  className={`p-1 rounded transition-colors ${
+                    textAlign === 'right'
+                      ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
+                      : 'text-ink-muted hover:text-ink dark:hover:text-white'
+                  }`}
+                >
+                  <AlignRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
               <div className="hidden sm:flex items-center gap-1">
                 <span>Fonte:</span>
                 <button
@@ -758,6 +928,14 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                         ? 'font-literary text-lg sm:text-[20px]'
                         : 'font-sans text-base sm:text-[18px]'
                     } ${
+                      textAlign === 'justify'
+                        ? 'text-justify text-justify-editorial'
+                        : textAlign === 'center'
+                        ? 'text-center'
+                        : textAlign === 'right'
+                        ? 'text-right'
+                        : 'text-left'
+                    } ${
                       submitErrors.length > 0 && !essayBody.trim()
                         ? 'border-2 border-red-600 bg-red-500/5'
                         : ''
@@ -800,6 +978,7 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                       dropcap={true}
                       fontSize="large"
                       fontFamily={writerFont}
+                      textAlign={textAlign}
                     />
                   ) : (
                     <p className="py-16 text-center font-literary italic text-xl text-ink-muted dark:text-slateDark-muted">
@@ -863,6 +1042,8 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                 <span>
                   {isSubmitting
                     ? 'Enviando para revisão...'
+                    : isEditingExisting
+                    ? 'Salvar Ajustes e Reenviar para Moderação'
                     : 'Enviar Texto para Revisão'}
                 </span>
               </button>

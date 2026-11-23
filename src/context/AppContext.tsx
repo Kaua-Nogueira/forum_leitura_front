@@ -27,6 +27,11 @@ import {
   USER_STORAGE_KEY,
   computePermissionsForRole,
 } from '../services/api';
+import {
+  ReadingFontSize,
+  ReadingFontFamily,
+  ReadingTextAlign,
+} from '../components/RichTextRenderer';
 
 interface FlagModalTarget {
   target_type: 'WORK' | 'TOPIC' | 'COMMENT';
@@ -74,6 +79,12 @@ interface AppContextType {
   switchRole: (role: UserRole) => void;
   isDark: boolean;
   toggleDark: () => void;
+  textAlign: ReadingTextAlign;
+  setTextAlign: (align: ReadingTextAlign) => void;
+  fontSize: ReadingFontSize;
+  setFontSize: (size: ReadingFontSize) => void;
+  fontFamily: ReadingFontFamily;
+  setFontFamily: (font: ReadingFontFamily) => void;
   categories: Category[];
   works: Work[];
   topics: Topic[];
@@ -101,7 +112,9 @@ interface AppContextType {
   setFlagModalTarget: (target: FlagModalTarget | null) => void;
   // Actions
   createWork: (data: Partial<Work>) => Promise<Work>;
+  updateWork: (workId: number, data: Partial<Work>) => Promise<Work>;
   createTopic: (data: Partial<Topic>) => Promise<Topic>;
+  updateTopic: (topicId: number, data: Partial<Topic>) => Promise<Topic>;
   addComment: (payload: {
     body: string;
     rating?: number | null;
@@ -123,7 +136,20 @@ interface AppContextType {
   moderateWorkStatus: (
     workId: number,
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
-    note?: string
+    note?: string,
+    affiliate?: {
+      affiliate_url?: string;
+      affiliate_cta_label?: string;
+      affiliate_price_hint?: string;
+    }
+  ) => Promise<void>;
+  updateWorkAffiliate: (
+    workId: number,
+    payload: {
+      affiliate_url: string;
+      affiliate_cta_label?: string;
+      affiliate_price_hint?: string;
+    }
   ) => Promise<void>;
   moderateTopicStatus: (
     topicId: number,
@@ -181,6 +207,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isDark, setIsDark] = useState<boolean>(() => {
     return localStorage.getItem('veritas_theme') === 'dark';
   });
+
+  const [textAlign, setTextAlignState] = useState<ReadingTextAlign>(() => {
+    try {
+      const saved = localStorage.getItem('veritas_text_align') as ReadingTextAlign;
+      if (saved && ['justify', 'left', 'center', 'right'].includes(saved)) {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return 'justify';
+  });
+
+  const setTextAlign = useCallback((val: ReadingTextAlign) => {
+    setTextAlignState(val);
+    try {
+      localStorage.setItem('veritas_text_align', val);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const [fontSize, setFontSizeState] = useState<ReadingFontSize>(() => {
+    try {
+      const saved = localStorage.getItem('veritas_font_size') as ReadingFontSize;
+      if (saved && ['normal', 'large', 'xlarge'].includes(saved)) {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return 'large';
+  });
+
+  const setFontSize = useCallback((val: ReadingFontSize) => {
+    setFontSizeState(val);
+    try {
+      localStorage.setItem('veritas_font_size', val);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const [fontFamily, setFontFamilyState] = useState<ReadingFontFamily>(() => {
+    try {
+      const saved = localStorage.getItem('veritas_font_family') as ReadingFontFamily;
+      if (saved && ['serif', 'sans'].includes(saved)) {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return 'serif';
+  });
+
+  const setFontFamily = useCallback((val: ReadingFontFamily) => {
+    setFontFamilyState(val);
+    try {
+      localStorage.setItem('veritas_font_family', val);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [works, setWorks] = useState<Work[]>(() => {
@@ -673,8 +762,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             },
           ],
       affiliate_url:
-        data.affiliate_url ||
-        'https://www.amazon.com.br/s?k=' + encodeURIComponent(data.title || ''),
+        permissions.can_moderate_queue && data.affiliate_url
+          ? data.affiliate_url.trim()
+          : '',
       affiliate_cta_label: data.affiliate_cta_label || 'Adquirir na Amazon',
       affiliate_price_hint: data.affiliate_price_hint || 'Edição Recomendada',
       affiliate_clicks_count: 0,
@@ -716,6 +806,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'info'
     );
     return newWork;
+  };
+
+  const updateWork = async (workId: number, data: Partial<Work>): Promise<Work> => {
+    const existing = works.find((w) => w.id === workId);
+    let updatedWork: Work | undefined;
+
+    if (apiConnected) {
+      const res = await apiService.updateWork(workId, data, currentUser.role);
+      updatedWork = res.work;
+    }
+
+    const finalWork: Work = updatedWork || {
+      ...(existing as Work),
+      ...data,
+      status: permissions.can_moderate_queue && existing?.status === 'APPROVED' ? 'APPROVED' : 'PENDING',
+    };
+
+    setWorks((prev) => prev.map((w) => (w.id === workId ? { ...w, ...finalWork } : w)));
+
+    showToast(
+      finalWork.status === 'PENDING'
+        ? 'Texto atualizado e reenviado para Moderação!'
+        : 'Texto atualizado com sucesso!',
+      finalWork.status === 'PENDING'
+        ? 'A moderação receberá sua versão corrigida para nova avaliação.'
+        : 'As alterações já estão salvas.',
+      'success'
+    );
+
+    return finalWork;
+  };
+
+  const updateTopic = async (topicId: number, data: Partial<Topic>): Promise<Topic> => {
+    const existing = topics.find((t) => t.id === topicId);
+    let updatedTopic: Topic | undefined;
+
+    if (apiConnected) {
+      const res = await apiService.updateTopic(topicId, data, currentUser.role);
+      updatedTopic = res.topic;
+    }
+
+    const finalTopic: Topic = updatedTopic || {
+      ...(existing as Topic),
+      ...data,
+      status: permissions.can_moderate_queue && existing?.status === 'APPROVED' ? 'APPROVED' : 'PENDING',
+    };
+
+    setTopics((prev) => prev.map((t) => (t.id === topicId ? { ...t, ...finalTopic } : t)));
+
+    showToast(
+      finalTopic.status === 'PENDING'
+        ? 'Ensaio atualizado e reenviado para Moderação!'
+        : 'Ensaio atualizado com sucesso!',
+      finalTopic.status === 'PENDING'
+        ? 'A moderação receberá sua versão corrigida para nova avaliação.'
+        : 'As alterações já estão salvas.',
+      'success'
+    );
+
+    return finalTopic;
   };
 
   const createTopic = async (data: Partial<Topic>): Promise<Topic> => {
@@ -1266,18 +1416,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const moderateWorkStatus = async (
     workId: number,
     status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
-    note?: string
+    note?: string,
+    affiliate?: {
+      affiliate_url?: string;
+      affiliate_cta_label?: string;
+      affiliate_price_hint?: string;
+    }
   ) => {
     let serverLog: ModerationLog | undefined;
+    let updatedWorkFromServer: Work | undefined;
     try {
       if (apiConnected) {
         const res = await apiService.moderateWorkStatus(
           workId,
           status,
           note || 'Revisado pela Moderação.',
-          currentUser.role
+          currentUser.role,
+          affiliate
         );
         serverLog = res.log;
+        updatedWorkFromServer = res.work;
       }
     } catch (err: any) {
       showToast('Acesso Restrito (RBAC)', err.message, 'error');
@@ -1288,7 +1446,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setWorks((prev) =>
       prev.map((w) =>
-        w.id === workId ? { ...w, status, moderation_note: note } : w
+        w.id === workId
+          ? updatedWorkFromServer
+            ? { ...w, ...updatedWorkFromServer }
+            : {
+                ...w,
+                status,
+                moderation_note: note,
+                ...(affiliate?.affiliate_url !== undefined
+                  ? { affiliate_url: affiliate.affiliate_url }
+                  : {}),
+                ...(affiliate?.affiliate_cta_label
+                  ? { affiliate_cta_label: affiliate.affiliate_cta_label }
+                  : {}),
+                ...(affiliate?.affiliate_price_hint !== undefined
+                  ? { affiliate_price_hint: affiliate.affiliate_price_hint }
+                  : {}),
+              }
+          : w
       )
     );
 
@@ -1333,6 +1508,72 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         : 'Texto reprovado / ocultado pela Moderação',
       note || 'Decisão da moderação registrada no Log de Auditoria.',
       status === 'APPROVED' ? 'success' : 'warning'
+    );
+  };
+
+  const updateWorkAffiliate = async (
+    workId: number,
+    payload: {
+      affiliate_url: string;
+      affiliate_cta_label?: string;
+      affiliate_price_hint?: string;
+    }
+  ) => {
+    if (!permissions.can_moderate_queue) {
+      showToast(
+        'Acesso Restrito (RBAC)',
+        'Apenas Moderadores e Administradores podem definir ou alterar links de afiliado.',
+        'error'
+      );
+      return;
+    }
+
+    let serverLog: ModerationLog | undefined;
+    let updatedWorkFromServer: Work | undefined;
+    try {
+      if (apiConnected) {
+        const res = await apiService.updateWorkAffiliate(
+          workId,
+          payload,
+          currentUser.role
+        );
+        serverLog = res.log;
+        updatedWorkFromServer = res.work;
+      }
+    } catch (err: any) {
+      showToast('Erro ao salvar link de afiliado', err.message, 'error');
+      return;
+    }
+
+    setWorks((prev) =>
+      prev.map((w) =>
+        w.id === workId
+          ? updatedWorkFromServer
+            ? { ...w, ...updatedWorkFromServer }
+            : {
+                ...w,
+                affiliate_url: payload.affiliate_url.trim(),
+                affiliate_cta_label:
+                  payload.affiliate_cta_label || w.affiliate_cta_label || 'Adquirir na Amazon',
+                affiliate_price_hint:
+                  payload.affiliate_price_hint !== undefined
+                    ? payload.affiliate_price_hint
+                    : w.affiliate_price_hint,
+              }
+          : w
+      )
+    );
+
+    if (serverLog) {
+      setModerationLogs((prev) => [serverLog!, ...prev]);
+    }
+
+    showToast(
+      'Link de Afiliado Atualizado',
+      payload.affiliate_url.trim()
+        ? 'O link de afiliado Amazon foi salvo pela Moderação.'
+        : 'O link de afiliado foi removido desta obra.',
+      'success'
     );
   };
 
@@ -1599,6 +1840,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         switchRole,
         isDark,
         toggleDark,
+        textAlign,
+        setTextAlign,
+        fontSize,
+        setFontSize,
+        fontFamily,
+        setFontFamily,
         categories,
         works,
         topics,
@@ -1617,12 +1864,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         flagModalTarget,
         setFlagModalTarget,
         createWork,
+        updateWork,
         createTopic,
+        updateTopic,
         addComment,
         upvoteItem,
         submitFlag,
         resolveFlag,
         moderateWorkStatus,
+        updateWorkAffiliate,
         moderateTopicStatus,
         deleteContent,
         deleteByModerator,

@@ -36,6 +36,7 @@ export const ProfilePage: React.FC = () => {
   const {
     currentUser,
     isAuthenticated,
+    permissions,
     usersList,
     works,
     topics,
@@ -93,27 +94,29 @@ export const ProfilePage: React.FC = () => {
     setIsEditing(false);
   };
 
-  // 1. Works / Book Essays written by this user
+  // 1. Works / Book Essays written by this user (only approved unless moderator/admin or own profile)
   const userWorks = useMemo((): Work[] => {
     return works.filter(
       (w) =>
-        w.submitted_by_id === profileUser.id ||
-        w.submitted_by?.id === profileUser.id ||
-        (w.submitted_by?.name &&
-          w.submitted_by.name.toLowerCase() === profileUser.name.toLowerCase())
+        (w.status === 'APPROVED' || permissions.can_moderate_queue || isOwnProfile) &&
+        (w.submitted_by_id === profileUser.id ||
+          w.submitted_by?.id === profileUser.id ||
+          (w.submitted_by?.name &&
+            w.submitted_by.name.toLowerCase() === profileUser.name.toLowerCase()))
     );
-  }, [works, profileUser]);
+  }, [works, profileUser, permissions.can_moderate_queue, isOwnProfile]);
 
-  // 2. Topics / Essays written by this user
+  // 2. Topics / Essays written by this user (only approved unless moderator/admin or own profile)
   const userTopics = useMemo((): Topic[] => {
     return topics.filter(
       (t) =>
-        t.author_id === profileUser.id ||
-        t.author?.id === profileUser.id ||
-        (t.author?.name &&
-          t.author.name.toLowerCase() === profileUser.name.toLowerCase())
+        (t.status === 'APPROVED' || permissions.can_moderate_queue || isOwnProfile) &&
+        (t.author_id === profileUser.id ||
+          t.author?.id === profileUser.id ||
+          (t.author?.name &&
+            t.author.name.toLowerCase() === profileUser.name.toLowerCase()))
     );
-  }, [topics, profileUser]);
+  }, [topics, profileUser, permissions.can_moderate_queue, isOwnProfile]);
 
   // 3. All Comments & Replies written by this user across Works and Topics
   const userComments = useMemo((): FlattenedUserComment[] => {
@@ -128,6 +131,8 @@ export const ProfilePage: React.FC = () => {
     ) => {
       if (!list) return;
       for (const c of list) {
+        if (c.status !== 'APPROVED' && !permissions.can_moderate_queue) continue;
+
         const matchesAuthor =
           c.author_id === profileUser.id ||
           c.author?.id === profileUser.id ||
@@ -157,10 +162,12 @@ export const ProfilePage: React.FC = () => {
     };
 
     for (const w of works) {
+      if (w.status !== 'APPROVED' && !permissions.can_moderate_queue) continue;
       traverseComments(w.comments, 'WORK', w.title, w.slug, w.creator);
     }
 
     for (const t of topics) {
+      if (t.status !== 'APPROVED' && !permissions.can_moderate_queue) continue;
       traverseComments(t.comments, 'TOPIC', t.title, t.slug, t.category?.name);
     }
 
@@ -169,7 +176,7 @@ export const ProfilePage: React.FC = () => {
         new Date(b.comment.created_at).getTime() -
         new Date(a.comment.created_at).getTime()
     );
-  }, [works, topics, profileUser]);
+  }, [works, topics, profileUser, permissions.can_moderate_queue]);
 
   if (!id && !isAuthenticated) {
     return (
@@ -511,11 +518,29 @@ export const ProfilePage: React.FC = () => {
                       {work.synopsis.replace(/>/g, '').replace(/#/g, '')}
                     </p>
 
-                    <div className="pt-1 flex items-center justify-between text-xs">
+                    {work.status !== 'APPROVED' && work.moderation_note && (
+                      <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-400/50 text-xs text-red-950 dark:text-red-200 space-y-1">
+                        <span className="font-bold uppercase tracking-wider block text-[11px] text-burgundy dark:text-gold">
+                          Comentário da Moderação:
+                        </span>
+                        <p className="whitespace-pre-line">{work.moderation_note}</p>
+                      </div>
+                    )}
+
+                    <div className="pt-1 flex flex-wrap items-center justify-between gap-2 text-xs">
                       <span className="text-ink-muted dark:text-slateDark-muted">
                         {work.comments?.length || 0} comentários recebidos
                       </span>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        {isOwnProfile && work.status !== 'APPROVED' && (
+                          <Link
+                            to={`/escrever?editWork=${work.id}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-semibold hover:opacity-90"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Editar e Reenviar</span>
+                          </Link>
+                        )}
                         {isOwnProfile && (
                           <button
                             type="button"
@@ -612,7 +637,16 @@ export const ProfilePage: React.FC = () => {
                     {topic.excerpt}
                   </p>
 
-                  <div className="pt-2 flex items-center justify-between text-xs text-ink-secondary dark:text-slateDark-muted">
+                  {topic.status !== 'APPROVED' && topic.moderation_note && (
+                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-400/50 text-xs text-red-950 dark:text-red-200 space-y-1">
+                      <span className="font-bold uppercase tracking-wider block text-[11px] text-burgundy dark:text-gold">
+                        Comentário da Moderação:
+                      </span>
+                      <p className="whitespace-pre-line">{topic.moderation_note}</p>
+                    </div>
+                  )}
+
+                  <div className="pt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-secondary dark:text-slateDark-muted">
                     <div className="flex items-center gap-4">
                       <span className="inline-flex items-center gap-1">
                         <ThumbsUp className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
@@ -623,7 +657,16 @@ export const ProfilePage: React.FC = () => {
                         {topic.comments_count} comentários
                       </span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      {isOwnProfile && topic.status !== 'APPROVED' && (
+                        <Link
+                          to={`/escrever?editTopic=${topic.id}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-semibold hover:opacity-90"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Editar e Reenviar</span>
+                        </Link>
+                      )}
                       {isOwnProfile && (
                         <button
                           type="button"

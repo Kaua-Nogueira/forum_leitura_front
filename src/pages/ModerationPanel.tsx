@@ -52,6 +52,9 @@ export const ModerationPanel: React.FC = () => {
   >('QUEUE');
   const [filterStatus, setFilterStatus] = useState<'PENDING' | 'ALL'>('PENDING');
   const [notesByFlagId, setNotesByFlagId] = useState<Record<number, string>>({});
+  const [affiliateUrlByWorkId, setAffiliateUrlByWorkId] = useState<Record<number, string>>({});
+  const [openRejectKey, setOpenRejectKey] = useState<string | null>(null);
+  const [rejectFeedbackByKey, setRejectFeedbackByKey] = useState<Record<string, string>>({});
   const [isRefreshingUsers, setIsRefreshingUsers] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<
@@ -544,56 +547,124 @@ export const ModerationPanel: React.FC = () => {
                   {pendingWorks.map((w) => (
                     <div
                       key={`mod-w-${w.id}`}
-                      className="p-4 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card flex flex-wrap items-center justify-between gap-4"
+                      className="p-4 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card space-y-3"
                     >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded bg-burgundy text-parchment text-xs font-bold uppercase">
-                            Obra / Resenha
-                          </span>
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-burgundy text-parchment text-xs font-bold uppercase">
+                              Obra / Resenha
+                            </span>
+                            <Link
+                              to={`/obras/${w.slug}`}
+                              className="font-serif font-bold text-lg text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                            >
+                              {w.title} — {w.creator}
+                            </Link>
+                          </div>
+                          <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
+                            Submetida por <strong>{w.submitted_by?.name || 'Membro'}</strong> • Ano{' '}
+                            {w.release_year}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
                           <Link
                             to={`/obras/${w.slug}`}
-                            className="font-serif font-bold text-lg text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                            className="px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
                           >
-                            {w.title} — {w.creator}
+                            Revisar Texto Completo
                           </Link>
+                          <button
+                            onClick={() =>
+                              moderateWorkStatus(
+                                w.id,
+                                'APPROVED',
+                                'Aprovado pela Moderação.',
+                                {
+                                  affiliate_url: (
+                                    affiliateUrlByWorkId[w.id] ??
+                                    w.affiliate_url ??
+                                    ''
+                                  ).trim(),
+                                }
+                              )
+                            }
+                            className="px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-semibold"
+                          >
+                            Aprovar &amp; Publicar
+                          </button>
+                          <button
+                            onClick={() =>
+                              setOpenRejectKey(
+                                openRejectKey === `WORK-${w.id}` ? null : `WORK-${w.id}`
+                              )
+                            }
+                            className="px-3.5 py-1.5 rounded bg-burgundy hover:bg-burgundy-hover text-parchment text-xs font-semibold"
+                          >
+                            Reprovar / Pedir Ajustes
+                          </button>
                         </div>
-                        <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
-                          Submetida por <strong>{w.submitted_by?.name || 'Membro'}</strong> • Ano{' '}
-                          {w.release_year}
-                        </p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Link
-                          to={`/obras/${w.slug}`}
-                          className="px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
-                        >
-                          Revisar Texto Completo
-                        </Link>
-                        <button
-                          onClick={() =>
-                            moderateWorkStatus(
-                              w.id,
-                              'APPROVED',
-                              'Aprovado pela Moderação.'
-                            )
+
+                      {openRejectKey === `WORK-${w.id}` && (
+                        <div className="p-3.5 rounded-lg bg-red-950/10 dark:bg-red-950/30 border border-red-500/40 space-y-2.5">
+                          <label className="block text-xs font-bold text-red-800 dark:text-red-300">
+                            Comentário / Feedback para o Autor (o autor verá esta mensagem para ajustar e reenviar):
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={rejectFeedbackByKey[`WORK-${w.id}`] || ''}
+                            onChange={(e) =>
+                              setRejectFeedbackByKey((prev) => ({
+                                ...prev,
+                                [`WORK-${w.id}`]: e.target.value,
+                              }))
+                            }
+                            placeholder="Ex: Excelente tema, mas revise a ortografia do 2º parágrafo e adicione a fonte da citação antes de reenviar."
+                            className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-bg text-xs sm:text-sm text-ink dark:text-slateDark-text focus:outline-none"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setOpenRejectKey(null)}
+                              className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const feedback =
+                                  (rejectFeedbackByKey[`WORK-${w.id}`] || '').trim() ||
+                                  'Reprovado na revisão editorial. Revise o texto e reenvie para nova análise.';
+                                await moderateWorkStatus(w.id, 'REJECTED', feedback);
+                                setOpenRejectKey(null);
+                              }}
+                              className="px-4 py-1.5 rounded bg-burgundy hover:bg-burgundy-hover text-parchment text-xs font-bold shadow-xs"
+                            >
+                              Confirmar Reprovação e Enviar Feedback
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Link de Afiliado Amazon (Exclusivo Moderação) */}
+                      <div className="pt-2 border-t border-parchment-deep/60 dark:border-slateDark-border/60">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-forest dark:text-emerald-300 mb-1">
+                          Link de Afiliado Amazon (Definido pela Moderação • Tag: {settings.amazon_associate_tag})
+                        </label>
+                        <input
+                          type="url"
+                          value={affiliateUrlByWorkId[w.id] ?? w.affiliate_url ?? ''}
+                          onChange={(e) =>
+                            setAffiliateUrlByWorkId((prev) => ({
+                              ...prev,
+                              [w.id]: e.target.value,
+                            }))
                           }
-                          className="px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-semibold"
-                        >
-                          Aprovar &amp; Publicar
-                        </button>
-                        <button
-                          onClick={() =>
-                            moderateWorkStatus(
-                              w.id,
-                              'REJECTED',
-                              'Reprovado na revisão editorial.'
-                            )
-                          }
-                          className="px-3.5 py-1.5 rounded bg-burgundy hover:bg-burgundy-hover text-parchment text-xs font-semibold"
-                        >
-                          Reprovar
-                        </button>
+                          placeholder="https://www.amazon.com.br/dp/... (opcional — deixe em branco se não houver link)"
+                          className="w-full px-3 py-1.5 rounded border border-forest/40 bg-white dark:bg-slateDark-bg text-xs text-ink dark:text-slateDark-text focus:outline-none focus:border-forest"
+                        />
                       </div>
                     </div>
                   ))}
@@ -601,56 +672,98 @@ export const ModerationPanel: React.FC = () => {
                   {pendingTopics.map((t) => (
                     <div
                       key={`mod-t-${t.id}`}
-                      className="p-4 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card flex flex-wrap items-center justify-between gap-4"
+                      className="p-4 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card space-y-3"
                     >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded bg-navy text-parchment text-xs font-bold uppercase">
-                            Ensaio
-                          </span>
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-navy text-parchment text-xs font-bold uppercase">
+                              Ensaio
+                            </span>
+                            <Link
+                              to={`/topicos/${t.slug}`}
+                              className="font-serif font-bold text-lg text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                            >
+                              {t.title}
+                            </Link>
+                          </div>
+                          <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
+                            Submetido por <strong>{t.author?.name || 'Membro'}</strong>
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
                           <Link
                             to={`/topicos/${t.slug}`}
-                            className="font-serif font-bold text-lg text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                            className="px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
                           >
-                            {t.title}
+                            Revisar Ensaio Completo
                           </Link>
+                          <button
+                            onClick={() =>
+                              moderateTopicStatus(
+                                t.id,
+                                'APPROVED',
+                                'Ensaio aprovado pela Moderação.'
+                              )
+                            }
+                            className="px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-semibold"
+                          >
+                            Aprovar &amp; Publicar
+                          </button>
+                          <button
+                            onClick={() =>
+                              setOpenRejectKey(
+                                openRejectKey === `TOPIC-${t.id}` ? null : `TOPIC-${t.id}`
+                              )
+                            }
+                            className="px-3.5 py-1.5 rounded bg-burgundy hover:bg-burgundy-hover text-parchment text-xs font-semibold"
+                          >
+                            Reprovar / Pedir Ajustes
+                          </button>
                         </div>
-                        <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
-                          Submetido por <strong>{t.author?.name || 'Membro'}</strong>
-                        </p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Link
-                          to={`/topicos/${t.slug}`}
-                          className="px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
-                        >
-                          Revisar Ensaio Completo
-                        </Link>
-                        <button
-                          onClick={() =>
-                            moderateTopicStatus(
-                              t.id,
-                              'APPROVED',
-                              'Ensaio aprovado pela Moderação.'
-                            )
-                          }
-                          className="px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-semibold"
-                        >
-                          Aprovar &amp; Publicar
-                        </button>
-                        <button
-                          onClick={() =>
-                            moderateTopicStatus(
-                              t.id,
-                              'REJECTED',
-                              'Ensaio reprovado na revisão editorial.'
-                            )
-                          }
-                          className="px-3.5 py-1.5 rounded bg-burgundy hover:bg-burgundy-hover text-parchment text-xs font-semibold"
-                        >
-                          Reprovar
-                        </button>
-                      </div>
+
+                      {openRejectKey === `TOPIC-${t.id}` && (
+                        <div className="p-3.5 rounded-lg bg-red-950/10 dark:bg-red-950/30 border border-red-500/40 space-y-2.5">
+                          <label className="block text-xs font-bold text-red-800 dark:text-red-300">
+                            Comentário / Feedback para o Autor (o autor verá esta mensagem para ajustar e reenviar):
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={rejectFeedbackByKey[`TOPIC-${t.id}`] || ''}
+                            onChange={(e) =>
+                              setRejectFeedbackByKey((prev) => ({
+                                ...prev,
+                                [`TOPIC-${t.id}`]: e.target.value,
+                              }))
+                            }
+                            placeholder="Ex: Ajuste os pontos X e Y e reenvie para aprovação."
+                            className="w-full px-3 py-2 rounded border border-red-500/40 bg-white dark:bg-slateDark-bg text-xs sm:text-sm text-ink dark:text-slateDark-text focus:outline-none"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setOpenRejectKey(null)}
+                              className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const feedback =
+                                  (rejectFeedbackByKey[`TOPIC-${t.id}`] || '').trim() ||
+                                  'Ensaio reprovado na revisão editorial. Revise o texto e reenvie para nova análise.';
+                                await moderateTopicStatus(t.id, 'REJECTED', feedback);
+                                setOpenRejectKey(null);
+                              }}
+                              className="px-4 py-1.5 rounded bg-burgundy hover:bg-burgundy-hover text-parchment text-xs font-bold shadow-xs"
+                            >
+                              Confirmar Reprovação e Enviar Feedback
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -76,6 +76,14 @@
     border-left-color: #B08D57;
     background: linear-gradient(to right, rgba(176, 141, 87, 0.08), transparent);
   }
+
+  /* Editorial text justification */
+  .text-justify-editorial {
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+  }
 }
 
 /* Custom subtle scrollbars */

@@ -17,6 +17,7 @@ export const GlobalModals: React.FC = () => {
     categories,
     works,
     settings,
+    permissions,
     isNewWorkModalOpen,
     setIsNewWorkModalOpen,
     isNewTopicModalOpen,
@@ -74,9 +75,7 @@ export const GlobalModals: React.FC = () => {
       notable_quotes: workQuoteText.trim()
         ? [{ quote_text: workQuoteText, source_note: workQuoteSource || workTitle }]
         : [],
-      affiliate_url:
-        workAffiliateUrl ||
-        `https://www.amazon.com.br/s?k=${encodeURIComponent(workTitle)}`,
+      affiliate_url: permissions.can_moderate_queue ? workAffiliateUrl.trim() : '',
       affiliate_cta_label: workCtaLabel,
       affiliate_price_hint: workPriceHint,
       is_featured: true,
@@ -89,7 +88,11 @@ export const GlobalModals: React.FC = () => {
     setWorkSynopsis('');
     setWorkQuoteText('');
     setWorkAffiliateUrl('');
-    navigate(`/obras/${created.slug}`);
+    if (created.status === 'APPROVED' || permissions.can_moderate_queue) {
+      navigate(`/obras/${created.slug}`);
+    } else {
+      navigate('/');
+    }
   };
 
   const handleCreateTopic = async (e: React.FormEvent) => {
@@ -280,34 +283,36 @@ export const GlobalModals: React.FC = () => {
                 />
               </div>
 
-              {/* Affiliate Section */}
-              <div className="p-3.5 rounded-md bg-forest/5 dark:bg-forest-light/10 border border-forest/20 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-forest dark:text-emerald-300">
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    Módulo de Monetização &amp; Afiliado Amazon
-                  </span>
-                  <span className="text-[11px] font-mono text-ink-muted dark:text-slateDark-muted">
-                    Tag global automática: {settings.amazon_associate_tag}
-                  </span>
+              {/* Affiliate Section (Exclusivo Moderação / Admin) */}
+              {permissions.can_moderate_queue && (
+                <div className="p-3.5 rounded-md bg-forest/5 dark:bg-forest-light/10 border border-forest/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-forest dark:text-emerald-300">
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      Módulo de Monetização &amp; Afiliado Amazon (Moderação)
+                    </span>
+                    <span className="text-[11px] font-mono text-ink-muted dark:text-slateDark-muted">
+                      Tag global automática: {settings.amazon_associate_tag}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input
+                      type="url"
+                      value={workAffiliateUrl}
+                      onChange={(e) => setWorkAffiliateUrl(e.target.value)}
+                      placeholder="https://www.amazon.com.br/dp/..."
+                      className="w-full px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={workCtaLabel}
+                      onChange={(e) => setWorkCtaLabel(e.target.value)}
+                      placeholder="Texto do Botão (Ex: Adquirir na Amazon)"
+                      className="w-full px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs"
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input
-                    type="url"
-                    value={workAffiliateUrl}
-                    onChange={(e) => setWorkAffiliateUrl(e.target.value)}
-                    placeholder="https://www.amazon.com.br/dp/..."
-                    className="w-full px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs"
-                  />
-                  <input
-                    type="text"
-                    value={workCtaLabel}
-                    onChange={(e) => setWorkCtaLabel(e.target.value)}
-                    placeholder="Texto do Botão (Ex: Adquirir na Amazon)"
-                    className="w-full px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs"
-                  />
-                </div>
-              </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-2">
                 <button

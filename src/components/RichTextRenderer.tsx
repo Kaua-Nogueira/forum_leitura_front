@@ -3,12 +3,14 @@ import { Quote } from 'lucide-react';
 
 export type ReadingFontSize = 'normal' | 'large' | 'xlarge';
 export type ReadingFontFamily = 'serif' | 'sans';
+export type ReadingTextAlign = 'justify' | 'left' | 'center' | 'right';
 
 interface RichTextRendererProps {
   content: string;
   dropcap?: boolean;
   fontSize?: ReadingFontSize;
   fontFamily?: ReadingFontFamily;
+  textAlign?: ReadingTextAlign;
   className?: string;
 }
 
@@ -43,6 +45,7 @@ export const RichTextRenderer: React.FC<RichTextRendererProps> = ({
   dropcap = false,
   fontSize = 'large',
   fontFamily = 'serif',
+  textAlign = 'justify',
   className = '',
 }) => {
   if (!content) return null;
@@ -59,6 +62,13 @@ export const RichTextRenderer: React.FC<RichTextRendererProps> = ({
   const fontClasses: Record<ReadingFontFamily, string> = {
     serif: 'font-literary',
     sans: 'font-sans',
+  };
+
+  const alignClasses: Record<ReadingTextAlign, string> = {
+    justify: 'text-justify text-justify-editorial',
+    left: 'text-left',
+    center: 'text-center',
+    right: 'text-right',
   };
 
   const formatInline = (text: string): React.ReactNode[] => {
@@ -109,7 +119,9 @@ export const RichTextRenderer: React.FC<RichTextRendererProps> = ({
           return (
             <h3
               key={index}
-              className="font-serif text-xl sm:text-2xl font-bold text-ink dark:text-slateDark-text pt-4 pb-1 border-b border-parchment-deep/60 dark:border-slateDark-border/60 tracking-tight"
+              className={`font-serif text-xl sm:text-2xl font-bold text-ink dark:text-slateDark-text pt-4 pb-1 border-b border-parchment-deep/60 dark:border-slateDark-border/60 tracking-tight ${
+                textAlign === 'center' ? 'text-center' : 'text-left'
+              }`}
             >
               {formatInline(headingText)}
             </h3>
@@ -129,21 +141,85 @@ export const RichTextRenderer: React.FC<RichTextRendererProps> = ({
               className="editorial-blockquote my-6 py-4 sm:py-5 pl-4 sm:pl-6 pr-3.5 sm:pr-5 rounded-r-lg relative shadow-sm"
             >
               <Quote className="w-4 sm:w-5 h-4 sm:h-5 text-burgundy/40 dark:text-gold/50 mb-2" />
-              <p className="font-literary italic text-base sm:text-[22px] text-ink dark:text-slateDark-text leading-[1.7]">
+              <p
+                className={`font-literary italic text-base sm:text-[22px] text-ink dark:text-slateDark-text leading-[1.7] ${alignClasses[textAlign]}`}
+              >
                 “{formatInline(quoteText)}”
               </p>
             </blockquote>
           );
         }
 
-        // 4. Parágrafo regular de leitura longa
+        // 4. Blocos com marcação explícita de alinhamento
+        // 4a. Centralizado (<center>texto</center> ou -> texto <- ou [center]texto[/center])
+        if (
+          (trimmed.startsWith('<center>') && trimmed.endsWith('</center>')) ||
+          (trimmed.startsWith('[center]') && trimmed.endsWith('[/center]')) ||
+          (trimmed.startsWith('->') && trimmed.endsWith('<-'))
+        ) {
+          const inner = trimmed.startsWith('<center>')
+            ? trimmed.slice(8, -9).trim()
+            : trimmed.startsWith('[center]')
+            ? trimmed.slice(8, -9).trim()
+            : trimmed.slice(2, -2).trim();
+
+          return (
+            <p
+              key={index}
+              className={`text-ink dark:text-slateDark-text text-center ${sizeClasses[fontSize]} ${fontClasses[fontFamily]}`}
+            >
+              {formatInline(inner)}
+            </p>
+          );
+        }
+
+        // 4b. Justificado explícito ([justify]texto[/justify])
+        if (trimmed.startsWith('[justify]') && trimmed.endsWith('[/justify]')) {
+          const inner = trimmed.slice(9, -10).trim();
+          return (
+            <p
+              key={index}
+              className={`text-ink dark:text-slateDark-text text-justify text-justify-editorial ${sizeClasses[fontSize]} ${fontClasses[fontFamily]}`}
+            >
+              {formatInline(inner)}
+            </p>
+          );
+        }
+
+        // 4c. À Esquerda explícito ([left]texto[/left])
+        if (trimmed.startsWith('[left]') && trimmed.endsWith('[/left]')) {
+          const inner = trimmed.slice(6, -7).trim();
+          return (
+            <p
+              key={index}
+              className={`text-ink dark:text-slateDark-text text-left ${sizeClasses[fontSize]} ${fontClasses[fontFamily]}`}
+            >
+              {formatInline(inner)}
+            </p>
+          );
+        }
+
+        // 4d. À Direita explícito ([right]texto[/right])
+        if (trimmed.startsWith('[right]') && trimmed.endsWith('[/right]')) {
+          const inner = trimmed.slice(7, -8).trim();
+          return (
+            <p
+              key={index}
+              className={`text-ink dark:text-slateDark-text text-right ${sizeClasses[fontSize]} ${fontClasses[fontFamily]}`}
+            >
+              {formatInline(inner)}
+            </p>
+          );
+        }
+
+        // 5. Parágrafo regular de leitura longa (respeita a preferência de justificação ativa)
         const shouldUseDropcap = dropcap && !firstParagraphRendered;
         firstParagraphRendered = true;
 
         return (
           <p
             key={index}
-            className={`text-ink dark:text-slateDark-text ${sizeClasses[fontSize]} ${fontClasses[fontFamily]} ${
+            className={`text-ink dark:text-slateDark-text ${sizeClasses[fontSize]} ${fontClasses[fontFamily]} ${alignClasses[textAlign]} ${
               shouldUseDropcap ? 'editorial-dropcap' : ''
             }`}
           >

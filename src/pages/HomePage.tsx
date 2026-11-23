@@ -41,6 +41,9 @@ export const HomePage: React.FC = () => {
     currentUser,
     isAuthenticated,
     permissions,
+    textAlign,
+    fontSize,
+    fontFamily,
     moderateWorkStatus,
     moderateTopicStatus,
     deleteContent,
@@ -611,8 +614,9 @@ export const HomePage: React.FC = () => {
                     <RichTextRenderer
                       content={isExpanded ? work.synopsis : previewParagraphs}
                       dropcap={true}
-                      fontSize="large"
-                      fontFamily="serif"
+                      fontSize={fontSize}
+                      fontFamily={fontFamily}
+                      textAlign={textAlign}
                     />
 
                     {!isExpanded && work.synopsis.length > previewParagraphs.length && (
