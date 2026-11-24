@@ -13,6 +13,7 @@ import { AuthPage } from './pages/AuthPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SeriesListPage } from './pages/SeriesListPage';
 import { SeriesDetailPage } from './pages/SeriesDetailPage';
+import { SystemLogsPage } from './pages/SystemLogsPage';
 
 const ToastBanner: React.FC = () => {
   const { toast } = useApp();
@@ -135,6 +136,7 @@ export const App: React.FC = () => {
               <Route path="/obras/:slug" element={<WorkDetailPage />} />
               <Route path="/topicos/:slug" element={<TopicDetailPage />} />
               <Route path="/moderacao" element={<ModerationPanel />} />
+              <Route path="/logs" element={<SystemLogsPage />} />
             </Routes>
           </div>
           <Footer />

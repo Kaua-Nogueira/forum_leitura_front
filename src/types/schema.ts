@@ -49,6 +49,7 @@ export interface AuthResponse {
   token: string;
   user: User;
   permissions: UserPermissions;
+  log?: ModerationLog;
 }
 
 export interface Category {
@@ -213,11 +214,20 @@ export interface UpvoteRecord {
 
 export interface ModerationLog {
   id: number;
-  actor_id: number;
+  actor_id?: number | null;
   actor_name: string;
-  actor_role: UserRole;
+  actor_role: UserRole | string;
   action_type: string;
-  target_type: 'WORK' | 'TOPIC' | 'COMMENT' | 'USER' | 'SETTINGS';
+  target_type:
+    | 'WORK'
+    | 'TOPIC'
+    | 'COMMENT'
+    | 'SERIES'
+    | 'SERIES_ENTRY'
+    | 'USER'
+    | 'AUTH'
+    | 'SETTINGS'
+    | string;
   target_id?: number | null;
   target_title: string;
   target_author_name?: string | null;

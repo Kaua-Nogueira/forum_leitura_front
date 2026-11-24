@@ -93,6 +93,7 @@ interface AppContextType {
   series: ReadingSeries[];
   moderationFlags: ModerationFlag[];
   moderationLogs: ModerationLog[];
+  refreshSystemLogs: () => Promise<void>;
   hasUserUpvoted: (
     targetType: 'WORK' | 'TOPIC' | 'COMMENT' | 'SERIES_ENTRY',
     targetId: number
@@ -464,6 +465,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [currentUser.role]);
 
+  const refreshSystemLogs = useCallback(async () => {
+    try {
+      const res = await apiService.listSystemLogs(currentUser.role, 1500);
+      if (res.logs && Array.isArray(res.logs)) {
+        setModerationLogs(res.logs);
+        return;
+      }
+    } catch {
+      // fallback to bootstrap
+    }
+    try {
+      const boot = await apiService.getBootstrap(currentUser.role);
+      if (boot.moderation_logs && Array.isArray(boot.moderation_logs)) {
+        setModerationLogs(boot.moderation_logs);
+      }
+    } catch {
+      // ignore
+    }
+  }, [currentUser.role]);
+
+  const prependAuditLog = useCallback((log?: ModerationLog) => {
+    if (!log) return;
+    setModerationLogs((prev) => [log, ...prev.filter((l) => l.id !== log.id)]);
+  }, []);
+
   const refreshUsersList = useCallback(async () => {
     try {
       const uRes = await apiService.listUsers(currentUser.role);
@@ -494,6 +520,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(res.user));
     setCurrentUser(res.user);
     setPermissions(res.permissions);
+    if (res.log) {
+      prependAuditLog(res.log);
+    }
     showToast(
       `Bem-vindo, ${res.user.name}!`,
       `Autenticado com papel RBAC: ${res.user.role}`,
@@ -503,6 +532,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const uRes = await apiService.listUsers(res.user.role);
       if (uRes.users?.length) {
         setUsersList(uRes.users);
+      }
+      if (res.user.role === 'ADMIN' || res.user.role === 'MODERATOR') {
+        const lRes = await apiService.listSystemLogs(res.user.role, 1500);
+        if (lRes.logs?.length) {
+          setModerationLogs(lRes.logs);
+        }
       }
     } catch {
       // ignore
@@ -524,6 +559,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentUser(res.user);
       setPermissions(res.permissions);
       setUsersList((prev) => [...prev, res.user]);
+      if (res.log) {
+        prependAuditLog(res.log);
+      }
       showToast(
         `Conta criada com sucesso!`,
         `Bem-vindo à cátedra, ${res.user.name} (Papel: ${res.user.role})`,
@@ -597,6 +635,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         );
         if (res.user) {
           updatedUser = res.user;
+        }
+        if (res.log) {
+          prependAuditLog(res.log);
         }
         setCurrentUser(updatedUser);
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
@@ -736,6 +777,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (res.flag) {
           setModerationFlags((prev) => [res.flag!, ...prev.filter((f) => f.id !== res.flag!.id)]);
         }
+        if (res.log) {
+          prependAuditLog(res.log);
+        }
         showToast(
           'Enviado para Revisão da Moderação!',
           `“${pendingWork.title}” foi salvo no banco e aguarda aprovação de um moderador antes de ficar público.`,
@@ -841,6 +885,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (apiConnected) {
       const res = await apiService.updateWork(workId, data, currentUser.role);
       updatedWork = res.work;
+      if (res.log) {
+        prependAuditLog(res.log);
+      }
     }
 
     const finalWork: Work = updatedWork || {
@@ -871,6 +918,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (apiConnected) {
       const res = await apiService.updateTopic(topicId, data, currentUser.role);
       updatedTopic = res.topic;
+      if (res.log) {
+        prependAuditLog(res.log);
+      }
     }
 
     const finalTopic: Topic = updatedTopic || {
@@ -916,6 +966,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTopics((prev) => [pendingTopic, ...prev.filter((t) => t.id !== pendingTopic.id)]);
         if (res.flag) {
           setModerationFlags((prev) => [res.flag!, ...prev.filter((f) => f.id !== res.flag!.id)]);
+        }
+        if (res.log) {
+          prependAuditLog(res.log);
         }
         showToast(
           'Ensaio enviado para Revisão da Moderação!',
@@ -1053,6 +1106,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
         const res = await apiService.createComment(payloadWithUser, currentUser.role);
         createdComment = res.comment;
+        if (res.log) {
+          prependAuditLog(res.log);
+        }
       }
     } catch (err: any) {
       if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
@@ -1291,7 +1347,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       if (apiConnected) {
-        await apiService.toggleUpvote(targetType, targetId, currentUser.role);
+        const res = await apiService.toggleUpvote(targetType, targetId, currentUser.role);
+        if (res.log) {
+          prependAuditLog(res.log);
+        }
       }
     } catch (err: any) {
       if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
@@ -1312,13 +1371,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const res = await apiService.createSeries(data, currentUser.role);
     setSeries((prev) => [res.series, ...prev]);
+    if (res.log) {
+      prependAuditLog(res.log);
+    }
     showToast('Série / Caderno criado!', `“${res.series.title}” já está pronto para receber suas notas.`, 'success');
     return res.series;
   };
 
   const deleteSeries = async (seriesId: number) => {
-    await apiService.deleteSeries(seriesId, currentUser.role);
+    const res = await apiService.deleteSeries(seriesId, currentUser.role);
     setSeries((prev) => prev.filter((s) => s.id !== seriesId));
+    if (res.log) {
+      prependAuditLog(res.log);
+    }
     showToast('Série removida', 'A série e suas entradas foram excluídas.', 'info');
   };
 
@@ -1332,6 +1397,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   ): Promise<SeriesEntry> => {
     const res = await apiService.createSeriesEntry(seriesId, data, currentUser.role);
+    if (res.log) {
+      prependAuditLog(res.log);
+    }
     setSeries((prev) =>
       prev.map((s) => {
         if (s.id !== seriesId) return s;
@@ -1356,6 +1424,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     data: Partial<SeriesEntry>
   ): Promise<SeriesEntry> => {
     const res = await apiService.updateSeriesEntry(seriesId, entryId, data, currentUser.role);
+    if (res.log) {
+      prependAuditLog(res.log);
+    }
     setSeries((prev) =>
       prev.map((s) => {
         if (s.id !== seriesId) return s;
@@ -1370,7 +1441,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteSeriesEntry = async (seriesId: number, entryId: number) => {
-    await apiService.deleteSeriesEntry(seriesId, entryId, currentUser.role);
+    const res = await apiService.deleteSeriesEntry(seriesId, entryId, currentUser.role);
+    if (res.log) {
+      prependAuditLog(res.log);
+    }
     setSeries((prev) =>
       prev.map((s) => {
         if (s.id !== seriesId) return s;
@@ -1416,6 +1490,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           res.flag,
           ...prev.filter((f) => f.id !== res.flag.id),
         ]);
+        if (res.log) {
+          prependAuditLog(res.log);
+        }
         showToast(
           'Sinalização enviada à Moderação',
           'O item foi registrado na Fila de Moderação com prioridade.',
@@ -2008,7 +2085,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
     if (apiConnected) {
-      apiService.trackAffiliateClick(workId, currentUser.role).catch(() => {});
+      apiService
+        .trackAffiliateClick(workId, currentUser.role)
+        .then((res) => {
+          if (res?.log) {
+            prependAuditLog(res.log);
+          }
+        })
+        .catch(() => {});
     }
   };
 
@@ -2020,6 +2104,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         permissions,
         usersList,
         refreshUsersList,
+        refreshSystemLogs,
         loginWithCredentials,
         registerAccount,
         logoutUser,

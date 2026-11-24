@@ -17,7 +17,6 @@ import {
   LogIn,
   Trash2,
   ClipboardList,
-  Clock,
   BookOpen,
   MessageSquare,
   RefreshCw,
@@ -27,6 +26,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { FlagReason, Comment } from '../types/schema';
 import { buildAffiliateUrl } from '../services/api';
+import { SystemLogsViewer } from './SystemLogsPage';
 
 export const ModerationPanel: React.FC = () => {
   const {
@@ -179,37 +179,6 @@ export const ModerationPanel: React.FC = () => {
     );
     return list;
   }, [works, topics]);
-
-  const formatActionBadge = (actionType: string) => {
-    if (actionType.startsWith('DELETE_')) {
-      return {
-        label: actionType.replace('DELETE_', 'EXCLUSÃO DE '),
-        color: 'bg-red-600/15 text-red-700 dark:text-red-300 border-red-600/30',
-      };
-    }
-    if (actionType.includes('APPROVE')) {
-      return {
-        label: 'APROVAÇÃO EDITORIAL',
-        color: 'bg-forest/15 text-forest dark:text-emerald-300 border-forest/30',
-      };
-    }
-    if (actionType.includes('REJECT') || actionType.includes('HIDE')) {
-      return {
-        label: 'REPROVAÇÃO / OCULTAÇÃO',
-        color: 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30',
-      };
-    }
-    if (actionType.includes('BAN')) {
-      return {
-        label: 'SUSPENSÃO DE CONTA',
-        color: 'bg-red-700 text-white border-red-800',
-      };
-    }
-    return {
-      label: actionType,
-      color: 'bg-navy/15 text-navy dark:text-gold border-navy/30',
-    };
-  };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1091,89 +1060,8 @@ export const ModerationPanel: React.FC = () => {
               </div>
             </div>
           ) : activeTab === 'AUDIT_LOGS' ? (
-            /* TAB 3: LOGS DE AUDITORIA DA MODERAÇÃO */
-            <div className="space-y-5">
-              <div>
-                <h2 className="font-serif text-2xl font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-forest dark:text-emerald-400" />
-                  <span>Livro de Logs de Auditoria da Moderação ({moderationLogs.length})</span>
-                </h2>
-                <p className="text-xs sm:text-sm text-ink-muted dark:text-slateDark-muted mt-1">
-                  Registro transparente e cronológico de todas as exclusões, aprovações,
-                  reprovações e alterações administrativas realizadas pelos moderadores.
-                </p>
-              </div>
-
-              {moderationLogs.length === 0 ? (
-                <div className="p-8 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/50 dark:bg-slateDark-card text-center text-sm text-ink-muted">
-                  Nenhum registro de auditoria até o momento.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {moderationLogs.map((log) => {
-                    const badge = formatActionBadge(log.action_type);
-                    return (
-                      <div
-                        key={log.id}
-                        className="p-5 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-card space-y-2.5 shadow-editorial"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`px-2.5 py-0.5 rounded text-[11px] font-bold uppercase border ${badge.color}`}
-                            >
-                              {badge.label}
-                            </span>
-                            <span className="px-2 py-0.5 rounded bg-ink text-parchment dark:bg-slateDark-elevated dark:text-gold text-[10px] font-mono font-bold">
-                              {log.target_type} {log.target_id ? `#${log.target_id}` : ''}
-                            </span>
-                          </div>
-                          <span className="inline-flex items-center gap-1 text-xs text-ink-muted dark:text-slateDark-muted">
-                            <Clock className="w-3.5 h-3.5" />
-                            {new Date(log.created_at).toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-
-                        <div>
-                          <h4 className="font-serif font-bold text-base sm:text-lg text-ink dark:text-slateDark-text">
-                            {log.target_title}
-                          </h4>
-                          {log.target_author_name && (
-                            <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
-                              Autor do conteúdo: <strong>{log.target_author_name}</strong>
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-parchment dark:bg-slateDark-elevated border border-parchment-deep/70 dark:border-slateDark-border text-xs sm:text-sm text-ink dark:text-slateDark-text">
-                          <strong className="text-burgundy dark:text-gold">
-                            Justificativa / Motivo registrado:
-                          </strong>{' '}
-                          {log.reason || 'Ação registrada pela Moderação.'}
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted dark:text-slateDark-muted pt-1">
-                          <span>
-                            Executado por:{' '}
-                            <strong className="text-ink dark:text-slateDark-text">
-                              {log.actor_name}
-                            </strong>{' '}
-                            <span className="px-1.5 py-0.5 rounded bg-burgundy/15 text-burgundy dark:bg-gold/20 dark:text-gold font-bold text-[10px]">
-                              {log.actor_role}
-                            </span>
-                          </span>
-                          {log.ip_address && (
-                            <span className="font-mono text-[11px]">
-                              IP: {log.ip_address}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            /* TAB 3: CENTRAL COMPLETA DE LOGS & AUDITORIA EM TEMPO REAL */
+            <SystemLogsViewer />
           ) : (
             /* TAB 4: GESTÃO DE USUÁRIOS & PAPÉIS RBAC */
             <div className="space-y-5">

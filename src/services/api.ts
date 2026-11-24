@@ -237,8 +237,8 @@ export const apiService = {
     role: UserRole = 'MEMBER',
     userId?: number,
     userEmail?: string
-  ): Promise<{ user: User; message: string }> {
-    return request<{ user: User; message: string }>(
+  ): Promise<{ user: User; log?: ModerationLog; message: string }> {
+    return request<{ user: User; log?: ModerationLog; message: string }>(
       '/auth/profile',
       {
         method: 'PUT',
@@ -258,6 +258,17 @@ export const apiService = {
 
   async listUsers(role: UserRole): Promise<{ users: User[] }> {
     return request<{ users: User[] }>('/users', { method: 'GET' }, role);
+  },
+
+  async listSystemLogs(
+    role: UserRole,
+    limit = 1000
+  ): Promise<{ logs: ModerationLog[] }> {
+    return request<{ logs: ModerationLog[] }>(
+      `/moderation/logs?limit=${limit}`,
+      { method: 'GET' },
+      role
+    );
   },
 
   async updateUserRole(
@@ -292,8 +303,8 @@ export const apiService = {
       email?: string;
     },
     role: UserRole
-  ): Promise<{ work: Work; flag?: ModerationFlag }> {
-    return request<{ work: Work; flag?: ModerationFlag }>(
+  ): Promise<{ work: Work; flag?: ModerationFlag; log?: ModerationLog }> {
+    return request<{ work: Work; flag?: ModerationFlag; log?: ModerationLog }>(
       '/works',
       {
         method: 'POST',
@@ -307,8 +318,8 @@ export const apiService = {
     workId: number,
     payload: Partial<Work>,
     role: UserRole
-  ): Promise<{ work: Work; message?: string }> {
-    return request<{ work: Work; message?: string }>(
+  ): Promise<{ work: Work; log?: ModerationLog; message?: string }> {
+    return request<{ work: Work; log?: ModerationLog; message?: string }>(
       `/works/${workId}`,
       {
         method: 'PUT',
@@ -322,8 +333,8 @@ export const apiService = {
     topicId: number,
     payload: Partial<Topic>,
     role: UserRole
-  ): Promise<{ topic: Topic; message?: string }> {
-    return request<{ topic: Topic; message?: string }>(
+  ): Promise<{ topic: Topic; log?: ModerationLog; message?: string }> {
+    return request<{ topic: Topic; log?: ModerationLog; message?: string }>(
       `/topics/${topicId}`,
       {
         method: 'PUT',
@@ -336,8 +347,8 @@ export const apiService = {
   async trackAffiliateClick(
     workId: number,
     role: UserRole
-  ): Promise<{ clicks_count: number }> {
-    return request<{ clicks_count: number }>(
+  ): Promise<{ clicks_count: number; log?: ModerationLog }> {
+    return request<{ clicks_count: number; log?: ModerationLog }>(
       `/works/${workId}/affiliate-click`,
       { method: 'POST' },
       role
@@ -351,8 +362,8 @@ export const apiService = {
       email?: string;
     },
     role: UserRole
-  ): Promise<{ topic: Topic; flag?: ModerationFlag }> {
-    return request<{ topic: Topic; flag?: ModerationFlag }>(
+  ): Promise<{ topic: Topic; flag?: ModerationFlag; log?: ModerationLog }> {
+    return request<{ topic: Topic; flag?: ModerationFlag; log?: ModerationLog }>(
       '/topics',
       {
         method: 'POST',
@@ -459,8 +470,8 @@ export const apiService = {
       email?: string;
     },
     role: UserRole
-  ): Promise<{ comment: Comment }> {
-    return request<{ comment: Comment }>(
+  ): Promise<{ comment: Comment; log?: ModerationLog }> {
+    return request<{ comment: Comment; log?: ModerationLog }>(
       '/comments',
       {
         method: 'POST',
@@ -474,8 +485,8 @@ export const apiService = {
     targetType: 'TOPIC' | 'COMMENT' | 'SERIES_ENTRY',
     targetId: number,
     role: UserRole
-  ): Promise<{ upvotes_count: number; already_upvoted?: boolean }> {
-    return request<{ upvotes_count: number; already_upvoted?: boolean }>(
+  ): Promise<{ upvotes_count: number; already_upvoted?: boolean; log?: ModerationLog }> {
+    return request<{ upvotes_count: number; already_upvoted?: boolean; log?: ModerationLog }>(
       '/upvotes',
       {
         method: 'POST',
@@ -489,8 +500,8 @@ export const apiService = {
   async createSeries(
     payload: Partial<ReadingSeries>,
     role: UserRole
-  ): Promise<{ series: ReadingSeries; message?: string }> {
-    return request<{ series: ReadingSeries; message?: string }>(
+  ): Promise<{ series: ReadingSeries; log?: ModerationLog; message?: string }> {
+    return request<{ series: ReadingSeries; log?: ModerationLog; message?: string }>(
       '/series',
       {
         method: 'POST',
@@ -503,8 +514,8 @@ export const apiService = {
   async deleteSeries(
     seriesId: number,
     role: UserRole
-  ): Promise<{ deleted: boolean; series_id: number }> {
-    return request<{ deleted: boolean; series_id: number }>(
+  ): Promise<{ deleted: boolean; series_id: number; log?: ModerationLog }> {
+    return request<{ deleted: boolean; series_id: number; log?: ModerationLog }>(
       `/series/${seriesId}`,
       { method: 'DELETE' },
       role
@@ -520,8 +531,8 @@ export const apiService = {
       body: string;
     },
     role: UserRole
-  ): Promise<{ entry: SeriesEntry; series_id: number; message?: string }> {
-    return request<{ entry: SeriesEntry; series_id: number; message?: string }>(
+  ): Promise<{ entry: SeriesEntry; series_id: number; log?: ModerationLog; message?: string }> {
+    return request<{ entry: SeriesEntry; series_id: number; log?: ModerationLog; message?: string }>(
       `/series/${seriesId}/entries`,
       {
         method: 'POST',
@@ -536,8 +547,8 @@ export const apiService = {
     entryId: number,
     payload: Partial<SeriesEntry>,
     role: UserRole
-  ): Promise<{ entry: SeriesEntry; message?: string }> {
-    return request<{ entry: SeriesEntry; message?: string }>(
+  ): Promise<{ entry: SeriesEntry; log?: ModerationLog; message?: string }> {
+    return request<{ entry: SeriesEntry; log?: ModerationLog; message?: string }>(
       `/series/${seriesId}/entries/${entryId}`,
       {
         method: 'PUT',
@@ -551,8 +562,8 @@ export const apiService = {
     seriesId: number,
     entryId: number,
     role: UserRole
-  ): Promise<{ deleted: boolean; series_id: number; entry_id: number }> {
-    return request<{ deleted: boolean; series_id: number; entry_id: number }>(
+  ): Promise<{ deleted: boolean; series_id: number; entry_id: number; log?: ModerationLog }> {
+    return request<{ deleted: boolean; series_id: number; entry_id: number; log?: ModerationLog }>(
       `/series/${seriesId}/entries/${entryId}`,
       { method: 'DELETE' },
       role
@@ -570,8 +581,8 @@ export const apiService = {
       details?: string;
     },
     role: UserRole
-  ): Promise<{ flag: ModerationFlag }> {
-    return request<{ flag: ModerationFlag }>(
+  ): Promise<{ flag: ModerationFlag; log?: ModerationLog }> {
+    return request<{ flag: ModerationFlag; log?: ModerationLog }>(
       '/flags',
       {
         method: 'POST',
