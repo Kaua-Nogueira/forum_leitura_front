@@ -14,6 +14,8 @@ import {
   FlagReason,
   ReadingSeries,
   SeriesEntry,
+  UserFollowRecord,
+  DirectMessage,
 } from '../types/schema';
 import {
   DEMO_USERS,
@@ -207,6 +209,26 @@ interface AppContextType {
   ) => Promise<void>;
   updateGlobalSettings: (newSettings: Partial<PlatformSettings>) => Promise<void>;
   trackAffiliateClick: (workId: number) => void;
+  // Rede Social (Seguir Pessoas) & Chat Privado
+  userFollows: UserFollowRecord[];
+  directMessages: DirectMessage[];
+  unreadMessagesCount: number;
+  isFollowingUser: (targetUserId: number, followerId?: number) => boolean;
+  getFollowersOf: (userId: number) => User[];
+  getFollowingOf: (userId: number) => User[];
+  toggleFollowUser: (targetUserId: number) => Promise<void>;
+  sendDirectMessage: (
+    recipientId: number,
+    body: string,
+    sharedItem?: {
+      type: 'WORK' | 'TOPIC' | 'SERIES' | 'SERIES_ENTRY';
+      slug: string;
+      title: string;
+    }
+  ) => Promise<DirectMessage | null>;
+  markConversationRead: (partnerId: number) => Promise<void>;
+  deleteDirectMessage: (messageId: number) => Promise<void>;
+  refreshSocialAndChat: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -347,6 +369,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return [];
   });
+  const [userFollows, setUserFollows] = useState<UserFollowRecord[]>(() => {
+    try {
+      const raw = localStorage.getItem('veritas_user_follows');
+      if (raw) return JSON.parse(raw);
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+  const [directMessages, setDirectMessages] = useState<DirectMessage[]>(() => {
+    try {
+      const raw = localStorage.getItem('veritas_direct_messages');
+      if (raw) return JSON.parse(raw);
+    } catch {
+      // ignore
+    }
+    return [];
+  });
   const [settings, setSettings] = useState<PlatformSettings>(INITIAL_SETTINGS);
   const [apiConnected, setApiConnected] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -392,6 +432,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('veritas_upvotes', JSON.stringify(upvotesList));
   }, [upvotesList]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('veritas_user_follows', JSON.stringify(userFollows));
+    } catch {
+      // ignore
+    }
+  }, [userFollows]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('veritas_direct_messages', JSON.stringify(directMessages));
+    } catch {
+      // ignore
+    }
+  }, [directMessages]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -452,6 +508,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (data.moderation_logs?.length) setModerationLogs(data.moderation_logs);
         if (data.upvotes) setUpvotesList(data.upvotes);
+        if (data.user_follows && Array.isArray(data.user_follows)) {
+          setUserFollows(data.user_follows);
+        }
+        if (data.direct_messages && Array.isArray(data.direct_messages)) {
+          setDirectMessages(data.direct_messages);
+        }
         if (data.settings) setSettings(data.settings);
         if (data.users?.length) {
           setUsersList(data.users);
@@ -2133,6 +2195,251 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // ===========================================================================
+  // REDE SOCIAL (SEGUIR PESSOAS) & CHAT PRIVADO (MENSAGENS DIRETAS)
+  // ===========================================================================
+  const refreshSocialAndChat = useCallback(async () => {
+    try {
+      const res = await apiService.getSocialOverview(currentUser.role);
+      if (res.follows && Array.isArray(res.follows)) {
+        setUserFollows(res.follows);
+      }
+      if (res.users && Array.isArray(res.users) && res.users.length > 0) {
+        setUsersList(res.users);
+      }
+      if (res.messages && Array.isArray(res.messages)) {
+        setDirectMessages(res.messages);
+      }
+    } catch {
+      // ignore offline
+    }
+  }, [currentUser.role]);
+
+  const isFollowingUser = useCallback(
+    (targetUserId: number, followerId?: number): boolean => {
+      const fId = followerId ?? currentUser.id;
+      if (!fId) return false;
+      return userFollows.some(
+        (f) => Number(f.follower_id) === Number(fId) && Number(f.following_id) === Number(targetUserId)
+      );
+    },
+    [userFollows, currentUser.id]
+  );
+
+  const getFollowersOf = useCallback(
+    (userId: number): User[] => {
+      const followerIds = new Set(
+        userFollows
+          .filter((f) => Number(f.following_id) === Number(userId))
+          .map((f) => Number(f.follower_id))
+      );
+      return usersList.filter((u) => followerIds.has(Number(u.id)));
+    },
+    [userFollows, usersList]
+  );
+
+  const getFollowingOf = useCallback(
+    (userId: number): User[] => {
+      const followingIds = new Set(
+        userFollows
+          .filter((f) => Number(f.follower_id) === Number(userId))
+          .map((f) => Number(f.following_id))
+      );
+      return usersList.filter((u) => followingIds.has(Number(u.id)));
+    },
+    [userFollows, usersList]
+  );
+
+  const toggleFollowUser = async (targetUserId: number) => {
+    if (!isAuthenticated) {
+      showToast(
+        'Faça login para seguir pessoas',
+        'Entre na sua conta para seguir autores e membros da comunidade.',
+        'warning'
+      );
+      return;
+    }
+    if (Number(targetUserId) === Number(currentUser.id)) {
+      showToast('Ação inválida', 'Você não pode seguir o próprio perfil.', 'warning');
+      return;
+    }
+
+    const targetUser = usersList.find((u) => Number(u.id) === Number(targetUserId));
+    const currentlyFollowing = isFollowingUser(targetUserId);
+
+    // Optimistic update
+    if (currentlyFollowing) {
+      setUserFollows((prev) =>
+        prev.filter(
+          (f) =>
+            !(
+              Number(f.follower_id) === Number(currentUser.id) &&
+              Number(f.following_id) === Number(targetUserId)
+            )
+        )
+      );
+    } else {
+      setUserFollows((prev) => [
+        ...prev,
+        {
+          follower_id: currentUser.id,
+          following_id: targetUserId,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    }
+
+    try {
+      if (apiConnected) {
+        const res = await apiService.toggleFollowUser(targetUserId, currentUser.role);
+        if (res.log) {
+          prependAuditLog(res.log);
+        }
+        showToast(
+          res.following
+            ? `Seguindo ${targetUser?.name || 'membro'}!`
+            : `Deixou de seguir ${targetUser?.name || 'membro'}`,
+          res.message,
+          res.following ? 'success' : 'info'
+        );
+        return;
+      }
+    } catch (err: any) {
+      showToast('Não foi possível atualizar', err.message, 'warning');
+      return;
+    }
+
+    showToast(
+      !currentlyFollowing
+        ? `Seguindo ${targetUser?.name || 'membro'}!`
+        : `Deixou de seguir ${targetUser?.name || 'membro'}`,
+      undefined,
+      !currentlyFollowing ? 'success' : 'info'
+    );
+  };
+
+  const sendDirectMessage = async (
+    recipientId: number,
+    body: string,
+    sharedItem?: {
+      type: 'WORK' | 'TOPIC' | 'SERIES' | 'SERIES_ENTRY';
+      slug: string;
+      title: string;
+    }
+  ): Promise<DirectMessage | null> => {
+    if (!isAuthenticated) {
+      showToast(
+        'Faça login para enviar mensagens',
+        'Entre na sua conta para conversar no chat privado.',
+        'warning'
+      );
+      return null;
+    }
+    const cleanBody = body.trim();
+    if (!cleanBody) return null;
+
+    const recipientUser = usersList.find((u) => Number(u.id) === Number(recipientId));
+
+    try {
+      if (apiConnected) {
+        const res = await apiService.sendDirectMessage(
+          {
+            recipient_id: recipientId,
+            body: cleanBody,
+            shared_type: sharedItem?.type ?? null,
+            shared_slug: sharedItem?.slug ?? null,
+            shared_title: sharedItem?.title ?? null,
+          },
+          currentUser.role
+        );
+        if (res.log) {
+          prependAuditLog(res.log);
+        }
+        if (res.message_item) {
+          setDirectMessages((prev) => [
+            ...prev.filter((m) => m.id !== res.message_item.id),
+            res.message_item,
+          ]);
+          return res.message_item;
+        }
+      }
+    } catch (err: any) {
+      if (apiConnected && err?.message && !err.message.includes('Failed to fetch')) {
+        showToast('Erro ao enviar mensagem', err.message, 'error');
+        return null;
+      }
+    }
+
+    const fallbackMsg: DirectMessage = {
+      id: Date.now(),
+      sender_id: currentUser.id,
+      recipient_id: recipientId,
+      sender: currentUser,
+      recipient: recipientUser,
+      body: cleanBody,
+      shared_type: sharedItem?.type ?? null,
+      shared_slug: sharedItem?.slug ?? null,
+      shared_title: sharedItem?.title ?? null,
+      read_at: null,
+      created_at: new Date().toISOString(),
+    };
+    setDirectMessages((prev) => [...prev, fallbackMsg]);
+    return fallbackMsg;
+  };
+
+  const markConversationRead = useCallback(
+    async (partnerId: number) => {
+      if (!isAuthenticated) return;
+      const nowIso = new Date().toISOString();
+      let hasUnread = false;
+
+      setDirectMessages((prev) =>
+        prev.map((m) => {
+          if (
+            Number(m.sender_id) === Number(partnerId) &&
+            Number(m.recipient_id) === Number(currentUser.id) &&
+            !m.read_at
+          ) {
+            hasUnread = true;
+            return { ...m, read_at: nowIso };
+          }
+          return m;
+        })
+      );
+
+      if (hasUnread && apiConnected) {
+        try {
+          await apiService.markConversationRead(partnerId, currentUser.role);
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [isAuthenticated, currentUser.id, currentUser.role, apiConnected]
+  );
+
+  const deleteDirectMessage = async (messageId: number) => {
+    setDirectMessages((prev) => prev.filter((m) => m.id !== messageId));
+    try {
+      if (apiConnected) {
+        const res = await apiService.deleteDirectMessage(messageId, currentUser.role);
+        if (res.log) {
+          prependAuditLog(res.log);
+        }
+      }
+      showToast('Mensagem excluída', 'A mensagem foi removida da conversa.', 'info');
+    } catch (err: any) {
+      showToast('Erro ao excluir mensagem', err.message, 'warning');
+    }
+  };
+
+  const unreadMessagesCount = React.useMemo(() => {
+    if (!isAuthenticated) return 0;
+    return directMessages.filter(
+      (m) => Number(m.recipient_id) === Number(currentUser.id) && !m.read_at
+    ).length;
+  }, [directMessages, isAuthenticated, currentUser.id]);
+
   return (
     <AppContext.Provider
       value={{
@@ -2197,6 +2504,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteByModerator,
         updateGlobalSettings,
         trackAffiliateClick,
+        userFollows,
+        directMessages,
+        unreadMessagesCount,
+        isFollowingUser,
+        getFollowersOf,
+        getFollowingOf,
+        toggleFollowUser,
+        sendDirectMessage,
+        markConversationRead,
+        deleteDirectMessage,
+        refreshSocialAndChat,
       }}
     >
       {children}

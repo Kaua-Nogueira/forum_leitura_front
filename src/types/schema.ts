@@ -213,6 +213,26 @@ export interface UpvoteRecord {
   target_id: number;
 }
 
+export interface UserFollowRecord {
+  follower_id: number;
+  following_id: number;
+  created_at?: string;
+}
+
+export interface DirectMessage {
+  id: number;
+  sender_id: number;
+  recipient_id: number;
+  sender?: User;
+  recipient?: User;
+  body: string;
+  shared_type?: 'WORK' | 'TOPIC' | 'SERIES' | 'SERIES_ENTRY' | null;
+  shared_slug?: string | null;
+  shared_title?: string | null;
+  read_at?: string | null;
+  created_at: string;
+}
+
 export interface ModerationLog {
   id: number;
   actor_id?: number | null;

@@ -198,6 +198,23 @@ export function describeActionType(actionType: string): {
       color: 'bg-pink-500/15 text-pink-800 dark:text-pink-300 border-pink-500/30',
     };
   }
+  if (code === 'FOLLOW_USER' || code === 'UNFOLLOW_USER') {
+    return {
+      label: code === 'FOLLOW_USER' ? 'Novo Seguidor (Seguiu Usuário)' : 'Deixou de Seguir Usuário',
+      category: 'INTERACTION',
+      color: 'bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border-indigo-500/30',
+    };
+  }
+  if (code === 'SEND_DIRECT_MESSAGE' || code === 'DELETE_DIRECT_MESSAGE') {
+    return {
+      label:
+        code === 'SEND_DIRECT_MESSAGE'
+          ? 'Mensagem Privada Enviada (Chat)'
+          : 'Mensagem Privada Excluída (Chat)',
+      category: 'INTERACTION',
+      color: 'bg-teal-500/15 text-teal-800 dark:text-teal-300 border-teal-500/30',
+    };
+  }
 
   if (code === 'UPDATE_AFFILIATE_LINK') {
     return {

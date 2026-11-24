@@ -20,10 +20,15 @@ import {
   Trash2,
   Camera,
   Image as ImageIcon,
+  UserPlus,
+  UserCheck,
+  Users,
+  Crop,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Comment, Work, Topic, ReadingSeries } from '../types/schema';
 import { RichTextRenderer, getReadingMetrics } from '../components/RichTextRenderer';
+import { ImageCropModal } from '../components/ImageCropModal';
 
 interface FlattenedUserComment {
   comment: Comment;
@@ -41,37 +46,11 @@ function normalizeName(s?: string | null): string {
     .trim();
 }
 
-function compressImageFile(
-  file: File,
-  maxWidth: number,
-  maxHeight: number,
-  quality = 0.85
-): Promise<string> {
+function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Não foi possível ler o arquivo de imagem.'));
-    reader.onload = () => {
-      const img = new window.Image();
-      img.onerror = () => reject(new Error('Formato de imagem inválido.'));
-      img.onload = () => {
-        let { width, height } = img;
-        const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
-        width = Math.round(width * ratio);
-        height = Math.round(height * ratio);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(String(reader.result));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.src = String(reader.result);
-    };
+    reader.onload = () => resolve(String(reader.result));
     reader.readAsDataURL(file);
   });
 }
@@ -79,15 +58,15 @@ function compressImageFile(
 const COVER_PRESETS = [
   {
     label: 'Biblioteca Clássica',
-    url: 'https://images.unsplash.com/photo-1507842229356-51c61504d3ab?auto=format&fit=crop&w=1400&q=80',
+    url: 'https://images.unsplash.com/photo-1507842229356-51c61504d3ab?auto=format&fit=crop&w=1920&q=92',
   },
   {
     label: 'Scriptorium & Manuscritos',
-    url: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=1400&q=80',
+    url: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=1920&q=92',
   },
   {
     label: 'Catedral & Luz',
-    url: 'https://images.unsplash.com/photo-1548625361-16800b32f097?auto=format&fit=crop&w=1400&q=80',
+    url: 'https://images.unsplash.com/photo-1548625361-16800b32f097?auto=format&fit=crop&w=1920&q=92',
   },
 ];
 
@@ -104,9 +83,14 @@ export const ProfilePage: React.FC = () => {
     updateUserProfile,
     deleteContent,
     requestConfirm,
+    isFollowingUser,
+    getFollowersOf,
+    getFollowingOf,
+    toggleFollowUser,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'SERIES' | 'WORKS' | 'TOPICS' | 'COMMENTS'>('SERIES');
+  const [socialDrawer, setSocialDrawer] = useState<'FOLLOWERS' | 'FOLLOWING' | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
   // Determine which user's profile we are viewing
@@ -142,6 +126,11 @@ export const ProfilePage: React.FC = () => {
   const [editAvatarUrl, setEditAvatarUrl] = useState(profileUser.avatar_url || '');
   const [editCoverUrl, setEditCoverUrl] = useState(profileUser.cover_url || '');
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [cropModalState, setCropModalState] = useState<{
+    isOpen: boolean;
+    mode: 'AVATAR' | 'COVER';
+    src: string;
+  } | null>(null);
 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -172,40 +161,52 @@ export const ProfilePage: React.FC = () => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    setIsUploadingMedia(true);
-    try {
-      const dataUrl = await compressImageFile(file, 360, 360, 0.86);
-      setEditAvatarUrl(dataUrl);
-      if (!isEditing) {
-        await updateUserProfile({
-          name: currentUser.name,
-          title_badge: currentUser.title_badge,
-          bio: currentUser.bio,
-          avatar_url: dataUrl,
-          cover_url: currentUser.cover_url ?? null,
-        });
-      }
-    } finally {
-      setIsUploadingMedia(false);
-    }
+    const rawDataUrl = await readFileAsDataUrl(file);
+    setCropModalState({
+      isOpen: true,
+      mode: 'AVATAR',
+      src: rawDataUrl,
+    });
   };
 
   const handleDirectCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    const rawDataUrl = await readFileAsDataUrl(file);
+    setCropModalState({
+      isOpen: true,
+      mode: 'COVER',
+      src: rawDataUrl,
+    });
+  };
+
+  const handleApplyCroppedImage = async (croppedDataUrl: string) => {
+    if (!cropModalState) return;
     setIsUploadingMedia(true);
     try {
-      const dataUrl = await compressImageFile(file, 1400, 480, 0.84);
-      setEditCoverUrl(dataUrl);
-      if (!isEditing) {
-        await updateUserProfile({
-          name: currentUser.name,
-          title_badge: currentUser.title_badge,
-          bio: currentUser.bio,
-          avatar_url: currentUser.avatar_url ?? null,
-          cover_url: dataUrl,
-        });
+      if (cropModalState.mode === 'AVATAR') {
+        setEditAvatarUrl(croppedDataUrl);
+        if (!isEditing) {
+          await updateUserProfile({
+            name: currentUser.name,
+            title_badge: currentUser.title_badge,
+            bio: currentUser.bio,
+            avatar_url: croppedDataUrl,
+            cover_url: currentUser.cover_url ?? null,
+          });
+        }
+      } else {
+        setEditCoverUrl(croppedDataUrl);
+        if (!isEditing) {
+          await updateUserProfile({
+            name: currentUser.name,
+            title_badge: currentUser.title_badge,
+            bio: currentUser.bio,
+            avatar_url: currentUser.avatar_url ?? null,
+            cover_url: croppedDataUrl,
+          });
+        }
       }
     } finally {
       setIsUploadingMedia(false);
@@ -396,32 +397,67 @@ export const ProfilePage: React.FC = () => {
         </>
       )}
 
-      {/* 1. CABEÇALHO DO PERFIL DO AUTOR (COM CAPA E FOTO DE PERFIL) */}
+      {/* Interactive HD Image Cropper Modal for Avatar & Cover */}
+      {cropModalState && (
+        <ImageCropModal
+          isOpen={cropModalState.isOpen}
+          mode={cropModalState.mode}
+          imageSrc={cropModalState.src}
+          onClose={() => setCropModalState(null)}
+          onApply={handleApplyCroppedImage}
+          onPickAnotherFile={() => {
+            if (cropModalState.mode === 'AVATAR') {
+              avatarInputRef.current?.click();
+            } else {
+              coverInputRef.current?.click();
+            }
+          }}
+        />
+      )}
+
+      {/* 1. CABEÇALHO DO PERFIL DO AUTOR (COM CAPA HD E FOTO DE PERFIL) */}
       <section className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card shadow-editorial overflow-hidden">
-        {/* Banner de Capa */}
-        <div className="relative h-36 sm:h-52 w-full bg-gradient-to-r from-burgundy via-ink to-navy dark:from-slateDark-elevated dark:via-burgundy/60 dark:to-slateDark-bg overflow-hidden">
+        {/* Banner de Capa em Alta Definição */}
+        <div className="relative h-44 sm:h-60 w-full bg-gradient-to-r from-burgundy via-ink to-navy dark:from-slateDark-elevated dark:via-burgundy/60 dark:to-slateDark-bg overflow-hidden">
           {(isEditing ? editCoverUrl : profileUser.cover_url) ? (
             <img
               src={(isEditing ? editCoverUrl : profileUser.cover_url) || ''}
               alt={`Capa de ${profileUser.name}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover select-none"
             />
           ) : (
             <div className="w-full h-full opacity-25 bg-[radial-gradient(#D4AF37_1px,transparent_1px)] [background-size:20px_20px]" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
 
           {isOwnProfile && (
-            <div className="absolute top-3 right-3 flex items-center gap-2">
+            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+              {(isEditing ? editCoverUrl : profileUser.cover_url) && (
+                <button
+                  type="button"
+                  disabled={isUploadingMedia}
+                  onClick={() =>
+                    setCropModalState({
+                      isOpen: true,
+                      mode: 'COVER',
+                      src: (isEditing ? editCoverUrl : profileUser.cover_url) || '',
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/75 hover:bg-black/90 text-parchment text-xs font-semibold backdrop-blur-xs border border-white/25 shadow-md transition-all"
+                  title="Cortar e reposicionar a capa atual"
+                >
+                  <Crop className="w-3.5 h-3.5 text-gold-light" />
+                  <span>Cortar Capa</span>
+                </button>
+              )}
               <button
                 type="button"
                 disabled={isUploadingMedia}
                 onClick={() => coverInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 hover:bg-black/85 text-parchment text-xs font-semibold backdrop-blur-xs border border-white/20 shadow-md transition-all"
-                title="Enviar nova imagem de capa do seu dispositivo"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/75 hover:bg-black/90 text-parchment text-xs font-semibold backdrop-blur-xs border border-white/25 shadow-md transition-all"
+                title="Enviar e recortar nova imagem de capa"
               >
                 <ImageIcon className="w-3.5 h-3.5 text-gold-light" />
-                <span>{isUploadingMedia ? 'Enviando...' : 'Alterar Capa'}</span>
+                <span>{isUploadingMedia ? 'Salvando...' : 'Alterar Capa'}</span>
               </button>
             </div>
           )}
@@ -431,7 +467,7 @@ export const ProfilePage: React.FC = () => {
         <div className="p-4 sm:p-8 pt-0 sm:pt-0 space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 -mt-10 sm:-mt-12 relative z-10">
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-5">
-              {/* Avatar / Foto de Perfil com botão de câmera */}
+              {/* Avatar / Foto de Perfil com botões de Trocar e Cortar */}
               <div className="relative group shrink-0">
                 {(isEditing ? editAvatarUrl : profileUser.avatar_url) ? (
                   <img
@@ -446,16 +482,37 @@ export const ProfilePage: React.FC = () => {
                 )}
 
                 {isOwnProfile && (
-                  <button
-                    type="button"
-                    disabled={isUploadingMedia}
-                    onClick={() => avatarInputRef.current?.click()}
-                    className="absolute -bottom-1.5 -right-1.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-[11px] font-bold shadow-md border-2 border-parchment-warm dark:border-slateDark-card transition-transform hover:scale-105"
-                    title="Alterar foto de perfil"
-                  >
-                    <Camera className="w-3 h-3" />
-                    <span>Foto</span>
-                  </button>
+                  <div className="absolute -bottom-1.5 -right-1.5 flex items-center gap-1">
+                    {(isEditing ? editAvatarUrl : profileUser.avatar_url) && (
+                      <button
+                        type="button"
+                        disabled={isUploadingMedia}
+                        onClick={() =>
+                          setCropModalState({
+                            isOpen: true,
+                            mode: 'AVATAR',
+                            src:
+                              (isEditing ? editAvatarUrl : profileUser.avatar_url) ||
+                              '',
+                          })
+                        }
+                        className="p-1.5 rounded-full bg-navy hover:bg-navy-hover text-parchment shadow-md border-2 border-parchment-warm dark:border-slateDark-card transition-transform hover:scale-105"
+                        title="Cortar e enquadrar foto de perfil"
+                      >
+                        <Crop className="w-3 h-3" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={isUploadingMedia}
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-[11px] font-bold shadow-md border-2 border-parchment-warm dark:border-slateDark-card transition-transform hover:scale-105"
+                      title="Enviar e recortar foto de perfil"
+                    >
+                      <Camera className="w-3 h-3" />
+                      <span>Foto</span>
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -486,11 +543,41 @@ export const ProfilePage: React.FC = () => {
                     )}
                   </span>
                 </div>
+
+                {/* Contadores Clicáveis de Seguidores & Seguindo */}
+                <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSocialDrawer((prev) =>
+                        prev === 'FOLLOWERS' ? null : 'FOLLOWERS'
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border font-semibold text-ink dark:text-slateDark-text hover:border-burgundy transition-colors"
+                  >
+                    <Users className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
+                    <strong>{getFollowersOf(profileUser.id).length}</strong>
+                    <span className="text-ink-muted">Seguidores</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSocialDrawer((prev) =>
+                        prev === 'FOLLOWING' ? null : 'FOLLOWING'
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border font-semibold text-ink dark:text-slateDark-text hover:border-burgundy transition-colors"
+                  >
+                    <strong>{getFollowingOf(profileUser.id).length}</strong>
+                    <span className="text-ink-muted">Seguindo</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Ações do Próprio Perfil */}
-            {isOwnProfile && (
+            {/* Ações do Próprio Perfil ou de Outro Autor */}
+            {isOwnProfile ? (
               <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                 {!isEditing && (
                   <button
@@ -503,6 +590,13 @@ export const ProfilePage: React.FC = () => {
                   </button>
                 )}
                 <Link
+                  to="/mensagens"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-elevated text-xs sm:text-sm font-semibold text-ink dark:text-slateDark-text hover:border-burgundy transition-colors"
+                >
+                  <MessageSquare className="w-4 h-4 text-burgundy dark:text-gold" />
+                  <span>Abrir Chat</span>
+                </Link>
+                <Link
                   to="/escrever"
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
                 >
@@ -510,8 +604,128 @@ export const ProfilePage: React.FC = () => {
                   <span>Escrever Novo Texto</span>
                 </Link>
               </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => toggleFollowUser(profileUser.id)}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-xs sm:text-sm font-semibold shadow-xs transition-colors ${
+                    isFollowingUser(profileUser.id)
+                      ? 'bg-forest/15 text-forest dark:text-emerald-300 border border-forest/30'
+                      : 'bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment'
+                  }`}
+                >
+                  {isFollowingUser(profileUser.id) ? (
+                    <>
+                      <UserCheck className="w-4 h-4" />
+                      <span>Seguindo</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4" />
+                      <span>Seguir Autor</span>
+                    </>
+                  )}
+                </button>
+
+                <Link
+                  to={`/mensagens/${profileUser.id}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-elevated text-xs sm:text-sm font-semibold text-ink dark:text-slateDark-text hover:border-burgundy transition-colors"
+                >
+                  <MessageSquare className="w-4 h-4 text-burgundy dark:text-gold" />
+                  <span>Enviar Mensagem Privada</span>
+                </Link>
+              </div>
             )}
           </div>
+
+          {/* Drawer de Seguidores / Seguindo */}
+          {socialDrawer && (
+            <div className="p-4 rounded-xl bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-serif font-bold text-base text-ink dark:text-slateDark-text flex items-center gap-2">
+                  <Users className="w-4 h-4 text-burgundy dark:text-gold" />
+                  <span>
+                    {socialDrawer === 'FOLLOWERS'
+                      ? `Seguidores de ${profileUser.name} (${getFollowersOf(profileUser.id).length})`
+                      : `Pessoas que ${profileUser.name} segue (${getFollowingOf(profileUser.id).length})`}
+                  </span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSocialDrawer(null)}
+                  className="text-ink-muted hover:text-ink"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {(socialDrawer === 'FOLLOWERS'
+                ? getFollowersOf(profileUser.id)
+                : getFollowingOf(profileUser.id)
+              ).length === 0 ? (
+                <p className="text-xs text-ink-muted py-2">
+                  Nenhum membro listado ainda.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {(socialDrawer === 'FOLLOWERS'
+                    ? getFollowersOf(profileUser.id)
+                    : getFollowingOf(profileUser.id)
+                  ).map((u) => (
+                    <div
+                      key={u.id}
+                      className="p-3 rounded-lg bg-parchment-warm dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border flex items-center justify-between gap-2"
+                    >
+                      <Link
+                        to={`/perfil/${u.id}`}
+                        onClick={() => setSocialDrawer(null)}
+                        className="flex items-center gap-2 min-w-0"
+                      >
+                        {u.avatar_url ? (
+                          <img
+                            src={u.avatar_url}
+                            alt={u.name}
+                            className="w-8 h-8 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <span className="w-8 h-8 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-xs flex items-center justify-center shrink-0">
+                            {u.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-serif font-bold text-xs text-ink dark:text-slateDark-text truncate">
+                            {u.name}
+                          </p>
+                          <p className="text-[10px] text-burgundy dark:text-gold truncate">
+                            {u.role}
+                          </p>
+                        </div>
+                      </Link>
+
+                      {u.id !== currentUser.id && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleFollowUser(u.id)}
+                            className="px-2 py-1 rounded border border-parchment-deep dark:border-slateDark-border text-[10px] font-semibold"
+                          >
+                            {isFollowingUser(u.id) ? 'Seguindo' : 'Seguir'}
+                          </button>
+                          <Link
+                            to={`/mensagens/${u.id}`}
+                            className="px-2 py-1 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-[10px] font-semibold"
+                          >
+                            Chat
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {profileUser.bio && (
             <p className="text-sm sm:text-base text-ink dark:text-slateDark-text max-w-3xl leading-relaxed">
@@ -566,16 +780,32 @@ export const ProfilePage: React.FC = () => {
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-xs font-semibold"
                     >
                       <Camera className="w-3.5 h-3.5" />
-                      <span>Enviar Foto do Computador/Celular</span>
+                      <span>Enviar &amp; Cortar Foto</span>
                     </button>
                     {editAvatarUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setEditAvatarUrl('')}
-                        className="px-2.5 py-1.5 rounded-md border border-red-500/40 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-500/10"
-                      >
-                        Remover Foto
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCropModalState({
+                              isOpen: true,
+                              mode: 'AVATAR',
+                              src: editAvatarUrl,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                        >
+                          <Crop className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
+                          <span>Cortar Atual</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditAvatarUrl('')}
+                          className="px-2.5 py-1.5 rounded-md border border-red-500/40 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-500/10"
+                        >
+                          Remover Foto
+                        </button>
+                      </>
                     )}
                   </div>
                   <input
@@ -599,16 +829,32 @@ export const ProfilePage: React.FC = () => {
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-navy text-parchment dark:bg-gold dark:text-slateDark-bg text-xs font-semibold"
                     >
                       <ImageIcon className="w-3.5 h-3.5" />
-                      <span>Enviar Capa do Computador/Celular</span>
+                      <span>Enviar &amp; Cortar Capa HD</span>
                     </button>
                     {editCoverUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setEditCoverUrl('')}
-                        className="px-2.5 py-1.5 rounded-md border border-red-500/40 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-500/10"
-                      >
-                        Remover Capa
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCropModalState({
+                              isOpen: true,
+                              mode: 'COVER',
+                              src: editCoverUrl,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                        >
+                          <Crop className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
+                          <span>Cortar Atual</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditCoverUrl('')}
+                          className="px-2.5 py-1.5 rounded-md border border-red-500/40 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-500/10"
+                        >
+                          Remover Capa
+                        </button>
+                      </>
                     )}
                   </div>
                   <input

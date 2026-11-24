@@ -14,6 +14,8 @@ import {
   FlagReason,
   ReadingSeries,
   SeriesEntry,
+  UserFollowRecord,
+  DirectMessage,
 } from '../types/schema';
 
 declare global {
@@ -190,6 +192,8 @@ export interface BootstrapResponse {
   upvotes?: UpvoteRecord[];
   settings: PlatformSettings;
   users?: User[];
+  user_follows?: UserFollowRecord[];
+  direct_messages?: DirectMessage[];
 }
 
 export const apiService = {
@@ -620,6 +624,79 @@ export const apiService = {
         method: 'PUT',
         body: JSON.stringify(settings),
       },
+      role
+    );
+  },
+
+  // Rede Social (Seguir Pessoas) & Chat Privado
+  async getSocialOverview(role: UserRole): Promise<{
+    follows: UserFollowRecord[];
+    users: User[];
+    messages: DirectMessage[];
+    unread_count: number;
+  }> {
+    return request(
+      '/social/overview',
+      { method: 'GET' },
+      role
+    );
+  },
+
+  async toggleFollowUser(
+    targetUserId: number,
+    role: UserRole
+  ): Promise<{
+    following: boolean;
+    follower_id: number;
+    following_id: number;
+    log?: ModerationLog;
+    message?: string;
+  }> {
+    return request(
+      `/social/follow/${targetUserId}`,
+      { method: 'POST' },
+      role
+    );
+  },
+
+  async sendDirectMessage(
+    payload: {
+      recipient_id: number;
+      body: string;
+      shared_type?: 'WORK' | 'TOPIC' | 'SERIES' | 'SERIES_ENTRY' | null;
+      shared_slug?: string | null;
+      shared_title?: string | null;
+    },
+    role: UserRole
+  ): Promise<{ message_item: DirectMessage; log?: ModerationLog }> {
+    return request(
+      '/chat/messages',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      role
+    );
+  },
+
+  async markConversationRead(
+    partnerId: number,
+    role: UserRole
+  ): Promise<{ read_count: number; partner_id: number }> {
+    return request(
+      `/chat/messages/${partnerId}/read`,
+      { method: 'POST' },
+      role
+    );
+  },
+
+  async deleteDirectMessage(
+    messageId: number,
+    role: UserRole
+  ): Promise<{ deleted: boolean; message_id: number; log?: ModerationLog }> {
+    return request(
+      `/chat/messages/${messageId}`,
+      { method: 'DELETE' },
       role
     );
   },

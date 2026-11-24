@@ -14,6 +14,7 @@ import {
   X,
   Sparkles,
   ClipboardList,
+  MessageSquare,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -28,6 +29,7 @@ export const Navbar: React.FC = () => {
     moderationFlags,
     works,
     topics,
+    unreadMessagesCount,
   } = useApp();
 
   const location = useLocation();
@@ -103,6 +105,25 @@ export const Navbar: React.FC = () => {
                 <BookMarked className="w-3.5 h-3.5 text-burgundy dark:text-gold shrink-0" />
                 <span>Séries</span>
               </Link>
+
+              {isAuthenticated && (
+                <Link
+                  to="/mensagens"
+                  className={`relative px-2.5 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors ${
+                    location.pathname.startsWith('/mensagens')
+                      ? 'bg-parchment-deep dark:bg-slateDark-elevated text-ink dark:text-white'
+                      : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-burgundy dark:text-gold shrink-0" />
+                  <span>Chat</span>
+                  {unreadMessagesCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg leading-none">
+                      {unreadMessagesCount}
+                    </span>
+                  )}
+                </Link>
+              )}
 
               {isAuthenticated && permissions.can_moderate_queue && (
                 <>
@@ -325,17 +346,38 @@ export const Navbar: React.FC = () => {
             </Link>
 
             {isAuthenticated && (
-              <Link
-                to="/perfil"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold transition-colors ${
-                  location.pathname.startsWith('/perfil')
-                    ? 'bg-parchment-deep dark:bg-slateDark-elevated text-ink dark:text-white'
-                    : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
-                }`}
-              >
-                <UserIcon className="w-4 h-4 text-burgundy dark:text-gold" />
-                <span>Meu Perfil de Autor</span>
-              </Link>
+              <>
+                <Link
+                  to="/mensagens"
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-semibold transition-colors ${
+                    location.pathname.startsWith('/mensagens')
+                      ? 'bg-parchment-deep dark:bg-slateDark-elevated text-ink dark:text-white'
+                      : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="w-4 h-4 text-burgundy dark:text-gold" />
+                    <span>Chat Privado &amp; Pessoas</span>
+                  </div>
+                  {unreadMessagesCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg">
+                      {unreadMessagesCount} novas
+                    </span>
+                  )}
+                </Link>
+
+                <Link
+                  to="/perfil"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold transition-colors ${
+                    location.pathname.startsWith('/perfil')
+                      ? 'bg-parchment-deep dark:bg-slateDark-elevated text-ink dark:text-white'
+                      : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
+                  }`}
+                >
+                  <UserIcon className="w-4 h-4 text-burgundy dark:text-gold" />
+                  <span>Meu Perfil de Autor</span>
+                </Link>
+              </>
             )}
 
             {isAuthenticated && permissions.can_moderate_queue && (
