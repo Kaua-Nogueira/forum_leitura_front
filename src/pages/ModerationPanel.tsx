@@ -151,6 +151,8 @@ export const ModerationPanel: React.FC = () => {
 
   const pendingWorks = works.filter((w) => w.status === 'PENDING');
   const pendingTopics = topics.filter((t) => t.status === 'PENDING');
+  const rejectedWorks = works.filter((w) => w.status === 'REJECTED');
+  const rejectedTopics = topics.filter((t) => t.status === 'REJECTED');
 
   // Flatten all comments across works and topics for the Content Manager tab
   const allCommentsFlat = React.useMemo(() => {
@@ -768,6 +770,136 @@ export const ModerationPanel: React.FC = () => {
                   ))}
                 </div>
               )}
+
+              {/* Textos Reprovados — Aguardando Ajustes ou Reaprovação Direta */}
+              {(rejectedWorks.length > 0 || rejectedTopics.length > 0) && (
+                <div className="p-6 rounded-xl border-2 border-red-500/40 bg-red-500/5 dark:bg-red-950/20 space-y-4">
+                  <div className="space-y-1">
+                    <h2 className="font-serif text-xl font-bold text-ink dark:text-slateDark-text flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                      <span>
+                        Textos Reprovados ({rejectedWorks.length + rejectedTopics.length})
+                      </span>
+                    </h2>
+                    <p className="text-xs text-ink-muted dark:text-slateDark-muted">
+                      Estes textos foram reprovados e ficam ocultos do público até serem reenviados pelo autor ou aprovados diretamente pela moderação.
+                    </p>
+                  </div>
+
+                  {rejectedWorks.map((w) => (
+                    <div
+                      key={`rej-w-${w.id}`}
+                      className="p-4 rounded-lg border border-red-500/30 bg-parchment dark:bg-slateDark-card space-y-2.5"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2 py-0.5 rounded bg-red-700 text-white text-[11px] font-bold uppercase">
+                              Obra Reprovada
+                            </span>
+                            <Link
+                              to={`/obras/${w.slug}`}
+                              className="font-serif font-bold text-lg text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                            >
+                              {w.title} — {w.creator}
+                            </Link>
+                          </div>
+                          <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
+                            Submetida por <strong>{w.submitted_by?.name || 'Membro'}</strong> • Ano {w.release_year}
+                          </p>
+                          {w.moderation_note && (
+                            <p className="text-xs text-red-800 dark:text-red-300 bg-red-500/10 px-2.5 py-1.5 rounded border border-red-500/20">
+                              <strong>Motivo:</strong> {w.moderation_note}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          <Link
+                            to={`/obras/${w.slug}`}
+                            className="px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                          >
+                            Abrir Texto
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              moderateWorkStatus(
+                                w.id,
+                                'APPROVED',
+                                'Obra reavaliada e aprovada pela Moderação.',
+                                {
+                                  affiliate_url: (
+                                    affiliateUrlByWorkId[w.id] ??
+                                    w.affiliate_url ??
+                                    ''
+                                  ).trim(),
+                                }
+                              )
+                            }
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-semibold"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Aprovar &amp; Publicar</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {rejectedTopics.map((t) => (
+                    <div
+                      key={`rej-t-${t.id}`}
+                      className="p-4 rounded-lg border border-red-500/30 bg-parchment dark:bg-slateDark-card space-y-2.5"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2 py-0.5 rounded bg-red-700 text-white text-[11px] font-bold uppercase">
+                              Ensaio Reprovado
+                            </span>
+                            <Link
+                              to={`/topicos/${t.slug}`}
+                              className="font-serif font-bold text-lg text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                            >
+                              {t.title}
+                            </Link>
+                          </div>
+                          <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
+                            Submetido por <strong>{t.author?.name || 'Membro'}</strong>
+                          </p>
+                          {t.moderation_note && (
+                            <p className="text-xs text-red-800 dark:text-red-300 bg-red-500/10 px-2.5 py-1.5 rounded border border-red-500/20">
+                              <strong>Motivo:</strong> {t.moderation_note}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          <Link
+                            to={`/topicos/${t.slug}`}
+                            className="px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink dark:text-slateDark-text hover:border-burgundy"
+                          >
+                            Abrir Ensaio
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              moderateTopicStatus(
+                                t.id,
+                                'APPROVED',
+                                'Ensaio reavaliado e aprovado pela Moderação.'
+                              )
+                            }
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-semibold"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Aprovar &amp; Publicar</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           ) : activeTab === 'CONTENT_MANAGER' ? (
             /* TAB 2: GERENCIAR & EXCLUIR QUALQUER CONTEÚDO (OBRAS, ENSAIOS, COMENTÁRIOS) COM LOG */
@@ -807,24 +939,42 @@ export const ModerationPanel: React.FC = () => {
                         {w.submitted_by?.name || 'Curadoria'}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeleteTarget({
-                          type: 'WORK',
-                          id: w.id,
-                          title: w.title,
-                          authorName: w.submitted_by?.name || w.creator,
-                        });
-                        setDeleteReasonInput(
-                          'Obra/resenha excluída pela Moderação.'
-                        );
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Excluir Obra</span>
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {w.status !== 'APPROVED' && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            moderateWorkStatus(
+                              w.id,
+                              'APPROVED',
+                              'Obra aprovada e publicada pela Moderação.'
+                            )
+                          }
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-bold shadow-sm"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Aprovar &amp; Publicar</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteTarget({
+                            type: 'WORK',
+                            id: w.id,
+                            title: w.title,
+                            authorName: w.submitted_by?.name || w.creator,
+                          });
+                          setDeleteReasonInput(
+                            'Obra/resenha excluída pela Moderação.'
+                          );
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Excluir Obra</span>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -852,22 +1002,40 @@ export const ModerationPanel: React.FC = () => {
                         {t.author?.name || 'Membro'}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeleteTarget({
-                          type: 'TOPIC',
-                          id: t.id,
-                          title: t.title,
-                          authorName: t.author?.name || 'Membro',
-                        });
-                        setDeleteReasonInput('Ensaio excluído pela Moderação.');
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Excluir Ensaio</span>
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {t.status !== 'APPROVED' && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            moderateTopicStatus(
+                              t.id,
+                              'APPROVED',
+                              'Ensaio aprovado e publicado pela Moderação.'
+                            )
+                          }
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-forest hover:bg-forest-hover text-parchment text-xs font-bold shadow-sm"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Aprovar &amp; Publicar</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteTarget({
+                            type: 'TOPIC',
+                            id: t.id,
+                            title: t.title,
+                            authorName: t.author?.name || 'Membro',
+                          });
+                          setDeleteReasonInput('Ensaio excluído pela Moderação.');
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-red-700 hover:bg-red-800 text-white text-xs font-bold shadow-sm"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Excluir Ensaio</span>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1128,10 +1296,12 @@ export const ModerationPanel: React.FC = () => {
                                   ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
                                   : u.role === 'MODERATOR'
                                   ? 'bg-navy text-parchment'
+                                  : u.role === 'COLUMNIST'
+                                  ? 'bg-amber-600/20 text-amber-900 dark:bg-gold/25 dark:text-gold'
                                   : 'bg-forest/15 text-forest dark:text-emerald-300'
                               }`}
                             >
-                              {u.role}
+                              {u.role === 'COLUMNIST' ? 'COLUMNIST (Colunista)' : u.role}
                             </span>
                             {u.is_banned && (
                               <span className="px-2 py-0.5 rounded bg-red-600 text-white text-[10px] font-bold uppercase">
@@ -1180,12 +1350,17 @@ export const ModerationPanel: React.FC = () => {
                             value={u.role}
                             onChange={(e) =>
                               updateUserRoleRbac(u.id, {
-                                role: e.target.value as 'MEMBER' | 'MODERATOR' | 'ADMIN',
+                                role: e.target.value as
+                                  | 'MEMBER'
+                                  | 'COLUMNIST'
+                                  | 'MODERATOR'
+                                  | 'ADMIN',
                               })
                             }
                             className="px-2.5 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-xs font-semibold disabled:opacity-50"
                           >
                             <option value="MEMBER">MEMBER (Membro)</option>
+                            <option value="COLUMNIST">COLUMNIST (Colunista • Séries)</option>
                             <option value="MODERATOR">MODERATOR (Moderador)</option>
                             <option value="ADMIN">ADMIN (Administrador)</option>
                           </select>
@@ -1226,6 +1401,10 @@ export const ModerationPanel: React.FC = () => {
               </h3>
             </div>
             <ul className="space-y-1.5 text-xs text-ink-secondary dark:text-slateDark-muted">
+              <li>
+                • Criar Séries &amp; Cadernos (notas recorrentes):{' '}
+                <strong>{permissions.can_manage_series ? 'Sim' : 'Não (Colunista+)'}</strong>
+              </li>
               <li>
                 • Publicar sem fila de espera:{' '}
                 <strong>{permissions.can_publish_directly ? 'Sim' : 'Não'}</strong>

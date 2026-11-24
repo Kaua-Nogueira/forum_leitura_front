@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BookOpen,
+  BookMarked,
   Film,
   GraduationCap,
   MessageSquareQuote,
@@ -37,6 +38,7 @@ export const HomePage: React.FC = () => {
     categories,
     works,
     topics,
+    series,
     settings,
     currentUser,
     isAuthenticated,
@@ -909,8 +911,70 @@ export const HomePage: React.FC = () => {
           )}
         </div>
 
-        {/* Coluna Lateral: Ensaios Temáticos da Comunidade & Carta de Princípios (4 colunas) */}
+        {/* Coluna Lateral: Séries & Cadernos, Ensaios Temáticos & Carta de Princípios (4 colunas) */}
         <aside className="lg:col-span-4 space-y-6 sticky top-24">
+          {/* Bloco Discreto: Séries & Cadernos Recorrentes */}
+          <div className="p-4 sm:p-5 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card space-y-3.5 shadow-editorial">
+            <div className="flex items-center justify-between border-b border-parchment-deep dark:border-slateDark-border pb-2.5">
+              <div>
+                <span className="text-[11px] uppercase tracking-widest font-bold text-burgundy dark:text-gold flex items-center gap-1">
+                  <BookMarked className="w-3.5 h-3.5" />
+                  <span>Leitura em Sequência</span>
+                </span>
+                <h4 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text">
+                  Séries &amp; Cadernos
+                </h4>
+              </div>
+              <Link
+                to="/series"
+                className="text-xs font-semibold text-burgundy dark:text-gold hover:underline"
+              >
+                Ver todas →
+              </Link>
+            </div>
+
+            {series.length === 0 ? (
+              <div className="py-3 text-center space-y-2">
+                <p className="text-xs text-ink-secondary dark:text-slateDark-muted">
+                  Comentários diários e cadernos de estudo agrupados por livro.
+                </p>
+                <Link
+                  to="/series"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-burgundy dark:text-gold hover:underline"
+                >
+                  <span>Explorar Séries &amp; Cadernos →</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {series.slice(0, 3).map((s) => (
+                  <Link
+                    key={s.id}
+                    to={`/series/${s.slug}`}
+                    className="block p-3 rounded-lg bg-parchment dark:bg-slateDark-elevated border border-parchment-deep/70 dark:border-slateDark-border hover:border-burgundy/50 dark:hover:border-gold/50 transition-colors space-y-1"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[10px]">
+                      <span className="font-bold uppercase tracking-wider text-burgundy dark:text-gold">
+                        {s.cadence_label}
+                      </span>
+                      <span className="text-ink-muted font-mono">
+                        {(s.entries || []).length} notas
+                      </span>
+                    </div>
+                    <p className="font-serif font-bold text-sm text-ink dark:text-slateDark-text leading-snug line-clamp-1">
+                      {s.title}
+                    </p>
+                    {s.book_title && (
+                      <p className="text-[11px] text-ink-secondary dark:text-slateDark-muted truncate">
+                        {s.book_title}
+                      </p>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Ensaios e Diálogos dos Membros */}
           <div className="p-4 sm:p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card space-y-4 shadow-editorial">
             <div className="flex items-center justify-between border-b border-parchment-deep dark:border-slateDark-border pb-3">

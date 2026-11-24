@@ -11,6 +11,8 @@ import { ModerationPanel } from './pages/ModerationPanel';
 import { WriteEssayPage } from './pages/WriteEssayPage';
 import { AuthPage } from './pages/AuthPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { SeriesListPage } from './pages/SeriesListPage';
+import { SeriesDetailPage } from './pages/SeriesDetailPage';
 
 const ToastBanner: React.FC = () => {
   const { toast } = useApp();
@@ -74,6 +76,11 @@ const Footer: React.FC = () => {
               </Link>
             </li>
             <li>
+              <Link to="/series" className="hover:text-burgundy dark:hover:text-gold">
+                Séries &amp; Cadernos de Estudo
+              </Link>
+            </li>
+            <li>
               <Link to="/escrever" className="hover:text-burgundy dark:hover:text-gold">
                 Scriptorium — Escrever sobre um Livro
               </Link>
@@ -122,6 +129,9 @@ export const App: React.FC = () => {
               <Route path="/perfil" element={<ProfilePage />} />
               <Route path="/perfil/:id" element={<ProfilePage />} />
               <Route path="/escrever" element={<WriteEssayPage />} />
+              <Route path="/series" element={<SeriesListPage />} />
+              <Route path="/series/:slug" element={<SeriesDetailPage />} />
+              <Route path="/series/:slug/:entrySlug" element={<SeriesDetailPage />} />
               <Route path="/obras/:slug" element={<WorkDetailPage />} />
               <Route path="/topicos/:slug" element={<TopicDetailPage />} />
               <Route path="/moderacao" element={<ModerationPanel />} />

@@ -12,6 +12,8 @@ import {
   UserPermissions,
   AuthResponse,
   FlagReason,
+  ReadingSeries,
+  SeriesEntry,
 } from '../types/schema';
 
 declare global {
@@ -98,6 +100,7 @@ export function computePermissionsForRole(
       can_create_work: false,
       can_create_topic: false,
       can_comment: false,
+      can_manage_series: false,
       can_publish_directly: false,
       can_moderate_queue: false,
       can_ban_users: false,
@@ -110,7 +113,8 @@ export function computePermissionsForRole(
     can_create_work: true,
     can_create_topic: true,
     can_comment: true,
-    can_publish_directly: false,
+    can_manage_series: role === 'COLUMNIST' || role === 'MODERATOR' || role === 'ADMIN',
+    can_publish_directly: role === 'MODERATOR' || role === 'ADMIN',
     can_moderate_queue: role === 'MODERATOR' || role === 'ADMIN',
     can_ban_users: role === 'ADMIN',
     can_manage_affiliate_settings: role === 'ADMIN',
@@ -180,6 +184,7 @@ export interface BootstrapResponse {
   categories: Category[];
   works: Work[];
   topics: Topic[];
+  series?: ReadingSeries[];
   moderation_flags: ModerationFlag[];
   moderation_logs?: ModerationLog[];
   upvotes?: UpvoteRecord[];
@@ -258,7 +263,7 @@ export const apiService = {
   async updateUserRole(
     userId: number,
     payload: {
-      role?: 'MEMBER' | 'MODERATOR' | 'ADMIN';
+      role?: 'MEMBER' | 'COLUMNIST' | 'MODERATOR' | 'ADMIN';
       is_banned?: boolean;
       title_badge?: string;
     },
@@ -447,6 +452,7 @@ export const apiService = {
       rating?: number | null;
       work_id?: number | null;
       topic_id?: number | null;
+      series_entry_id?: number | null;
       parent_id?: number | null;
       user_id?: number;
       author_id?: number;
@@ -465,7 +471,7 @@ export const apiService = {
   },
 
   async toggleUpvote(
-    targetType: 'TOPIC' | 'COMMENT',
+    targetType: 'TOPIC' | 'COMMENT' | 'SERIES_ENTRY',
     targetId: number,
     role: UserRole
   ): Promise<{ upvotes_count: number; already_upvoted?: boolean }> {
@@ -475,6 +481,80 @@ export const apiService = {
         method: 'POST',
         body: JSON.stringify({ target_type: targetType, target_id: targetId }),
       },
+      role
+    );
+  },
+
+  // Séries & Cadernos (Publicações Recorrentes)
+  async createSeries(
+    payload: Partial<ReadingSeries>,
+    role: UserRole
+  ): Promise<{ series: ReadingSeries; message?: string }> {
+    return request<{ series: ReadingSeries; message?: string }>(
+      '/series',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      role
+    );
+  },
+
+  async deleteSeries(
+    seriesId: number,
+    role: UserRole
+  ): Promise<{ deleted: boolean; series_id: number }> {
+    return request<{ deleted: boolean; series_id: number }>(
+      `/series/${seriesId}`,
+      { method: 'DELETE' },
+      role
+    );
+  },
+
+  async createSeriesEntry(
+    seriesId: number,
+    payload: {
+      title: string;
+      reference_label?: string;
+      entry_number?: number;
+      body: string;
+    },
+    role: UserRole
+  ): Promise<{ entry: SeriesEntry; series_id: number; message?: string }> {
+    return request<{ entry: SeriesEntry; series_id: number; message?: string }>(
+      `/series/${seriesId}/entries`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      role
+    );
+  },
+
+  async updateSeriesEntry(
+    seriesId: number,
+    entryId: number,
+    payload: Partial<SeriesEntry>,
+    role: UserRole
+  ): Promise<{ entry: SeriesEntry; message?: string }> {
+    return request<{ entry: SeriesEntry; message?: string }>(
+      `/series/${seriesId}/entries/${entryId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+      role
+    );
+  },
+
+  async deleteSeriesEntry(
+    seriesId: number,
+    entryId: number,
+    role: UserRole
+  ): Promise<{ deleted: boolean; series_id: number; entry_id: number }> {
+    return request<{ deleted: boolean; series_id: number; entry_id: number }>(
+      `/series/${seriesId}/entries/${entryId}`,
+      { method: 'DELETE' },
       role
     );
   },

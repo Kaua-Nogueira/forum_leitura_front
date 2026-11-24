@@ -12,6 +12,8 @@ import {
   UpvoteRecord,
   PlatformSettings,
   FlagReason,
+  ReadingSeries,
+  SeriesEntry,
 } from '../types/schema';
 import {
   DEMO_USERS,
@@ -71,7 +73,7 @@ interface AppContextType {
   updateUserRoleRbac: (
     userId: number,
     payload: {
-      role?: 'MEMBER' | 'MODERATOR' | 'ADMIN';
+      role?: 'MEMBER' | 'COLUMNIST' | 'MODERATOR' | 'ADMIN';
       is_banned?: boolean;
       title_badge?: string;
     }
@@ -88,10 +90,11 @@ interface AppContextType {
   categories: Category[];
   works: Work[];
   topics: Topic[];
+  series: ReadingSeries[];
   moderationFlags: ModerationFlag[];
   moderationLogs: ModerationLog[];
   hasUserUpvoted: (
-    targetType: 'WORK' | 'TOPIC' | 'COMMENT',
+    targetType: 'WORK' | 'TOPIC' | 'COMMENT' | 'SERIES_ENTRY',
     targetId: number
   ) => boolean;
   settings: PlatformSettings;
@@ -120,13 +123,31 @@ interface AppContextType {
     rating?: number | null;
     work_id?: number | null;
     topic_id?: number | null;
+    series_entry_id?: number | null;
     parent_id?: number | null;
   }) => Promise<void>;
   upvoteItem: (
-    targetType: 'TOPIC' | 'COMMENT',
+    targetType: 'TOPIC' | 'COMMENT' | 'SERIES_ENTRY',
     targetId: number,
     workId?: number
   ) => Promise<void>;
+  createSeries: (data: Partial<ReadingSeries>) => Promise<ReadingSeries>;
+  deleteSeries: (seriesId: number) => Promise<void>;
+  createSeriesEntry: (
+    seriesId: number,
+    data: {
+      title: string;
+      reference_label?: string;
+      entry_number?: number;
+      body: string;
+    }
+  ) => Promise<SeriesEntry>;
+  updateSeriesEntry: (
+    seriesId: number,
+    entryId: number,
+    data: Partial<SeriesEntry>
+  ) => Promise<SeriesEntry>;
+  deleteSeriesEntry: (seriesId: number, entryId: number) => Promise<void>;
   submitFlag: (reason: FlagReason, details: string) => Promise<void>;
   resolveFlag: (
     flagId: number,
@@ -290,6 +311,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return INITIAL_TOPICS;
   });
+  const [series, setSeries] = useState<ReadingSeries[]>([]);
   const [moderationFlags, setModerationFlags] = useState<ModerationFlag[]>(() => {
     try {
       localStorage.removeItem('veritas_cache_flags_v2');
@@ -323,7 +345,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isAuthenticated = currentUser.role !== 'VISITOR' && !currentUser.is_banned;
 
   const hasUserUpvoted = useCallback(
-    (targetType: 'WORK' | 'TOPIC' | 'COMMENT', targetId: number): boolean => {
+    (targetType: 'WORK' | 'TOPIC' | 'COMMENT' | 'SERIES_ENTRY', targetId: number): boolean => {
       if (!isAuthenticated) return false;
       return upvotesList.some(
         (u) =>
@@ -386,6 +408,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (data.topics && Array.isArray(data.topics)) {
           setTopics(data.topics);
+        }
+
+        if (data.series && Array.isArray(data.series)) {
+          setSeries(data.series);
         }
 
         if (data.moderation_flags && Array.isArray(data.moderation_flags)) {
@@ -595,7 +621,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateUserRoleRbac = async (
     userId: number,
     payload: {
-      role?: 'MEMBER' | 'MODERATOR' | 'ADMIN';
+      role?: 'MEMBER' | 'COLUMNIST' | 'MODERATOR' | 'ADMIN';
       is_banned?: boolean;
       title_badge?: string;
     }
@@ -1003,6 +1029,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     rating?: number | null;
     work_id?: number | null;
     topic_id?: number | null;
+    series_entry_id?: number | null;
     parent_id?: number | null;
   }) => {
     if (!isAuthenticated || !permissions.can_comment) {
@@ -1091,6 +1118,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
     }
 
+    if (payload.series_entry_id) {
+      setSeries((prev) =>
+        prev.map((s) => ({
+          ...s,
+          entries: (s.entries || []).map((entry) => {
+            if (entry.id !== payload.series_entry_id) return entry;
+            const existing = entry.comments || [];
+            const updatedComments = payload.parent_id
+              ? insertReplyIntoTree(existing, payload.parent_id, createdComment!)
+              : [createdComment!, ...existing];
+            return {
+              ...entry,
+              comments_count: entry.comments_count + 1,
+              comments: updatedComments,
+            };
+          }),
+        }))
+      );
+    }
+
     showToast(
       payload.parent_id
         ? 'Resposta publicada na thread'
@@ -1122,7 +1169,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return c;
     });
 
-  const upvoteItem = async (targetType: 'TOPIC' | 'COMMENT', targetId: number) => {
+  const upvoteItem = async (
+    targetType: 'TOPIC' | 'COMMENT' | 'SERIES_ENTRY',
+    targetId: number
+  ) => {
     if (!isAuthenticated) {
       showToast(
         'Conta necessária para curtir',
@@ -1155,6 +1205,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               : t
           )
         );
+      } else if (targetType === 'SERIES_ENTRY') {
+        setSeries((prev) =>
+          prev.map((s) => ({
+            ...s,
+            entries: (s.entries || []).map((e) =>
+              e.id === targetId
+                ? { ...e, upvotes_count: Math.max(0, e.upvotes_count - 1) }
+                : e
+            ),
+          }))
+        );
       } else {
         setWorks((prev) =>
           prev.map((w) => ({
@@ -1166,6 +1227,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           prev.map((t) => ({
             ...t,
             comments: decrementCommentUpvote(t.comments || [], targetId),
+          }))
+        );
+        setSeries((prev) =>
+          prev.map((s) => ({
+            ...s,
+            entries: (s.entries || []).map((e) => ({
+              ...e,
+              comments: decrementCommentUpvote(e.comments || [], targetId),
+            })),
           }))
         );
       }
@@ -1185,6 +1255,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             t.id === targetId ? { ...t, upvotes_count: t.upvotes_count + 1 } : t
           )
         );
+      } else if (targetType === 'SERIES_ENTRY') {
+        setSeries((prev) =>
+          prev.map((s) => ({
+            ...s,
+            entries: (s.entries || []).map((e) =>
+              e.id === targetId ? { ...e, upvotes_count: e.upvotes_count + 1 } : e
+            ),
+          }))
+        );
       } else {
         setWorks((prev) =>
           prev.map((w) => ({
@@ -1196,6 +1275,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           prev.map((t) => ({
             ...t,
             comments: incrementCommentUpvote(t.comments || [], targetId),
+          }))
+        );
+        setSeries((prev) =>
+          prev.map((s) => ({
+            ...s,
+            entries: (s.entries || []).map((e) => ({
+              ...e,
+              comments: incrementCommentUpvote(e.comments || [], targetId),
+            })),
           }))
         );
       }
@@ -1210,6 +1298,91 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showToast('Não foi possível atualizar a curtida', err.message, 'warning');
       }
     }
+  };
+
+  const createSeries = async (data: Partial<ReadingSeries>): Promise<ReadingSeries> => {
+    if (!permissions.can_manage_series) {
+      showToast(
+        'Permissão necessária',
+        'Apenas usuários com perfil de Colunista, Moderador ou Admin podem criar Séries & Cadernos.',
+        'error'
+      );
+      throw new Error('Permissão insuficiente.');
+    }
+
+    const res = await apiService.createSeries(data, currentUser.role);
+    setSeries((prev) => [res.series, ...prev]);
+    showToast('Série / Caderno criado!', `“${res.series.title}” já está pronto para receber suas notas.`, 'success');
+    return res.series;
+  };
+
+  const deleteSeries = async (seriesId: number) => {
+    await apiService.deleteSeries(seriesId, currentUser.role);
+    setSeries((prev) => prev.filter((s) => s.id !== seriesId));
+    showToast('Série removida', 'A série e suas entradas foram excluídas.', 'info');
+  };
+
+  const createSeriesEntry = async (
+    seriesId: number,
+    data: {
+      title: string;
+      reference_label?: string;
+      entry_number?: number;
+      body: string;
+    }
+  ): Promise<SeriesEntry> => {
+    const res = await apiService.createSeriesEntry(seriesId, data, currentUser.role);
+    setSeries((prev) =>
+      prev.map((s) => {
+        if (s.id !== seriesId) return s;
+        const nextEntries = [...(s.entries || []), res.entry].sort(
+          (a, b) => a.entry_number - b.entry_number || a.id - b.id
+        );
+        return {
+          ...s,
+          entries_count: nextEntries.length,
+          entries: nextEntries,
+          updated_at: new Date().toISOString(),
+        };
+      })
+    );
+    showToast('Nova nota publicada!', `“${res.entry.title}” adicionada à série.`, 'success');
+    return res.entry;
+  };
+
+  const updateSeriesEntry = async (
+    seriesId: number,
+    entryId: number,
+    data: Partial<SeriesEntry>
+  ): Promise<SeriesEntry> => {
+    const res = await apiService.updateSeriesEntry(seriesId, entryId, data, currentUser.role);
+    setSeries((prev) =>
+      prev.map((s) => {
+        if (s.id !== seriesId) return s;
+        return {
+          ...s,
+          entries: (s.entries || []).map((e) => (e.id === entryId ? { ...e, ...res.entry } : e)),
+        };
+      })
+    );
+    showToast('Nota atualizada!', 'As alterações foram salvas.', 'success');
+    return res.entry;
+  };
+
+  const deleteSeriesEntry = async (seriesId: number, entryId: number) => {
+    await apiService.deleteSeriesEntry(seriesId, entryId, currentUser.role);
+    setSeries((prev) =>
+      prev.map((s) => {
+        if (s.id !== seriesId) return s;
+        const nextEntries = (s.entries || []).filter((e) => e.id !== entryId);
+        return {
+          ...s,
+          entries_count: nextEntries.length,
+          entries: nextEntries,
+        };
+      })
+    );
+    showToast('Nota excluída', 'A entrada foi removida da série.', 'info');
   };
 
   const submitFlag = async (reason: FlagReason, details: string) => {
@@ -1725,6 +1898,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           };
         })
       );
+      setSeries((prev) =>
+        prev.map((s) => ({
+          ...s,
+          entries: (s.entries || []).map((e) => {
+            const beforeCount = JSON.stringify(e.comments || []).length;
+            const nextComments = removeCommentFromTree(e.comments || [], targetId);
+            const changed = JSON.stringify(nextComments).length !== beforeCount;
+            return {
+              ...e,
+              comments_count: changed ? Math.max(0, e.comments_count - 1) : e.comments_count,
+              comments: nextComments,
+            };
+          }),
+        }))
+      );
     }
 
     setModerationFlags((prev) =>
@@ -1849,6 +2037,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         categories,
         works,
         topics,
+        series,
         moderationFlags,
         moderationLogs,
         hasUserUpvoted,
@@ -1869,6 +2058,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateTopic,
         addComment,
         upvoteItem,
+        createSeries,
+        deleteSeries,
+        createSeriesEntry,
+        updateSeriesEntry,
+        deleteSeriesEntry,
         submitFlag,
         resolveFlag,
         moderateWorkStatus,

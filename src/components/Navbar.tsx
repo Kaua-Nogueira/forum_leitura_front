@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
+  BookMarked,
   ShieldAlert,
   Sun,
   Moon,
@@ -93,6 +94,18 @@ export const Navbar: React.FC = () => {
                 Leituras &amp; Ensaios
               </Link>
 
+              <Link
+                to="/series"
+                className={`px-3 py-2 rounded-md text-xs lg:text-sm font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors ${
+                  location.pathname.startsWith('/series')
+                    ? 'bg-parchment-deep dark:bg-slateDark-elevated text-ink dark:text-white'
+                    : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
+                }`}
+              >
+                <BookMarked className="w-4 h-4 text-burgundy dark:text-gold shrink-0" />
+                <span>Séries &amp; Cadernos</span>
+              </Link>
+
               {isAuthenticated && (
                 <Link
                   to="/perfil"
@@ -152,6 +165,8 @@ export const Navbar: React.FC = () => {
                       ? 'Administrador'
                       : currentUser.role === 'MODERATOR'
                       ? 'Moderador'
+                      : currentUser.role === 'COLUMNIST'
+                      ? 'Colunista'
                       : 'Ver Perfil'}
                   </span>
                 </Link>
@@ -237,6 +252,8 @@ export const Navbar: React.FC = () => {
                       ? 'Administrador'
                       : currentUser.role === 'MODERATOR'
                       ? 'Moderador'
+                      : currentUser.role === 'COLUMNIST'
+                      ? 'Colunista • Séries'
                       : 'Membro da Cátedra'}
                   </p>
                 </div>
@@ -283,6 +300,18 @@ export const Navbar: React.FC = () => {
             >
               <BookOpen className="w-4 h-4 text-burgundy dark:text-gold" />
               <span>Leituras &amp; Ensaios</span>
+            </Link>
+
+            <Link
+              to="/series"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold transition-colors ${
+                location.pathname.startsWith('/series')
+                  ? 'bg-parchment-deep dark:bg-slateDark-elevated text-ink dark:text-white'
+                  : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
+              }`}
+            >
+              <BookMarked className="w-4 h-4 text-burgundy dark:text-gold" />
+              <span>Séries &amp; Cadernos</span>
             </Link>
 
             {isAuthenticated && (

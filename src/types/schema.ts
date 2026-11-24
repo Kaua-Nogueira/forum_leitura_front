@@ -5,7 +5,7 @@
  * ============================================================================
  */
 
-export type UserRole = 'VISITOR' | 'MEMBER' | 'MODERATOR' | 'ADMIN';
+export type UserRole = 'VISITOR' | 'MEMBER' | 'COLUMNIST' | 'MODERATOR' | 'ADMIN';
 
 export type MediaType = 'BOOK' | 'FILM' | 'DOCUMENTARY' | 'ESSAY' | 'SACRED_ART';
 
@@ -23,6 +23,7 @@ export interface UserPermissions {
   can_create_work: boolean;
   can_create_topic: boolean;
   can_comment: boolean;
+  can_manage_series: boolean;
   can_publish_directly: boolean;
   can_moderate_queue: boolean;
   can_ban_users: boolean;
@@ -127,6 +128,7 @@ export interface Comment {
   rating?: number | null;
   work_id?: number | null;
   topic_id?: number | null;
+  series_entry_id?: number | null;
   parent_id?: number | null;
   author_id: number;
   author: User;
@@ -135,6 +137,47 @@ export interface Comment {
   moderation_note?: string;
   replies?: Comment[];
   created_at: string;
+}
+
+export interface SeriesEntry {
+  id: number;
+  series_id: number;
+  author_id: number;
+  author?: User;
+  entry_number: number;
+  reference_label?: string | null;
+  title: string;
+  slug: string;
+  body: string;
+  upvotes_count: number;
+  comments_count: number;
+  published_at?: string | null;
+  comments?: Comment[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ReadingSeries {
+  id: number;
+  title: string;
+  slug: string;
+  subtitle?: string | null;
+  description: string;
+  book_title?: string | null;
+  book_author?: string | null;
+  cover_url?: string | null;
+  cadence_label: string;
+  category_id: number;
+  category?: Category;
+  work_id?: number | null;
+  work?: Work | null;
+  author_id: number;
+  author?: User;
+  status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+  entries_count: number;
+  entries?: SeriesEntry[];
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface ModerationFlag {
@@ -164,7 +207,7 @@ export interface PlatformSettings {
 
 export interface UpvoteRecord {
   user_id: number;
-  target_type: 'WORK' | 'TOPIC' | 'COMMENT';
+  target_type: 'WORK' | 'TOPIC' | 'COMMENT' | 'SERIES_ENTRY';
   target_id: number;
 }
 

@@ -165,7 +165,7 @@ export const TopicDetailPage: React.FC = () => {
                 </Link>
               )}
 
-              {permissions.can_moderate_queue && topic.status === 'PENDING' && (
+              {permissions.can_moderate_queue && (
                 <>
                   <button
                     type="button"
@@ -183,11 +183,20 @@ export const TopicDetailPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowRejectBox((prev) => !prev)}
+                    onClick={() => {
+                      if (!rejectFeedback && topic.moderation_note) {
+                        setRejectFeedback(topic.moderation_note);
+                      }
+                      setShowRejectBox((prev) => !prev);
+                    }}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
                   >
                     <XCircle className="w-4 h-4" />
-                    <span>Reprovar / Pedir Ajustes</span>
+                    <span>
+                      {topic.status === 'REJECTED'
+                        ? 'Editar Feedback de Reprovação'
+                        : 'Reprovar / Pedir Ajustes'}
+                    </span>
                   </button>
                 </>
               )}
@@ -240,49 +249,46 @@ export const TopicDetailPage: React.FC = () => {
       {/* Main Essay Sheet */}
       <article className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden">
         {/* Reading Comfort Bar */}
-        <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-3 text-ink-secondary dark:text-slateDark-text">
-            <span className="inline-flex items-center gap-1 font-medium">
+        <div className="bg-parchment-warm dark:bg-slateDark-elevated border-b border-parchment-deep dark:border-slateDark-border px-4 sm:px-6 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-ink-secondary dark:text-slateDark-text shrink-0">
+            <span className="inline-flex items-center gap-1.5 font-medium whitespace-nowrap">
               <Clock className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
               {metrics.words} palavras • ~{metrics.minutes} min de leitura
             </span>
           </div>
 
-          <div className="flex items-center gap-2.5 self-end sm:self-auto overflow-x-auto no-scrollbar">
-            <span className="inline-flex items-center gap-1 font-medium">
-              <Clock className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
-              {metrics.words} palavras • ~{metrics.minutes} min de leitura
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex items-center rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Font Family Switch */}
+            <div className="inline-flex items-center h-8 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setFontFamily('serif')}
-                className={`px-2.5 py-1 rounded text-xs font-serif transition-colors ${
+                title="Fonte Serif Literária"
+                className={`h-full px-2.5 rounded text-xs font-serif whitespace-nowrap transition-colors ${
                   fontFamily === 'serif'
                     ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
-                    : 'text-ink-muted hover:text-ink'
+                    : 'text-ink-muted hover:text-ink dark:hover:text-white'
                 }`}
               >
-                Serif Literária
+                Serif
               </button>
               <button
                 type="button"
                 onClick={() => setFontFamily('sans')}
-                className={`px-2.5 py-1 rounded text-xs font-sans transition-colors ${
+                title="Fonte Sans Limpa"
+                className={`h-full px-2.5 rounded text-xs font-sans whitespace-nowrap transition-colors ${
                   fontFamily === 'sans'
                     ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
-                    : 'text-ink-muted hover:text-ink'
+                    : 'text-ink-muted hover:text-ink dark:hover:text-white'
                 }`}
               >
-                Sans Limpa
+                Sans
               </button>
             </div>
 
-            <div className="inline-flex items-center rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5">
-              <Type className="w-3.5 h-3.5 text-ink-muted ml-2 mr-1" />
+            {/* Font Size Switch */}
+            <div className="inline-flex items-center h-8 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5 shrink-0">
+              <Type className="w-3.5 h-3.5 text-ink-muted ml-1.5 mr-1 shrink-0" />
               {(
                 [
                   { id: 'normal', label: 'A-' },
@@ -294,10 +300,10 @@ export const TopicDetailPage: React.FC = () => {
                   key={s.id}
                   type="button"
                   onClick={() => setFontSize(s.id)}
-                  className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                  className={`h-full px-2 rounded text-xs font-semibold whitespace-nowrap transition-colors ${
                     fontSize === s.id
                       ? 'bg-ink text-parchment dark:bg-gold dark:text-slateDark-bg'
-                      : 'text-ink-muted hover:text-ink'
+                      : 'text-ink-muted hover:text-ink dark:hover:text-white'
                   }`}
                 >
                   {s.label}
@@ -306,54 +312,51 @@ export const TopicDetailPage: React.FC = () => {
             </div>
 
             {/* Text Alignment / Justification Switch */}
-            <div className="inline-flex items-center rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5">
+            <div className="inline-flex items-center h-8 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card p-0.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setTextAlign('justify')}
                 title="Texto Justificado (Estilo Editorial)"
                 aria-label="Texto Justificado"
-                className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 font-semibold transition-colors ${
+                className={`h-full px-2 rounded inline-flex items-center justify-center transition-colors ${
                   textAlign === 'justify'
-                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
                     : 'text-ink-muted hover:text-ink dark:hover:text-white'
                 }`}
               >
                 <AlignJustify className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Justificado</span>
               </button>
               <button
                 type="button"
                 onClick={() => setTextAlign('left')}
                 title="Alinhar à Esquerda"
                 aria-label="Alinhar à Esquerda"
-                className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 font-semibold transition-colors ${
+                className={`h-full px-2 rounded inline-flex items-center justify-center transition-colors ${
                   textAlign === 'left'
-                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
                     : 'text-ink-muted hover:text-ink dark:hover:text-white'
                 }`}
               >
                 <AlignLeft className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Esquerda</span>
               </button>
               <button
                 type="button"
                 onClick={() => setTextAlign('center')}
                 title="Centralizar Texto"
                 aria-label="Centralizar Texto"
-                className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 font-semibold transition-colors ${
+                className={`h-full px-2 rounded inline-flex items-center justify-center transition-colors ${
                   textAlign === 'center'
-                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold'
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
                     : 'text-ink-muted hover:text-ink dark:hover:text-white'
                 }`}
               >
                 <AlignCenter className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Centro</span>
               </button>
             </div>
 
             <a
               href="#comentarios-topico"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-burgundy/10 dark:bg-gold/15 text-burgundy dark:text-gold font-semibold"
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-burgundy/10 dark:bg-gold/15 text-burgundy dark:text-gold font-semibold hover:opacity-90 whitespace-nowrap shrink-0"
             >
               <MessageSquare className="w-3.5 h-3.5" />
               <span>Comentar ({commentsCount})</span>

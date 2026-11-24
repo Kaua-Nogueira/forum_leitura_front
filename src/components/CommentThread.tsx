@@ -24,6 +24,7 @@ interface CommentThreadProps {
   comments: Comment[];
   workId?: number | null;
   topicId?: number | null;
+  seriesEntryId?: number | null;
   allowRating?: boolean;
 }
 
@@ -31,6 +32,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   comments,
   workId = null,
   topicId = null,
+  seriesEntryId = null,
   allowRating = false,
 }) => {
   const {
@@ -77,6 +79,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
       rating: allowRating ? newRating : null,
       work_id: workId,
       topic_id: topicId,
+      series_entry_id: seriesEntryId,
       parent_id: null,
     });
     setNewBody('');
@@ -106,6 +109,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
       rating: null,
       work_id: workId,
       topic_id: topicId,
+      series_entry_id: seriesEntryId,
       parent_id: parentId,
     });
     setReplyBody('');
