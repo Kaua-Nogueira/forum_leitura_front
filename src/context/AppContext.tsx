@@ -43,6 +43,14 @@ interface FlagModalTarget {
   target_author_name: string;
 }
 
+export interface ConfirmDialogOptions {
+  title: string;
+  description: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: 'danger' | 'primary';
+}
+
 interface ToastMessage {
   id: number;
   title: string;
@@ -69,6 +77,8 @@ interface AppContextType {
     name: string;
     title_badge?: string;
     bio?: string;
+    avatar_url?: string | null;
+    cover_url?: string | null;
   }) => Promise<void>;
   updateUserRoleRbac: (
     userId: number,
@@ -114,6 +124,9 @@ interface AppContextType {
   setIsNewTopicModalOpen: (v: boolean) => void;
   flagModalTarget: FlagModalTarget | null;
   setFlagModalTarget: (target: FlagModalTarget | null) => void;
+  confirmDialog: ConfirmDialogOptions | null;
+  requestConfirm: (options: ConfirmDialogOptions) => Promise<boolean>;
+  resolveConfirmDialog: (confirmed: boolean) => void;
   // Actions
   createWork: (data: Partial<Work>) => Promise<Work>;
   updateWork: (workId: number, data: Partial<Work>) => Promise<Work>;
@@ -342,6 +355,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isNewWorkModalOpen, setIsNewWorkModalOpen] = useState(false);
   const [isNewTopicModalOpen, setIsNewTopicModalOpen] = useState(false);
   const [flagModalTarget, setFlagModalTarget] = useState<FlagModalTarget | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogOptions | null>(null);
+  const confirmResolverRef = React.useRef<((val: boolean) => void) | null>(null);
+
+  const requestConfirm = useCallback((options: ConfirmDialogOptions): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      confirmResolverRef.current = resolve;
+      setConfirmDialog(options);
+    });
+  }, []);
+
+  const resolveConfirmDialog = useCallback((confirmed: boolean) => {
+    setConfirmDialog(null);
+    if (confirmResolverRef.current) {
+      const fn = confirmResolverRef.current;
+      confirmResolverRef.current = null;
+      fn(confirmed);
+    }
+  }, []);
 
   const isAuthenticated = currentUser.role !== 'VISITOR' && !currentUser.is_banned;
 
@@ -613,12 +644,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     name: string;
     title_badge?: string;
     bio?: string;
+    avatar_url?: string | null;
+    cover_url?: string | null;
   }) => {
     let updatedUser: User = {
       ...currentUser,
       name: payload.name,
       title_badge: payload.title_badge ?? currentUser.title_badge,
       bio: payload.bio ?? currentUser.bio,
+      avatar_url:
+        payload.avatar_url !== undefined ? payload.avatar_url : currentUser.avatar_url,
+      cover_url:
+        payload.cover_url !== undefined ? payload.cover_url : currentUser.cover_url,
     };
 
     try {
@@ -2137,6 +2174,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsNewTopicModalOpen,
         flagModalTarget,
         setFlagModalTarget,
+        confirmDialog,
+        requestConfirm,
+        resolveConfirmDialog,
         createWork,
         updateWork,
         createTopic,

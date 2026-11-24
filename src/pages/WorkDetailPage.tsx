@@ -311,7 +311,12 @@ export const WorkDetailPage: React.FC = () => {
 
               <div className="pt-1 flex flex-wrap items-center gap-x-4 sm:gap-x-5 gap-y-1.5 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
                 <span>
-                  Autor: <strong className="text-ink dark:text-white">{work.creator}</strong>
+                  {work.media_type === 'ESSAY' ? 'Autor do Artigo: ' : 'Autor: '}
+                  <strong className="text-ink dark:text-white">
+                    {work.media_type === 'ESSAY'
+                      ? work.submitted_by?.name || work.creator
+                      : work.creator}
+                  </strong>
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
@@ -320,7 +325,9 @@ export const WorkDetailPage: React.FC = () => {
                 {work.publisher_or_studio && (
                   <span className="flex items-center gap-1">
                     <Building2 className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
-                    {work.publisher_or_studio}
+                    {work.media_type === 'ESSAY'
+                      ? `Conceito / Tema: ${work.publisher_or_studio}`
+                      : work.publisher_or_studio}
                   </span>
                 )}
                 {work.isbn_or_ref && (
@@ -333,7 +340,9 @@ export const WorkDetailPage: React.FC = () => {
             </div>
 
             <div className="max-w-xl space-y-3">
-              <AffiliateButton work={work} variant="compact" />
+              {(work.media_type !== 'ESSAY' || Boolean(work.affiliate_url?.trim())) && (
+                <AffiliateButton work={work} variant="compact" />
+              )}
 
               {permissions.can_moderate_queue && (
                 <div className="p-3.5 rounded-lg border border-forest/35 bg-forest/5 dark:bg-forest-light/10 space-y-2.5">

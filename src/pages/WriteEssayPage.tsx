@@ -29,7 +29,8 @@ import { useApp } from '../context/AppContext';
 import { RichTextRenderer, getReadingMetrics } from '../components/RichTextRenderer';
 import { MediaType, WorkQuote } from '../types/schema';
 
-type PostMode = 'NEW_BOOK_ESSAY' | 'EXISTING_BOOK_ESSAY';
+type PostMode = 'CONCEPT_ESSAY' | 'NEW_BOOK_ESSAY' | 'EXISTING_BOOK_ESSAY';
+type ConceptPlacement = 'MAIN_FEED' | 'FORUM_COLUMN';
 type EditorLayout = 'WRITE' | 'SPLIT' | 'PREVIEW';
 
 export const WriteEssayPage: React.FC = () => {
@@ -65,8 +66,17 @@ export const WriteEssayPage: React.FC = () => {
   const isEditingExisting = Boolean(editingWork || editingTopic);
 
   const [postMode, setPostMode] = useState<PostMode>(
-    editingTopic || preselectedWorkId ? 'EXISTING_BOOK_ESSAY' : 'NEW_BOOK_ESSAY'
+    editingTopic
+      ? editingTopic.work_id
+        ? 'EXISTING_BOOK_ESSAY'
+        : 'CONCEPT_ESSAY'
+      : preselectedWorkId
+      ? 'EXISTING_BOOK_ESSAY'
+      : 'CONCEPT_ESSAY'
   );
+  const [conceptPlacement, setConceptPlacement] =
+    useState<ConceptPlacement>('MAIN_FEED');
+  const [conceptTheme, setConceptTheme] = useState<string>('');
   const [editorLayout, setEditorLayout] = useState<EditorLayout>('SPLIT');
   const [writerFont, setWriterFont] = useState<'serif' | 'sans'>('serif');
 
@@ -118,7 +128,14 @@ export const WriteEssayPage: React.FC = () => {
   // Populate fields when editing an existing Work or Topic
   useEffect(() => {
     if (editingWork) {
-      setPostMode('NEW_BOOK_ESSAY');
+      const isConceptWork =
+        editingWork.media_type === 'ESSAY' &&
+        (!editingWork.creator ||
+          editingWork.creator === editingWork.submitted_by?.name ||
+          editingWork.creator === currentUser.name);
+      setPostMode(isConceptWork ? 'CONCEPT_ESSAY' : 'NEW_BOOK_ESSAY');
+      setConceptPlacement('MAIN_FEED');
+      setConceptTheme(editingWork.publisher_or_studio || '');
       setEssayTitle(editingWork.title || '');
       setEssaySubtitle(editingWork.subtitle || '');
       setCategoryId(editingWork.category_id || 1);
@@ -138,7 +155,13 @@ export const WriteEssayPage: React.FC = () => {
           : [{ quote_text: '', source_note: '' }]
       );
     } else if (editingTopic) {
-      setPostMode('EXISTING_BOOK_ESSAY');
+      if (editingTopic.work_id) {
+        setPostMode('EXISTING_BOOK_ESSAY');
+      } else {
+        setPostMode('CONCEPT_ESSAY');
+        setConceptPlacement('FORUM_COLUMN');
+        setConceptTheme((editingTopic.tags || [])[0] || '');
+      }
       setEssayTitle(editingTopic.title || '');
       setEssaySubtitle(editingTopic.excerpt || '');
       setCategoryId(editingTopic.category_id || 1);
@@ -183,7 +206,28 @@ export const WriteEssayPage: React.FC = () => {
   };
 
   const applyClassicalTemplate = () => {
-    const template = `Escreva aqui o parágrafo de abertura contextualizando a obra, o momento histórico em que o autor a compôs e a tese central que torna este livro indispensável.
+    const template =
+      postMode === 'CONCEPT_ESSAY'
+        ? `Apresente no parágrafo de abertura o conceito, doutrina ou questão filosófica que será examinada neste artigo, situando sua relevância intelectual e espiritual.
+
+> Insira aqui uma epígrafe, passagem bíblica ou definição clássica que sirva de alicerce para o desenvolvimento do tema.
+
+## I. Definição e Raízes do Conceito
+
+Explique a origem do conceito, seus termos fundamentais e como a tradição cristã ou filosófica o compreendeu ao longo da história, distinguindo-o de equívocos comuns.
+
+* * *
+
+## II. Desenvolvimento e Fundamentação
+
+Aprofunde os argumentos centrais do seu ensaio. Mobilize exemplos históricos, textos confessionais ou conexões teológicas e culturais que iluminem a tese.
+
+> Destaque aqui uma síntese ou formulação essencial para a meditação do leitor.
+
+## III. Implicações Práticas e Conclusão
+
+Conclua apontando como a reta compreensão deste conceito transforma nossa visão de mundo, nossa prática cristã ou nossa formação intelectual.`
+        : `Escreva aqui o parágrafo de abertura contextualizando a obra, o momento histórico em que o autor a compôs e a tese central que torna este livro indispensável.
 
 > Insira aqui uma citação marcante retirada diretamente do livro para iluminar o ponto de partida da sua reflexão.
 
@@ -243,7 +287,7 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
       missing.push(
         postMode === 'NEW_BOOK_ESSAY'
           ? 'Informe o Título do Livro ou da Obra.'
-          : 'Informe o Título do seu Ensaio.'
+          : 'Informe o Título do seu Artigo ou Ensaio.'
       );
     }
 
@@ -252,7 +296,7 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
     }
 
     if (!essayBody.trim()) {
-      missing.push('O corpo do texto está vazio. Escreva sua resenha ou ensaio antes de publicar.');
+      missing.push('O corpo do texto está vazio. Escreva seu artigo, ensaio ou resenha antes de publicar.');
     }
 
     if (missing.length > 0) {
@@ -290,24 +334,40 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
 
       if (editingWork) {
         const validQuotes = quotes.filter((q) => q.quote_text.trim().length > 0);
+        const isConceptMode = postMode === 'CONCEPT_ESSAY';
         await updateWork(editingWork.id, {
           title: essayTitle.trim(),
           subtitle:
             essaySubtitle.trim() ||
-            `Ensaio crítico e resenha literária por ${currentUser.name}`,
-          creator: bookAuthor.trim() || 'Autor Clássico',
-          media_type: mediaType,
-          release_year: releaseYear || 1950,
+            (isConceptMode
+              ? `Artigo & ensaio por ${currentUser.name}`
+              : `Ensaio crítico e resenha literária por ${currentUser.name}`),
+          creator: isConceptMode
+            ? currentUser.name
+            : bookAuthor.trim() || 'Autor Clássico',
+          media_type: isConceptMode ? 'ESSAY' : mediaType,
+          release_year: isConceptMode
+            ? new Date().getFullYear()
+            : releaseYear || 1950,
           category_id: categoryId,
           cover_url:
             coverUrl.trim() ||
-            'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=900&q=85',
+            'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=900&q=85',
           synopsis: essayBody.trim(),
           notable_quotes: validQuotes.length ? validQuotes : editingWork.notable_quotes,
-          publisher_or_studio: publisher.trim() || 'Edição Recomendada',
+          publisher_or_studio: isConceptMode
+            ? conceptTheme.trim() || 'Ensaio & Conceito'
+            : publisher.trim() || 'Edição Recomendada',
         });
         navigate('/perfil');
       } else if (editingTopic) {
+        const parsedTags = tagsInput
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean);
+        if (postMode === 'CONCEPT_ESSAY' && conceptTheme.trim() && !parsedTags.includes(conceptTheme.trim())) {
+          parsedTags.unshift(conceptTheme.trim());
+        }
         await updateTopic(editingTopic.id, {
           title: essayTitle.trim(),
           excerpt:
@@ -315,13 +375,49 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
             essayBody.replace(/>/g, '').replace(/#/g, '').slice(0, 180) + '...',
           body: essayBody.trim(),
           category_id: categoryId,
-          work_id: selectedWorkId ? Number(selectedWorkId) : null,
-          tags: tagsInput
-            .split(',')
-            .map((t) => t.trim())
-            .filter(Boolean),
+          work_id:
+            postMode === 'CONCEPT_ESSAY'
+              ? null
+              : selectedWorkId
+              ? Number(selectedWorkId)
+              : null,
+          tags: parsedTags.length ? parsedTags : ['Ensaio Conceptual'],
         });
         navigate('/perfil');
+      } else if (postMode === 'CONCEPT_ESSAY' && conceptPlacement === 'MAIN_FEED') {
+        const validQuotes = quotes.filter((q) => q.quote_text.trim().length > 0);
+        const createdWork = await createWork({
+          title: essayTitle.trim(),
+          subtitle:
+            essaySubtitle.trim() ||
+            (conceptTheme.trim()
+              ? `Estudo e reflexão sobre ${conceptTheme.trim()}`
+              : `Artigo e reflexão conceptual por ${currentUser.name}`),
+          creator: currentUser.name,
+          media_type: 'ESSAY',
+          release_year: new Date().getFullYear(),
+          category_id: categoryId,
+          cover_url:
+            coverUrl.trim() ||
+            'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=900&q=85',
+          synopsis: essayBody.trim(),
+          notable_quotes: validQuotes,
+          affiliate_url: '',
+          affiliate_cta_label: affiliateCta,
+          affiliate_price_hint: affiliatePriceHint,
+          publisher_or_studio: conceptTheme.trim() || 'Artigo & Conceito Livre',
+          is_featured: true,
+        });
+
+        localStorage.removeItem('veritas_draft_title');
+        localStorage.removeItem('veritas_draft_subtitle');
+        localStorage.removeItem('veritas_draft_body');
+        localStorage.removeItem('veritas_draft_author');
+        if (createdWork.status === 'APPROVED' || permissions.can_moderate_queue) {
+          navigate(`/obras/${createdWork.slug}`);
+        } else {
+          navigate('/');
+        }
       } else if (postMode === 'NEW_BOOK_ESSAY') {
         const validQuotes = quotes.filter((q) => q.quote_text.trim().length > 0);
         const createdWork = await createWork({
@@ -363,6 +459,17 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
           navigate('/');
         }
       } else {
+        const parsedTags = tagsInput
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean);
+        if (
+          postMode === 'CONCEPT_ESSAY' &&
+          conceptTheme.trim() &&
+          !parsedTags.includes(conceptTheme.trim())
+        ) {
+          parsedTags.unshift(conceptTheme.trim());
+        }
         const createdTopic = await createTopic({
           title: essayTitle.trim(),
           excerpt:
@@ -370,11 +477,13 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
             essayBody.replace(/>/g, '').replace(/#/g, '').slice(0, 180) + '...',
           body: essayBody.trim(),
           category_id: categoryId,
-          work_id: selectedWorkId ? Number(selectedWorkId) : null,
-          tags: tagsInput
-            .split(',')
-            .map((t) => t.trim())
-            .filter(Boolean),
+          work_id:
+            postMode === 'CONCEPT_ESSAY'
+              ? null
+              : selectedWorkId
+              ? Number(selectedWorkId)
+              : null,
+          tags: parsedTags.length ? parsedTags : ['Ensaio & Conceito'],
         });
 
         localStorage.removeItem('veritas_draft_title');
@@ -484,21 +593,37 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
         {/* 1. Escolha do Tipo de Publicação e Dados do Livro */}
         <div className="p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card shadow-editorial space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-parchment-deep dark:border-slateDark-border pb-4">
-            <div className="flex flex-wrap gap-2.5">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPostMode('CONCEPT_ESSAY');
+                  setSubmitErrors([]);
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold border transition-all ${
+                  postMode === 'CONCEPT_ESSAY'
+                    ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg dark:border-gold shadow-sm'
+                    : 'bg-parchment dark:bg-slateDark-elevated text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Artigo, Ensaio ou Conceito Livre (Sem Livro)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
                   setPostMode('NEW_BOOK_ESSAY');
                   setSubmitErrors([]);
                 }}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold border transition-all ${
                   postMode === 'NEW_BOOK_ESSAY'
-                    ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg dark:border-gold shadow-sm'
+                    ? 'bg-forest text-parchment border-forest dark:bg-gold dark:text-slateDark-bg dark:border-gold shadow-sm'
                     : 'bg-parchment dark:bg-slateDark-elevated text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border'
                 }`}
               >
                 <BookOpen className="w-4 h-4" />
-                <span>Publicar Resenha de um Novo Livro (Catálogo + Afiliado)</span>
+                <span>Resenha de Livro ou Obra</span>
               </button>
 
               <button
@@ -507,14 +632,14 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
                   setPostMode('EXISTING_BOOK_ESSAY');
                   setSubmitErrors([]);
                 }}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold border transition-all ${
                   postMode === 'EXISTING_BOOK_ESSAY'
                     ? 'bg-navy text-parchment border-navy dark:bg-gold dark:text-slateDark-bg dark:border-gold shadow-sm'
                     : 'bg-parchment dark:bg-slateDark-elevated text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border'
                 }`}
               >
                 <FileText className="w-4 h-4" />
-                <span>Escrever Ensaio sobre Obra já Cadastrada</span>
+                <span>Ensaio sobre Livro já Cadastrado</span>
               </button>
             </div>
 
@@ -534,8 +659,128 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
             </div>
           </div>
 
-          {/* Book Metadata Inputs */}
-          {postMode === 'NEW_BOOK_ESSAY' ? (
+          {/* Metadata Inputs according to PostMode */}
+          {postMode === 'CONCEPT_ESSAY' ? (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1.5">
+                    Conceito, Doutrina ou Tema Central (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={conceptTheme}
+                    onChange={(e) => setConceptTheme(e.target.value)}
+                    placeholder="Ex: Graça Comum, Livre-Arbítrio, Trivium, Lei Moral, Estética..."
+                    className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm focus:outline-none focus:border-burgundy"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1.5">
+                    Onde Exibir esta Publicação
+                  </label>
+                  <select
+                    value={conceptPlacement}
+                    onChange={(e) =>
+                      setConceptPlacement(e.target.value as ConceptPlacement)
+                    }
+                    disabled={isEditingExisting}
+                    className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm font-medium disabled:opacity-60"
+                  >
+                    <option value="MAIN_FEED">
+                      Feed Principal (Artigo em Destaque com Leitura Completa)
+                    </option>
+                    <option value="FORUM_COLUMN">
+                      Coluna de Debates &amp; Ensaios Abertos
+                    </option>
+                  </select>
+                </div>
+
+                {conceptPlacement === 'MAIN_FEED' ? (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1.5">
+                      Imagem / Ilustração do Artigo (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={coverUrl}
+                      onChange={(e) => setCoverUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1.5">
+                      Tags / Palavras-chave (separadas por vírgula)
+                    </label>
+                    <input
+                      type="text"
+                      value={tagsInput}
+                      onChange={(e) => setTagsInput(e.target.value)}
+                      placeholder="Ex: Teologia, Filosofia, Conceito, Doutrina"
+                      className="w-full px-3.5 py-2.5 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {conceptPlacement === 'MAIN_FEED' && (
+                <div className="p-4 rounded-lg bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-burgundy dark:text-gold flex items-center gap-1.5">
+                      <Quote className="w-3.5 h-3.5" />
+                      Epígrafe ou Citações de Destaque do Artigo (Opcional)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleAddQuote}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-burgundy dark:text-gold hover:underline"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Adicionar Citação
+                    </button>
+                  </div>
+
+                  {quotes.map((q, idx) => (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center"
+                    >
+                      <input
+                        type="text"
+                        value={q.quote_text}
+                        onChange={(e) =>
+                          handleQuoteChange(idx, 'quote_text', e.target.value)
+                        }
+                        placeholder="Ex: “A fé busca compreender.”"
+                        className="md:col-span-8 px-3 py-2 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-xs font-literary italic text-ink dark:text-slateDark-text"
+                      />
+                      <input
+                        type="text"
+                        value={q.source_note}
+                        onChange={(e) =>
+                          handleQuoteChange(idx, 'source_note', e.target.value)
+                        }
+                        placeholder="Autor / Fonte (Ex: Santo Anselmo, Proslogion)"
+                        className="md:col-span-3 px-3 py-2 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-xs text-ink dark:text-slateDark-text"
+                      />
+                      {quotes.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveQuote(idx)}
+                          className="md:col-span-1 p-2 text-ink-muted hover:text-burgundy flex justify-center"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : postMode === 'NEW_BOOK_ESSAY' ? (
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-2">
@@ -885,6 +1130,8 @@ Encerre sua resenha apontando o fruto espiritual, intelectual ou pedagógico que
               placeholder={
                 postMode === 'NEW_BOOK_ESSAY'
                   ? 'Título do Livro * (Ex: Os Irmãos Karamázov)'
+                  : postMode === 'CONCEPT_ESSAY'
+                  ? 'Título do seu Artigo ou Ensaio Conceptual * (Ex: A Natureza da Graça Comum)'
                   : 'Título do seu Ensaio sobre o Livro *...'
               }
               className={`w-full bg-transparent font-serif text-xl sm:text-4xl font-bold text-ink dark:text-slateDark-text focus:outline-none rounded px-2 py-1 -mx-2 ${

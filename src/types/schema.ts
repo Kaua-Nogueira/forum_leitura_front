@@ -37,7 +37,8 @@ export interface User {
   username: string;
   email: string;
   role: UserRole;
-  avatar_url?: string;
+  avatar_url?: string | null;
+  cover_url?: string | null;
   bio?: string;
   title_badge?: string;
   is_banned: boolean;

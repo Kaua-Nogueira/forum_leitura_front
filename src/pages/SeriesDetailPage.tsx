@@ -51,6 +51,7 @@ export const SeriesDetailPage: React.FC = () => {
     upvoteItem,
     hasUserUpvoted,
     showToast,
+    requestConfirm,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -429,7 +430,14 @@ export const SeriesDetailPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={async () => {
-                      if (window.confirm(`Deseja apagar a nota "${activeEntry.title}"?`)) {
+                      const ok = await requestConfirm({
+                        title: 'Excluir Nota da Série',
+                        description: `Tem certeza que deseja excluir a nota "${activeEntry.title}" desta série?`,
+                        confirmLabel: 'Sim, Excluir Nota',
+                        cancelLabel: 'Cancelar',
+                        variant: 'danger',
+                      });
+                      if (ok) {
                         await deleteSeriesEntry(currentSeries.id, activeEntry.id);
                         navigate(`/series/${currentSeries.slug}`);
                       }
@@ -509,11 +517,14 @@ export const SeriesDetailPage: React.FC = () => {
           <button
             type="button"
             onClick={async () => {
-              if (
-                window.confirm(
-                  `Tem certeza que deseja excluir a série "${currentSeries.title}" e todas as suas notas?`
-                )
-              ) {
+              const ok = await requestConfirm({
+                title: 'Excluir Série / Caderno',
+                description: `Tem certeza que deseja excluir permanentemente a série "${currentSeries.title}" e todas as suas notas?`,
+                confirmLabel: 'Sim, Excluir Série',
+                cancelLabel: 'Cancelar',
+                variant: 'danger',
+              });
+              if (ok) {
                 await deleteSeries(currentSeries.id);
                 navigate('/series');
               }

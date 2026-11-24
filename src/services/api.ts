@@ -231,6 +231,8 @@ export const apiService = {
       name: string;
       title_badge?: string;
       bio?: string;
+      avatar_url?: string | null;
+      cover_url?: string | null;
       user_id?: number;
       email?: string;
     },

@@ -7,6 +7,8 @@ import {
   Quote,
   ShoppingBag,
   Sparkles,
+  AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { FlagReason, MediaType } from '../types/schema';
@@ -24,6 +26,8 @@ export const GlobalModals: React.FC = () => {
     setIsNewTopicModalOpen,
     flagModalTarget,
     setFlagModalTarget,
+    confirmDialog,
+    resolveConfirmDialog,
     createWork,
     createTopic,
     submitFlag,
@@ -552,6 +556,73 @@ export const GlobalModals: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 4. MODAL PADRONIZADO DE CONFIRMAÇÃO / DIÁLOGO DO SISTEMA */}
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => resolveConfirmDialog(false)}
+        >
+          <div
+            className="bg-parchment dark:bg-slateDark-card border-2 border-parchment-deep dark:border-slateDark-border rounded-xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-parchment-deep dark:border-slateDark-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                    confirmDialog.variant === 'danger'
+                      ? 'bg-red-600/15 text-red-700 dark:text-red-300 border border-red-600/30'
+                      : 'bg-burgundy/15 text-burgundy dark:bg-gold/20 dark:text-gold border border-burgundy/30'
+                  }`}
+                >
+                  {confirmDialog.variant === 'danger' ? (
+                    <Trash2 className="w-4 h-4" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4" />
+                  )}
+                </div>
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-ink dark:text-slateDark-text">
+                  {confirmDialog.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => resolveConfirmDialog(false)}
+                className="p-1 rounded-md text-ink-muted hover:text-ink dark:hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-sm text-ink-secondary dark:text-slateDark-muted leading-relaxed">
+              {confirmDialog.description}
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => resolveConfirmDialog(false)}
+                className="px-4 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-elevated text-xs sm:text-sm font-semibold text-ink-secondary dark:text-slateDark-text hover:border-burgundy/40 transition-colors"
+              >
+                {confirmDialog.cancelLabel || 'Cancelar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => resolveConfirmDialog(true)}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-xs sm:text-sm font-semibold shadow-sm transition-colors ${
+                  confirmDialog.variant === 'danger'
+                    ? 'bg-red-700 hover:bg-red-800 text-white'
+                    : 'bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment'
+                }`}
+              >
+                {confirmDialog.variant === 'danger' && <Trash2 className="w-3.5 h-3.5" />}
+                <span>{confirmDialog.confirmLabel || 'Confirmar'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

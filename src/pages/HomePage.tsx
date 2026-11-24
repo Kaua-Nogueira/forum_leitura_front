@@ -124,10 +124,10 @@ export const HomePage: React.FC = () => {
   };
 
   const mediaFilters = [
-    { id: 'ALL', label: 'Todas as Leituras', icon: Compass },
+    { id: 'ALL', label: 'Todas as Publicações', icon: Compass },
+    { id: 'ESSAY', label: 'Artigos, Ensaios & Conceitos', icon: FileText },
     { id: 'BOOK', label: 'Livros & Clássicos', icon: BookOpen },
     { id: 'FILM', label: 'Cinema & Sétima Arte', icon: Film },
-    { id: 'ESSAY', label: 'Artigos & Educação', icon: FileText },
     { id: 'SACRED_ART', label: 'Música Sacra & Arte', icon: Music },
   ];
 
@@ -186,7 +186,7 @@ export const HomePage: React.FC = () => {
     BOOK: 'Livro Clássico',
     FILM: 'Sétima Arte',
     DOCUMENTARY: 'Documentário',
-    ESSAY: 'Ensaio & Pedagogia',
+    ESSAY: 'Artigo & Conceito',
     SACRED_ART: 'Música Sacra & Arte',
   };
 
@@ -555,10 +555,25 @@ export const HomePage: React.FC = () => {
                           </h4>
                         </Link>
                         <p className="text-xs sm:text-sm font-semibold text-burgundy dark:text-gold mt-1">
-                          Obra de {work.creator} ({work.release_year}) •{' '}
-                          <span className="font-medium text-ink-secondary dark:text-slateDark-muted">
-                            {work.publisher_or_studio}
-                          </span>
+                          {work.media_type === 'ESSAY' ? (
+                            <>
+                              Tema / Conceito:{' '}
+                              <span className="font-bold">
+                                {work.publisher_or_studio || 'Artigo & Conceito Livre'}
+                              </span>{' '}
+                              •{' '}
+                              <span className="font-medium text-ink-secondary dark:text-slateDark-muted">
+                                {work.release_year}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              Obra de {work.creator} ({work.release_year}) •{' '}
+                              <span className="font-medium text-ink-secondary dark:text-slateDark-muted">
+                                {work.publisher_or_studio}
+                              </span>
+                            </>
+                          )}
                         </p>
                       </div>
 

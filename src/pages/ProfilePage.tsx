@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   User as UserIcon,
   BookOpen,
+  BookMarked,
   FileText,
   MessageSquare,
   Feather,
@@ -15,21 +16,80 @@ import {
   Star,
   ThumbsUp,
   ArrowRight,
-  ShieldCheck,
   LogIn,
   Trash2,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { Comment, Work, Topic } from '../types/schema';
+import { Comment, Work, Topic, ReadingSeries } from '../types/schema';
 import { RichTextRenderer, getReadingMetrics } from '../components/RichTextRenderer';
 
 interface FlattenedUserComment {
   comment: Comment;
-  targetType: 'WORK' | 'TOPIC';
+  targetType: 'WORK' | 'TOPIC' | 'SERIES_ENTRY';
   targetTitle: string;
   targetSlug: string;
   targetSubtitle?: string;
 }
+
+function normalizeName(s?: string | null): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+function compressImageFile(
+  file: File,
+  maxWidth: number,
+  maxHeight: number,
+  quality = 0.85
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Não foi possível ler o arquivo de imagem.'));
+    reader.onload = () => {
+      const img = new window.Image();
+      img.onerror = () => reject(new Error('Formato de imagem inválido.'));
+      img.onload = () => {
+        let { width, height } = img;
+        const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(String(reader.result));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+const COVER_PRESETS = [
+  {
+    label: 'Biblioteca Clássica',
+    url: 'https://images.unsplash.com/photo-1507842229356-51c61504d3ab?auto=format&fit=crop&w=1400&q=80',
+  },
+  {
+    label: 'Scriptorium & Manuscritos',
+    url: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=1400&q=80',
+  },
+  {
+    label: 'Catedral & Luz',
+    url: 'https://images.unsplash.com/photo-1548625361-16800b32f097?auto=format&fit=crop&w=1400&q=80',
+  },
+];
 
 export const ProfilePage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -40,11 +100,13 @@ export const ProfilePage: React.FC = () => {
     usersList,
     works,
     topics,
+    series,
     updateUserProfile,
     deleteContent,
+    requestConfirm,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'WORKS' | 'TOPICS' | 'COMMENTS'>('WORKS');
+  const [activeTab, setActiveTab] = useState<'SERIES' | 'WORKS' | 'TOPICS' | 'COMMENTS'>('SERIES');
   const [isEditing, setIsEditing] = useState(false);
 
   // Determine which user's profile we are viewing
@@ -57,7 +119,9 @@ export const ProfilePage: React.FC = () => {
       const fromList = usersList.find((u) => u.id === targetId);
       if (fromList) return fromList;
 
-      // Also search in works/topics/comments authors if not in usersList yet
+      for (const s of series) {
+        if (s.author?.id === targetId) return s.author;
+      }
       for (const w of works) {
         if (w.submitted_by?.id === targetId) return w.submitted_by;
       }
@@ -66,7 +130,7 @@ export const ProfilePage: React.FC = () => {
       }
     }
     return currentUser;
-  }, [id, currentUser, usersList, works, topics]);
+  }, [id, currentUser, usersList, series, works, topics]);
 
   const isOwnProfile =
     isAuthenticated && (!id || Number(id) === currentUser.id);
@@ -75,11 +139,19 @@ export const ProfilePage: React.FC = () => {
   const [editName, setEditName] = useState(profileUser.name);
   const [editBadge, setEditBadge] = useState(profileUser.title_badge || '');
   const [editBio, setEditBio] = useState(profileUser.bio || '');
+  const [editAvatarUrl, setEditAvatarUrl] = useState(profileUser.avatar_url || '');
+  const [editCoverUrl, setEditCoverUrl] = useState(profileUser.cover_url || '');
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
 
   const startEditing = () => {
     setEditName(currentUser.name);
     setEditBadge(currentUser.title_badge || '');
     setEditBio(currentUser.bio || '');
+    setEditAvatarUrl(currentUser.avatar_url || '');
+    setEditCoverUrl(currentUser.cover_url || '');
     setIsEditing(true);
   };
 
@@ -90,9 +162,74 @@ export const ProfilePage: React.FC = () => {
       name: editName.trim(),
       title_badge: editBadge.trim(),
       bio: editBio.trim(),
+      avatar_url: editAvatarUrl.trim() || null,
+      cover_url: editCoverUrl.trim() || null,
     });
     setIsEditing(false);
   };
+
+  const handleDirectAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setIsUploadingMedia(true);
+    try {
+      const dataUrl = await compressImageFile(file, 360, 360, 0.86);
+      setEditAvatarUrl(dataUrl);
+      if (!isEditing) {
+        await updateUserProfile({
+          name: currentUser.name,
+          title_badge: currentUser.title_badge,
+          bio: currentUser.bio,
+          avatar_url: dataUrl,
+          cover_url: currentUser.cover_url ?? null,
+        });
+      }
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  const handleDirectCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setIsUploadingMedia(true);
+    try {
+      const dataUrl = await compressImageFile(file, 1400, 480, 0.84);
+      setEditCoverUrl(dataUrl);
+      if (!isEditing) {
+        await updateUserProfile({
+          name: currentUser.name,
+          title_badge: currentUser.title_badge,
+          bio: currentUser.bio,
+          avatar_url: currentUser.avatar_url ?? null,
+          cover_url: dataUrl,
+        });
+      }
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  // 0. Series / Cadernos written by this user
+  const userSeries = useMemo((): ReadingSeries[] => {
+    const pNorm = normalizeName(profileUser.name);
+    const pEmail = (profileUser.email || '').toLowerCase().trim();
+    return series.filter((s) => {
+      if (s.author_id === profileUser.id || s.author?.id === profileUser.id) return true;
+      if (pEmail && s.author?.email && s.author.email.toLowerCase().trim() === pEmail) return true;
+      if (pNorm && s.author?.name && normalizeName(s.author.name) === pNorm) return true;
+      return false;
+    });
+  }, [series, profileUser]);
+
+  const userSeriesEntriesCount = useMemo(() => {
+    return userSeries.reduce(
+      (acc, s) => acc + (s.entries?.length || s.entries_count || 0),
+      0
+    );
+  }, [userSeries]);
 
   // 1. Works / Book Essays written by this user (only approved unless moderator/admin or own profile)
   const userWorks = useMemo((): Work[] => {
@@ -102,7 +239,7 @@ export const ProfilePage: React.FC = () => {
         (w.submitted_by_id === profileUser.id ||
           w.submitted_by?.id === profileUser.id ||
           (w.submitted_by?.name &&
-            w.submitted_by.name.toLowerCase() === profileUser.name.toLowerCase()))
+            normalizeName(w.submitted_by.name) === normalizeName(profileUser.name)))
     );
   }, [works, profileUser, permissions.can_moderate_queue, isOwnProfile]);
 
@@ -114,17 +251,27 @@ export const ProfilePage: React.FC = () => {
         (t.author_id === profileUser.id ||
           t.author?.id === profileUser.id ||
           (t.author?.name &&
-            t.author.name.toLowerCase() === profileUser.name.toLowerCase()))
+            normalizeName(t.author.name) === normalizeName(profileUser.name)))
     );
   }, [topics, profileUser, permissions.can_moderate_queue, isOwnProfile]);
 
-  // 3. All Comments & Replies written by this user across Works and Topics
+  useEffect(() => {
+    if (userSeries.length > 0) {
+      setActiveTab('SERIES');
+    } else if (userWorks.length > 0) {
+      setActiveTab('WORKS');
+    } else if (userTopics.length > 0) {
+      setActiveTab('TOPICS');
+    }
+  }, [profileUser.id, userSeries.length, userWorks.length, userTopics.length]);
+
+  // 3. All Comments & Replies written by this user across Works, Topics, and Series Entries
   const userComments = useMemo((): FlattenedUserComment[] => {
     const collected: FlattenedUserComment[] = [];
 
     const traverseComments = (
       list: Comment[] | undefined,
-      targetType: 'WORK' | 'TOPIC',
+      targetType: 'WORK' | 'TOPIC' | 'SERIES_ENTRY',
       targetTitle: string,
       targetSlug: string,
       targetSubtitle?: string
@@ -137,7 +284,7 @@ export const ProfilePage: React.FC = () => {
           c.author_id === profileUser.id ||
           c.author?.id === profileUser.id ||
           (c.author?.name &&
-            c.author.name.toLowerCase() === profileUser.name.toLowerCase());
+            normalizeName(c.author.name) === normalizeName(profileUser.name));
 
         if (matchesAuthor) {
           collected.push({
@@ -171,12 +318,24 @@ export const ProfilePage: React.FC = () => {
       traverseComments(t.comments, 'TOPIC', t.title, t.slug, t.category?.name);
     }
 
+    for (const s of series) {
+      for (const entry of s.entries || []) {
+        traverseComments(
+          entry.comments,
+          'SERIES_ENTRY',
+          `${s.title} — #${entry.entry_number} ${entry.title}`,
+          `${s.slug}/${entry.slug}`,
+          entry.reference_label || undefined
+        );
+      }
+    }
+
     return collected.sort(
       (a, b) =>
         new Date(b.comment.created_at).getTime() -
         new Date(a.comment.created_at).getTime()
     );
-  }, [works, topics, profileUser, permissions.can_moderate_queue]);
+  }, [works, topics, series, profileUser, permissions.can_moderate_queue]);
 
   if (!id && !isAuthenticated) {
     return (
@@ -207,6 +366,8 @@ export const ProfilePage: React.FC = () => {
       ? 'Administrador & Curador'
       : profileUser.role === 'MODERATOR'
       ? 'Moderador Editorial'
+      : profileUser.role === 'COLUMNIST'
+      ? 'Colunista • Séries & Cadernos'
       : 'Membro da Comunidade';
 
   const pendingCount =
@@ -215,140 +376,311 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
-      {/* 1. CABEÇALHO DO PERFIL DO AUTOR */}
-      <section className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card p-4 sm:p-8 shadow-editorial space-y-6">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5">
-            {/* Avatar */}
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-burgundy dark:bg-slateDark-elevated border-2 border-burgundy/30 dark:border-gold/50 flex items-center justify-center font-serif text-2xl sm:text-3xl font-bold text-parchment dark:text-gold shadow-md shrink-0">
-              {profileUser.name.charAt(0).toUpperCase()}
-            </div>
+      {/* Hidden file inputs for 1-click Avatar & Cover upload */}
+      {isOwnProfile && (
+        <>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleDirectAvatarFile}
+            className="hidden"
+          />
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleDirectCoverFile}
+            className="hidden"
+          />
+        </>
+      )}
 
-            {/* Identificação */}
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
-                  {profileUser.name}
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg">
-                  {roleBadgeLabel}
-                </span>
-              </div>
+      {/* 1. CABEÇALHO DO PERFIL DO AUTOR (COM CAPA E FOTO DE PERFIL) */}
+      <section className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card shadow-editorial overflow-hidden">
+        {/* Banner de Capa */}
+        <div className="relative h-36 sm:h-52 w-full bg-gradient-to-r from-burgundy via-ink to-navy dark:from-slateDark-elevated dark:via-burgundy/60 dark:to-slateDark-bg overflow-hidden">
+          {(isEditing ? editCoverUrl : profileUser.cover_url) ? (
+            <img
+              src={(isEditing ? editCoverUrl : profileUser.cover_url) || ''}
+              alt={`Capa de ${profileUser.name}`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full opacity-25 bg-[radial-gradient(#D4AF37_1px,transparent_1px)] [background-size:20px_20px]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
 
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
-                {profileUser.title_badge && (
-                  <span className="inline-flex items-center gap-1.5 font-semibold text-burgundy dark:text-gold">
-                    <Award className="w-4 h-4" />
-                    {profileUser.title_badge}
-                  </span>
-                )}
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5" />
-                  Membro desde{' '}
-                  {new Date(profileUser.created_at || Date.now()).toLocaleDateString(
-                    'pt-BR',
-                    { month: 'long', year: 'numeric' }
-                  )}
-                </span>
-              </div>
-
-              {profileUser.bio && (
-                <p className="text-sm sm:text-base text-ink dark:text-slateDark-text max-w-2xl leading-relaxed pt-1">
-                  {profileUser.bio}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Ações do Próprio Perfil */}
           {isOwnProfile && (
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              {!isEditing && (
-                <button
-                  type="button"
-                  onClick={startEditing}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-elevated text-xs sm:text-sm font-semibold text-ink dark:text-slateDark-text hover:border-burgundy transition-colors"
-                >
-                  <Edit3 className="w-4 h-4 text-burgundy dark:text-gold" />
-                  <span>Editar Perfil</span>
-                </button>
-              )}
-              <Link
-                to="/escrever"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
+            <div className="absolute top-3 right-3 flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isUploadingMedia}
+                onClick={() => coverInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 hover:bg-black/85 text-parchment text-xs font-semibold backdrop-blur-xs border border-white/20 shadow-md transition-all"
+                title="Enviar nova imagem de capa do seu dispositivo"
               >
-                <Feather className="w-4 h-4" />
-                <span>Escrever Novo Texto</span>
-              </Link>
+                <ImageIcon className="w-3.5 h-3.5 text-gold-light" />
+                <span>{isUploadingMedia ? 'Enviando...' : 'Alterar Capa'}</span>
+              </button>
             </div>
           )}
         </div>
 
-        {/* Formulário de Edição Rápida do Perfil */}
-        {isOwnProfile && isEditing && (
-          <form
-            onSubmit={handleSaveProfile}
-            className="pt-5 border-t border-parchment-deep dark:border-slateDark-border space-y-4"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Conteúdo Principal do Perfil abaixo da Capa */}
+        <div className="p-4 sm:p-8 pt-0 sm:pt-0 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 -mt-10 sm:-mt-12 relative z-10">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-5">
+              {/* Avatar / Foto de Perfil com botão de câmera */}
+              <div className="relative group shrink-0">
+                {(isEditing ? editAvatarUrl : profileUser.avatar_url) ? (
+                  <img
+                    src={(isEditing ? editAvatarUrl : profileUser.avatar_url) || ''}
+                    alt={profileUser.name}
+                    className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl object-cover bg-parchment dark:bg-slateDark-elevated border-4 border-parchment-warm dark:border-slateDark-card shadow-lg"
+                  />
+                ) : (
+                  <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-burgundy dark:bg-slateDark-elevated border-4 border-parchment-warm dark:border-slateDark-card flex items-center justify-center font-serif text-3xl sm:text-4xl font-bold text-parchment dark:text-gold shadow-lg">
+                    {profileUser.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+
+                {isOwnProfile && (
+                  <button
+                    type="button"
+                    disabled={isUploadingMedia}
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="absolute -bottom-1.5 -right-1.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-[11px] font-bold shadow-md border-2 border-parchment-warm dark:border-slateDark-card transition-transform hover:scale-105"
+                    title="Alterar foto de perfil"
+                  >
+                    <Camera className="w-3 h-3" />
+                    <span>Foto</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Identificação */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
+                    {profileUser.name}
+                  </h1>
+                  <span className="px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg">
+                    {roleBadgeLabel}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+                  {profileUser.title_badge && (
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-burgundy dark:text-gold">
+                      <Award className="w-4 h-4" />
+                      {profileUser.title_badge}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Membro desde{' '}
+                    {new Date(profileUser.created_at || Date.now()).toLocaleDateString(
+                      'pt-BR',
+                      { month: 'long', year: 'numeric' }
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Ações do Próprio Perfil */}
+            {isOwnProfile && (
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                {!isEditing && (
+                  <button
+                    type="button"
+                    onClick={startEditing}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-elevated text-xs sm:text-sm font-semibold text-ink dark:text-slateDark-text hover:border-burgundy transition-colors"
+                  >
+                    <Edit3 className="w-4 h-4 text-burgundy dark:text-gold" />
+                    <span>Editar Perfil, Foto &amp; Capa</span>
+                  </button>
+                )}
+                <Link
+                  to="/escrever"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-colors"
+                >
+                  <Feather className="w-4 h-4" />
+                  <span>Escrever Novo Texto</span>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {profileUser.bio && (
+            <p className="text-sm sm:text-base text-ink dark:text-slateDark-text max-w-3xl leading-relaxed">
+              {profileUser.bio}
+            </p>
+          )}
+
+          {/* Formulário de Edição Rápida do Perfil (Nome, Título, Bio, Foto e Capa) */}
+          {isOwnProfile && isEditing && (
+            <form
+              onSubmit={handleSaveProfile}
+              className="pt-5 border-t border-parchment-deep dark:border-slateDark-border space-y-5"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1">
+                    Seu Nome de Autor *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1">
+                    Título / Área de Interesse
+                  </label>
+                  <input
+                    type="text"
+                    value={editBadge}
+                    onChange={(e) => setEditBadge(e.target.value)}
+                    placeholder="Ex: Leitor de Patrística & Literatura Russa"
+                    className="w-full px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Controles de Foto de Perfil e Imagem de Capa */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border">
+                {/* Foto de Perfil */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-burgundy dark:text-gold">
+                    Foto de Perfil
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-xs font-semibold"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Enviar Foto do Computador/Celular</span>
+                    </button>
+                    {editAvatarUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEditAvatarUrl('')}
+                        className="px-2.5 py-1.5 rounded-md border border-red-500/40 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-500/10"
+                      >
+                        Remover Foto
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={editAvatarUrl.startsWith('data:') ? '' : editAvatarUrl}
+                    onChange={(e) => setEditAvatarUrl(e.target.value)}
+                    placeholder="Ou cole o link (URL) de uma foto https://..."
+                    className="w-full px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-xs text-ink dark:text-slateDark-text"
+                  />
+                </div>
+
+                {/* Imagem de Capa */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-burgundy dark:text-gold">
+                    Imagem de Capa do Perfil
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => coverInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-navy text-parchment dark:bg-gold dark:text-slateDark-bg text-xs font-semibold"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Enviar Capa do Computador/Celular</span>
+                    </button>
+                    {editCoverUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEditCoverUrl('')}
+                        className="px-2.5 py-1.5 rounded-md border border-red-500/40 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-500/10"
+                      >
+                        Remover Capa
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={editCoverUrl.startsWith('data:') ? '' : editCoverUrl}
+                    onChange={(e) => setEditCoverUrl(e.target.value)}
+                    placeholder="Ou cole o link (URL) de uma capa https://..."
+                    className="w-full px-3 py-1.5 rounded border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-xs text-ink dark:text-slateDark-text"
+                  />
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[11px] text-ink-muted">Sugestões rápidas:</span>
+                    {COVER_PRESETS.map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => setEditCoverUrl(preset.url)}
+                        className="px-2 py-0.5 rounded bg-parchment-warm dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border text-[11px] font-semibold text-ink-secondary dark:text-slateDark-text hover:border-burgundy"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1">
-                  Seu Nome de Autor *
+                  Apresentação Literária / Bio
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
+                <textarea
+                  rows={2}
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1">
-                  Título / Área de Interesse
-                </label>
-                <input
-                  type="text"
-                  value={editBadge}
-                  onChange={(e) => setEditBadge(e.target.value)}
-                  placeholder="Ex: Leitor de Patrística & Literatura Russa"
-                  className="w-full px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
-                />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="inline-flex items-center gap-1 px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink-secondary dark:text-slateDark-muted"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Cancelar</span>
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-forest text-parchment text-xs font-semibold"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Salvar Alterações</span>
+                </button>
               </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1">
-                Apresentação Literária / Bio
-              </label>
-              <textarea
-                rows={2}
-                value={editBio}
-                onChange={(e) => setEditBio(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="inline-flex items-center gap-1 px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border text-xs font-semibold text-ink-secondary dark:text-slateDark-muted"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Cancelar</span>
-              </button>
-              <button
-                type="submit"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-forest text-parchment text-xs font-semibold"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>Salvar Alterações</span>
-              </button>
-            </div>
-          </form>
-        )}
+            </form>
+          )}
 
         {/* Contadores de Atividade Literária */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-parchment-deep dark:border-slateDark-border">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4 border-t border-parchment-deep dark:border-slateDark-border">
+          <div className="p-3.5 rounded-lg bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border">
+            <span className="text-xs font-semibold text-ink-secondary dark:text-slateDark-muted block">
+              Séries &amp; Notas
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-serif text-2xl font-bold text-burgundy dark:text-gold">
+                {userSeries.length}
+              </span>
+              <span className="text-xs font-semibold text-ink-muted dark:text-slateDark-muted">
+                ({userSeriesEntriesCount} notas)
+              </span>
+            </div>
+          </div>
+
           <div className="p-3.5 rounded-lg bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border">
             <span className="text-xs font-semibold text-ink-secondary dark:text-slateDark-muted block">
               Resenhas de Obras
@@ -385,10 +717,26 @@ export const ProfilePage: React.FC = () => {
             </span>
           </div>
         </div>
+        </div>
       </section>
 
-      {/* 2. ABAS: RESENHAS DE OBRAS | ENSAIOS | COMENTÁRIOS */}
+      {/* 2. ABAS: SÉRIES & CADERNOS | RESENHAS DE OBRAS | ENSAIOS | COMENTÁRIOS */}
       <div className="flex items-center gap-2 overflow-x-auto pb-3 sm:flex-wrap no-scrollbar -mx-3.5 px-3.5 sm:mx-0 sm:px-0 border-b border-parchment-deep dark:border-slateDark-border">
+        <button
+          type="button"
+          onClick={() => setActiveTab('SERIES')}
+          className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold border transition-all whitespace-nowrap shrink-0 ${
+            activeTab === 'SERIES'
+              ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg dark:border-gold shadow-sm'
+              : 'bg-parchment-warm dark:bg-slateDark-card text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border'
+          }`}
+        >
+          <BookMarked className="w-4 h-4" />
+          <span>
+            Séries &amp; Cadernos ({userSeries.length} • {userSeriesEntriesCount} notas)
+          </span>
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveTab('WORKS')}
@@ -428,6 +776,126 @@ export const ProfilePage: React.FC = () => {
           <span>Comentários ({userComments.length})</span>
         </button>
       </div>
+
+      {/* CONTEÚDO DA ABA SÉRIES & CADERNOS */}
+      {activeTab === 'SERIES' && (
+        <div className="space-y-6">
+          {userSeries.length === 0 ? (
+            <div className="p-8 sm:p-10 rounded-xl border border-dashed border-parchment-deep dark:border-slateDark-border bg-parchment-warm/50 dark:bg-slateDark-card text-center space-y-3">
+              <BookMarked className="w-8 h-8 text-burgundy dark:text-gold mx-auto" />
+              <p className="font-serif text-lg sm:text-xl font-bold text-ink dark:text-slateDark-text">
+                Nenhuma Série ou Caderno publicado por este autor
+              </p>
+              <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+                As séries de comentários recorrentes e cadernos de estudo deste autor aparecerão listadas aqui.
+              </p>
+              {isOwnProfile && permissions.can_manage_series && (
+                <Link
+                  to="/series"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-xs sm:text-sm font-semibold"
+                >
+                  <BookMarked className="w-4 h-4" />
+                  <span>Ir para Séries &amp; Cadernos</span>
+                </Link>
+              )}
+            </div>
+          ) : (
+            userSeries.map((s) => {
+              const entries = s.entries || [];
+              return (
+                <div
+                  key={s.id}
+                  className="p-5 sm:p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial space-y-5"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-parchment-deep/70 dark:border-slateDark-border pb-4">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="px-2.5 py-0.5 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold uppercase tracking-wider">
+                          {s.cadence_label || 'Publicação Diária'}
+                        </span>
+                        {s.category && (
+                          <span className="px-2.5 py-0.5 rounded bg-parchment-warm dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border font-semibold">
+                            {s.category.name}
+                          </span>
+                        )}
+                        <span className="px-2.5 py-0.5 rounded bg-forest/15 text-forest dark:text-emerald-300 font-bold">
+                          {entries.length || s.entries_count} notas publicadas
+                        </span>
+                      </div>
+
+                      <Link
+                        to={`/series/${s.slug}`}
+                        className="block font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                      >
+                        {s.title}
+                      </Link>
+
+                      {s.book_title && (
+                        <p className="text-xs sm:text-sm font-semibold text-burgundy dark:text-gold">
+                          Obra de referência: {s.book_title}
+                          {s.book_author ? ` — ${s.book_author}` : ''}
+                        </p>
+                      )}
+
+                      {s.description && (
+                        <p className="text-sm text-ink-secondary dark:text-slateDark-muted leading-relaxed">
+                          {s.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <Link
+                      to={`/series/${s.slug}`}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-xs sm:text-sm font-semibold shrink-0 shadow-xs transition-colors"
+                    >
+                      <BookMarked className="w-4 h-4" />
+                      <span>Abrir Caderno Completo</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+
+                  {/* Lista de Notas desta Série */}
+                  {entries.length > 0 && (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-ink-muted dark:text-slateDark-muted">
+                        <span>Índice de Notas Publicadas ({entries.length})</span>
+                        <span>Clique em qualquer nota para ler</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-96 overflow-y-auto pr-1">
+                        {entries.map((entry) => (
+                          <Link
+                            key={entry.id}
+                            to={`/series/${s.slug}/${entry.slug}`}
+                            className="p-3 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-elevated hover:border-burgundy dark:hover:border-gold transition-colors space-y-1 group"
+                          >
+                            <div className="flex items-center justify-between gap-2 text-[11px] font-bold text-burgundy dark:text-gold">
+                              <span>
+                                #{String(entry.entry_number).padStart(2, '0')} •{' '}
+                                {entry.reference_label || 'Nota'}
+                              </span>
+                              {entry.published_at && (
+                                <span className="font-mono text-[10px] text-ink-muted dark:text-slateDark-muted">
+                                  {new Date(entry.published_at).toLocaleDateString('pt-BR')}
+                                </span>
+                              )}
+                            </div>
+                            <p className="font-serif font-bold text-sm text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold line-clamp-1">
+                              {entry.title}
+                            </p>
+                            <p className="text-xs text-ink-secondary dark:text-slateDark-muted line-clamp-2">
+                              {entry.body}
+                            </p>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* CONTEÚDO DA ABA SELECIONADA */}
       {activeTab === 'WORKS' && (
@@ -544,8 +1012,15 @@ export const ProfilePage: React.FC = () => {
                         {isOwnProfile && (
                           <button
                             type="button"
-                            onClick={() => {
-                              if (window.confirm(`Tem certeza que deseja apagar a resenha "${work.title}"?`)) {
+                            onClick={async () => {
+                              const ok = await requestConfirm({
+                                title: 'Excluir Publicação',
+                                description: `Tem certeza que deseja excluir permanentemente "${work.title}"? Esta ação não pode ser desfeita.`,
+                                confirmLabel: 'Sim, Excluir',
+                                cancelLabel: 'Cancelar',
+                                variant: 'danger',
+                              });
+                              if (ok) {
                                 deleteContent('WORK', work.id, work.title);
                               }
                             }}
@@ -670,8 +1145,15 @@ export const ProfilePage: React.FC = () => {
                       {isOwnProfile && (
                         <button
                           type="button"
-                          onClick={() => {
-                            if (window.confirm(`Tem certeza que deseja apagar o ensaio "${topic.title}"?`)) {
+                          onClick={async () => {
+                            const ok = await requestConfirm({
+                              title: 'Excluir Ensaio',
+                              description: `Tem certeza que deseja excluir permanentemente o ensaio "${topic.title}"?`,
+                              confirmLabel: 'Sim, Excluir',
+                              cancelLabel: 'Cancelar',
+                              variant: 'danger',
+                            });
+                            if (ok) {
                               deleteContent('TOPIC', topic.id, topic.title);
                             }
                           }}
@@ -716,6 +1198,8 @@ export const ProfilePage: React.FC = () => {
               const targetUrl =
                 targetType === 'WORK'
                   ? `/obras/${targetSlug}#comentarios`
+                  : targetType === 'SERIES_ENTRY'
+                  ? `/series/${targetSlug}`
                   : `/topicos/${targetSlug}#comentarios-topico`;
 
               return (
@@ -726,7 +1210,13 @@ export const ProfilePage: React.FC = () => {
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-parchment-deep dark:border-slateDark-border text-xs">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="px-2 py-0.5 rounded bg-parchment-warm dark:bg-slateDark-elevated font-bold text-burgundy dark:text-gold">
-                        Comentou em {targetType === 'WORK' ? 'Obra' : 'Ensaio'}:
+                        Comentou em{' '}
+                        {targetType === 'WORK'
+                          ? 'Obra'
+                          : targetType === 'SERIES_ENTRY'
+                          ? 'Série'
+                          : 'Ensaio'}
+                        :
                       </span>
                       <Link
                         to={targetUrl}
@@ -764,8 +1254,15 @@ export const ProfilePage: React.FC = () => {
                       {isOwnProfile && (
                         <button
                           type="button"
-                          onClick={() => {
-                            if (window.confirm('Tem certeza que deseja apagar este comentário?')) {
+                          onClick={async () => {
+                            const ok = await requestConfirm({
+                              title: 'Excluir Comentário',
+                              description: `Tem certeza que deseja excluir seu comentário em "${targetTitle}"?`,
+                              confirmLabel: 'Sim, Excluir',
+                              cancelLabel: 'Cancelar',
+                              variant: 'danger',
+                            });
+                            if (ok) {
                               deleteContent('COMMENT', comment.id, `Comentário em ${targetTitle}`);
                             }
                           }}

@@ -159,9 +159,17 @@ export const Navbar: React.FC = () => {
                       : 'bg-parchment-warm dark:bg-slateDark-card border-parchment-deep dark:border-slateDark-border text-ink dark:text-slateDark-text hover:border-burgundy/40'
                   }`}
                 >
-                  <span className="w-5 h-5 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-[11px] flex items-center justify-center shrink-0">
-                    {firstName.charAt(0).toUpperCase()}
-                  </span>
+                  {currentUser.avatar_url ? (
+                    <img
+                      src={currentUser.avatar_url}
+                      alt={firstName}
+                      className="w-5 h-5 rounded-full object-cover border border-burgundy/30 dark:border-gold/40 shrink-0"
+                    />
+                  ) : (
+                    <span className="w-5 h-5 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-[11px] flex items-center justify-center shrink-0">
+                      {firstName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
                   <span className="max-w-[90px] truncate">{firstName}</span>
                 </Link>
                 <button
@@ -234,9 +242,17 @@ export const Navbar: React.FC = () => {
                 to="/perfil"
                 className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90"
               >
-                <div className="w-9 h-9 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-sm flex items-center justify-center shrink-0">
-                  {currentUser.name.charAt(0).toUpperCase()}
-                </div>
+                {currentUser.avatar_url ? (
+                  <img
+                    src={currentUser.avatar_url}
+                    alt={currentUser.name}
+                    className="w-9 h-9 rounded-full object-cover border border-burgundy/30 dark:border-gold/40 shrink-0"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-sm flex items-center justify-center shrink-0">
+                    {currentUser.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="min-w-0">
                   <p className="font-serif font-bold text-sm text-ink dark:text-slateDark-text truncate">
                     {currentUser.name}
