@@ -16,6 +16,7 @@ import {
   SeriesEntry,
   UserFollowRecord,
   DirectMessage,
+  UserNotification,
 } from '../types/schema';
 import {
   DEMO_USERS,
@@ -81,6 +82,7 @@ interface AppContextType {
     bio?: string;
     avatar_url?: string | null;
     cover_url?: string | null;
+    dm_policy?: 'MUTUAL' | 'FOLLOWERS' | 'EVERYONE';
   }) => Promise<void>;
   updateUserRoleRbac: (
     userId: number,
@@ -213,7 +215,17 @@ interface AppContextType {
   userFollows: UserFollowRecord[];
   directMessages: DirectMessage[];
   unreadMessagesCount: number;
+  notifications: UserNotification[];
+  unreadNotificationsCount: number;
   isFollowingUser: (targetUserId: number, followerId?: number) => boolean;
+  canMessageUser: (targetUser: User) => {
+    allowed: boolean;
+    policy: 'MUTUAL' | 'FOLLOWERS' | 'EVERYONE';
+    iFollow: boolean;
+    followsMe: boolean;
+    isMutual: boolean;
+    reason: string;
+  };
   getFollowersOf: (userId: number) => User[];
   getFollowingOf: (userId: number) => User[];
   toggleFollowUser: (targetUserId: number) => Promise<void>;
@@ -224,11 +236,16 @@ interface AppContextType {
       type: 'WORK' | 'TOPIC' | 'SERIES' | 'SERIES_ENTRY';
       slug: string;
       title: string;
-    }
+    },
+    forceStaffOverride?: boolean
   ) => Promise<DirectMessage | null>;
   markConversationRead: (partnerId: number) => Promise<void>;
   deleteDirectMessage: (messageId: number) => Promise<void>;
   refreshSocialAndChat: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
+  markNotificationRead: (id: number) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  deleteNotification: (id: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -387,6 +404,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return [];
   });
+  const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const [settings, setSettings] = useState<PlatformSettings>(INITIAL_SETTINGS);
   const [apiConnected, setApiConnected] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -513,6 +531,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         if (data.direct_messages && Array.isArray(data.direct_messages)) {
           setDirectMessages(data.direct_messages);
+        }
+        if (data.notifications && Array.isArray(data.notifications)) {
+          setNotifications(data.notifications);
         }
         if (data.settings) setSettings(data.settings);
         if (data.users?.length) {
@@ -708,6 +729,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     bio?: string;
     avatar_url?: string | null;
     cover_url?: string | null;
+    dm_policy?: 'MUTUAL' | 'FOLLOWERS' | 'EVERYONE';
   }) => {
     let updatedUser: User = {
       ...currentUser,
@@ -718,6 +740,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         payload.avatar_url !== undefined ? payload.avatar_url : currentUser.avatar_url,
       cover_url:
         payload.cover_url !== undefined ? payload.cover_url : currentUser.cover_url,
+      dm_policy: payload.dm_policy ?? currentUser.dm_policy ?? 'MUTUAL',
     };
 
     try {
@@ -2210,10 +2233,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (res.messages && Array.isArray(res.messages)) {
         setDirectMessages(res.messages);
       }
+      if (res.notifications && Array.isArray(res.notifications)) {
+        setNotifications(res.notifications);
+      }
     } catch {
       // ignore offline
     }
   }, [currentUser.role]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !apiConnected) return;
+    const timer = setInterval(() => {
+      refreshSocialAndChat();
+    }, 20000);
+    return () => clearInterval(timer);
+  }, [isAuthenticated, apiConnected, refreshSocialAndChat]);
+
+  const refreshNotifications = useCallback(async () => {
+    if (!isAuthenticated || !apiConnected) return;
+    try {
+      const res = await apiService.listNotifications(currentUser.role);
+      if (res.notifications && Array.isArray(res.notifications)) {
+        setNotifications(res.notifications);
+      }
+    } catch {
+      // ignore
+    }
+  }, [isAuthenticated, apiConnected, currentUser.role]);
+
+  const markNotificationRead = useCallback(
+    async (id: number) => {
+      const nowIso = new Date().toISOString();
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id && !n.read_at ? { ...n, read_at: nowIso } : n))
+      );
+      if (apiConnected) {
+        try {
+          await apiService.markNotificationRead(id, currentUser.role);
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [apiConnected, currentUser.role]
+  );
+
+  const markAllNotificationsRead = useCallback(async () => {
+    const nowIso = new Date().toISOString();
+    setNotifications((prev) => prev.map((n) => (n.read_at ? n : { ...n, read_at: nowIso })));
+    if (apiConnected) {
+      try {
+        await apiService.markAllNotificationsRead(currentUser.role);
+      } catch {
+        // ignore
+      }
+    }
+  }, [apiConnected, currentUser.role]);
+
+  const deleteNotification = useCallback(
+    async (id: number) => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      if (apiConnected) {
+        try {
+          await apiService.deleteNotification(id, currentUser.role);
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [apiConnected, currentUser.role]
+  );
 
   const isFollowingUser = useCallback(
     (targetUserId: number, followerId?: number): boolean => {
@@ -2224,6 +2313,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
     },
     [userFollows, currentUser.id]
+  );
+
+  const canMessageUser = useCallback(
+    (targetUser: User) => {
+      const policy = (targetUser.dm_policy || 'MUTUAL') as 'MUTUAL' | 'FOLLOWERS' | 'EVERYONE';
+      const iFollow = isFollowingUser(targetUser.id);
+      const followsMe = isFollowingUser(currentUser.id, targetUser.id);
+      const isMutual = iFollow && followsMe;
+
+      const allowed =
+        policy === 'EVERYONE' ||
+        (policy === 'FOLLOWERS' && iFollow) ||
+        (policy === 'MUTUAL' && isMutual);
+
+      let reason = '';
+      if (!allowed) {
+        if (policy === 'FOLLOWERS') {
+          reason = `Siga ${targetUser.name} para enviar mensagens privadas.`;
+        } else if (!iFollow && followsMe) {
+          reason = `${targetUser.name} já segue você! Siga de volta para liberar o chat privado.`;
+        } else if (iFollow && !followsMe) {
+          reason = `Você já segue ${targetUser.name} — aguardando seguir de volta para liberar o chat.`;
+        } else {
+          reason = `Chat privado disponível apenas entre seguidores mútuos. Siga ${targetUser.name} e aguarde ser seguido de volta.`;
+        }
+      }
+
+      return { allowed, policy, iFollow, followsMe, isMutual, reason };
+    },
+    [isFollowingUser, currentUser.id]
   );
 
   const getFollowersOf = useCallback(
@@ -2325,7 +2444,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'WORK' | 'TOPIC' | 'SERIES' | 'SERIES_ENTRY';
       slug: string;
       title: string;
-    }
+    },
+    forceStaffOverride?: boolean
   ): Promise<DirectMessage | null> => {
     if (!isAuthenticated) {
       showToast(
@@ -2349,6 +2469,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             shared_type: sharedItem?.type ?? null,
             shared_slug: sharedItem?.slug ?? null,
             shared_title: sharedItem?.title ?? null,
+            force_staff_override: Boolean(forceStaffOverride),
           },
           currentUser.role
         );
@@ -2440,6 +2561,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ).length;
   }, [directMessages, isAuthenticated, currentUser.id]);
 
+  const unreadNotificationsCount = React.useMemo(() => {
+    if (!isAuthenticated) return 0;
+    return notifications.filter((n) => !n.read_at).length;
+  }, [notifications, isAuthenticated]);
+
   return (
     <AppContext.Provider
       value={{
@@ -2507,7 +2633,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userFollows,
         directMessages,
         unreadMessagesCount,
+        notifications,
+        unreadNotificationsCount,
         isFollowingUser,
+        canMessageUser,
         getFollowersOf,
         getFollowingOf,
         toggleFollowUser,
@@ -2515,6 +2644,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         markConversationRead,
         deleteDirectMessage,
         refreshSocialAndChat,
+        refreshNotifications,
+        markNotificationRead,
+        markAllNotificationsRead,
+        deleteNotification,
       }}
     >
       {children}

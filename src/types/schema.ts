@@ -39,6 +39,7 @@ export interface User {
   role: UserRole;
   avatar_url?: string | null;
   cover_url?: string | null;
+  dm_policy?: 'MUTUAL' | 'FOLLOWERS' | 'EVERYONE';
   bio?: string;
   title_badge?: string;
   is_banned: boolean;
@@ -229,6 +230,32 @@ export interface DirectMessage {
   shared_type?: 'WORK' | 'TOPIC' | 'SERIES' | 'SERIES_ENTRY' | null;
   shared_slug?: string | null;
   shared_title?: string | null;
+  read_at?: string | null;
+  created_at: string;
+}
+
+export interface UserNotification {
+  id: number;
+  user_id: number;
+  actor_id?: number | null;
+  actor_name: string;
+  actor_avatar_url?: string | null;
+  type:
+    | 'FOLLOW'
+    | 'DIRECT_MESSAGE'
+    | 'COMMENT_ON_POST'
+    | 'REPLY_TO_COMMENT'
+    | 'UPVOTE'
+    | 'MODERATION_APPROVED'
+    | 'MODERATION_REJECTED'
+    | 'MODERATION_DELETED'
+    | 'ROLE_UPDATED'
+    | string;
+  title: string;
+  body?: string | null;
+  target_type?: string | null;
+  target_id?: number | null;
+  action_url?: string | null;
   read_at?: string | null;
   created_at: string;
 }

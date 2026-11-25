@@ -16,6 +16,7 @@ import {
   SeriesEntry,
   UserFollowRecord,
   DirectMessage,
+  UserNotification,
 } from '../types/schema';
 
 declare global {
@@ -194,6 +195,7 @@ export interface BootstrapResponse {
   users?: User[];
   user_follows?: UserFollowRecord[];
   direct_messages?: DirectMessage[];
+  notifications?: UserNotification[];
 }
 
 export const apiService = {
@@ -237,6 +239,7 @@ export const apiService = {
       bio?: string;
       avatar_url?: string | null;
       cover_url?: string | null;
+      dm_policy?: 'MUTUAL' | 'FOLLOWERS' | 'EVERYONE';
       user_id?: number;
       email?: string;
     },
@@ -634,6 +637,8 @@ export const apiService = {
     users: User[];
     messages: DirectMessage[];
     unread_count: number;
+    notifications?: UserNotification[];
+    unread_notifications_count?: number;
   }> {
     return request(
       '/social/overview',
@@ -666,6 +671,7 @@ export const apiService = {
       shared_type?: 'WORK' | 'TOPIC' | 'SERIES' | 'SERIES_ENTRY' | null;
       shared_slug?: string | null;
       shared_title?: string | null;
+      force_staff_override?: boolean;
     },
     role: UserRole
   ): Promise<{ message_item: DirectMessage; log?: ModerationLog }> {
@@ -699,5 +705,33 @@ export const apiService = {
       { method: 'DELETE' },
       role
     );
+  },
+
+  // Notificações Pessoais
+  async listNotifications(role: UserRole): Promise<{
+    notifications: UserNotification[];
+    unread_count: number;
+  }> {
+    return request('/notifications', { method: 'GET' }, role);
+  },
+
+  async markNotificationRead(
+    id: number,
+    role: UserRole
+  ): Promise<{ notification: UserNotification }> {
+    return request(`/notifications/${id}/read`, { method: 'POST' }, role);
+  },
+
+  async markAllNotificationsRead(
+    role: UserRole
+  ): Promise<{ updated_count: number }> {
+    return request('/notifications/read-all', { method: 'POST' }, role);
+  },
+
+  async deleteNotification(
+    id: number,
+    role: UserRole
+  ): Promise<{ deleted: boolean; notification_id: number }> {
+    return request(`/notifications/${id}`, { method: 'DELETE' }, role);
   },
 };

@@ -19,6 +19,8 @@ import {
   RefreshCw,
   LogIn,
   ExternalLink,
+  Lock,
+  ShieldAlert,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { User, DirectMessage } from '../types/schema';
@@ -42,12 +44,14 @@ export const ChatPage: React.FC = () => {
   const {
     currentUser,
     isAuthenticated,
+    permissions,
     usersList,
     works,
     topics,
     series,
     directMessages,
     isFollowingUser,
+    canMessageUser,
     getFollowersOf,
     getFollowingOf,
     toggleFollowUser,
@@ -70,6 +74,9 @@ export const ChatPage: React.FC = () => {
   const [shareSearchQuery, setShareSearchQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [staffOverrideByPartnerId, setStaffOverrideByPartnerId] = useState<
+    Record<number, boolean>
+  >({});
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -342,6 +349,11 @@ export const ChatPage: React.FC = () => {
 
     setIsSending(true);
     try {
+      const dmCheck = canMessageUser(selectedPartner);
+      const useStaffOverride =
+        !dmCheck.allowed &&
+        permissions.can_moderate_queue &&
+        Boolean(staffOverrideByPartnerId[selectedPartner.id]);
       await sendDirectMessage(
         selectedPartner.id,
         text,
@@ -351,7 +363,8 @@ export const ChatPage: React.FC = () => {
               slug: attachedItem.slug,
               title: attachedItem.title,
             }
-          : undefined
+          : undefined,
+        useStaffOverride
       );
       setMessageInput('');
       setAttachedItem(null);
@@ -439,10 +452,14 @@ export const ChatPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Main 2-Column Chat & Discovery Shell */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 rounded-2xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden min-h-[640px]">
+      {/* Main 2-Column Chat & Discovery Shell (Mobile switches cleanly between list and active chat) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 rounded-2xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden min-h-[540px] lg:min-h-[640px]">
         {/* LEFT SIDEBAR: SEARCH + TABS (CONVERSAS | PESSOAS | PESQUISAR TUDO) */}
-        <aside className="lg:col-span-5 xl:col-span-4 border-b lg:border-b-0 lg:border-r border-parchment-deep dark:border-slateDark-border flex flex-col bg-parchment-warm/60 dark:bg-slateDark-elevated/40">
+        <aside
+          className={`${
+            selectedPartner ? 'hidden lg:flex' : 'flex'
+          } lg:col-span-5 xl:col-span-4 border-b lg:border-b-0 lg:border-r border-parchment-deep dark:border-slateDark-border flex-col bg-parchment-warm/60 dark:bg-slateDark-elevated/40`}
+        >
           {/* Universal Search Bar */}
           <div className="p-3.5 border-b border-parchment-deep dark:border-slateDark-border space-y-2.5">
             <div className="relative">
@@ -669,18 +686,22 @@ export const ChatPage: React.FC = () => {
                             </Link>
 
                             <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <Link
                                   to={`/perfil/${person.id}`}
                                   className="font-serif font-bold text-sm text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold truncate"
                                 >
                                   {person.name}
                                 </Link>
-                                {followsMe && (
+                                {following && followsMe ? (
+                                  <span className="px-1.5 py-0.2 rounded bg-forest/15 text-forest dark:text-emerald-300 text-[10px] font-semibold shrink-0">
+                                    Mútuo
+                                  </span>
+                                ) : followsMe ? (
                                   <span className="px-1.5 py-0.2 rounded bg-parchment-deep dark:bg-slateDark-elevated text-[10px] font-semibold text-ink-secondary dark:text-slateDark-muted shrink-0">
                                     Segue você
                                   </span>
-                                )}
+                                ) : null}
                               </div>
                               <p className="text-[11px] text-burgundy dark:text-gold truncate">
                                 {person.title_badge || person.role}
@@ -886,7 +907,11 @@ export const ChatPage: React.FC = () => {
         </aside>
 
         {/* RIGHT PANE: ACTIVE PRIVATE CONVERSATION */}
-        <section className="lg:col-span-7 xl:col-span-8 flex flex-col bg-parchment dark:bg-slateDark-card">
+        <section
+          className={`${
+            selectedPartner ? 'flex' : 'hidden lg:flex'
+          } lg:col-span-7 xl:col-span-8 flex-col bg-parchment dark:bg-slateDark-card`}
+        >
           {!selectedPartner ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
               <div className="w-16 h-16 rounded-2xl bg-burgundy/10 dark:bg-gold/15 text-burgundy dark:text-gold flex items-center justify-center">
@@ -1194,49 +1219,119 @@ export const ChatPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Message Composer Footer */}
-              <form
-                onSubmit={handleSend}
-                className="p-3.5 sm:p-4 border-t border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-elevated/60 flex items-end gap-2"
-              >
-                <button
-                  type="button"
-                  onClick={() => setShowSharePicker((v) => !v)}
-                  title="Pesquisar e anexar livro, ensaio ou nota da CFW na mensagem"
-                  className={`p-2.5 rounded-xl border transition-colors shrink-0 ${
-                    showSharePicker
-                      ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg'
-                      : 'bg-parchment dark:bg-slateDark-card border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-gold hover:border-burgundy'
-                  }`}
-                >
-                  <Share2 className="w-4 h-4" />
-                </button>
+              {/* Message Composer Footer OR Privacy Lock Notice */}
+              {(() => {
+                const dmCheck = canMessageUser(selectedPartner);
+                const canSendNow =
+                  dmCheck.allowed ||
+                  (permissions.can_moderate_queue &&
+                    Boolean(staffOverrideByPartnerId[selectedPartner.id]));
 
-                <textarea
-                  rows={1}
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend(e);
-                    }
-                  }}
-                  placeholder={`Escreva uma mensagem privada para ${selectedPartner.name}... (Enter para enviar)`}
-                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-xs sm:text-sm text-ink dark:text-slateDark-text focus:outline-none focus:border-burgundy dark:focus:border-gold resize-none"
-                />
+                if (!canSendNow) {
+                  return (
+                    <div className="p-4 sm:p-5 border-t border-parchment-deep dark:border-slateDark-border bg-parchment-warm/80 dark:bg-slateDark-elevated/70 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-burgundy/15 dark:bg-gold/20 text-burgundy dark:text-gold flex items-center justify-center shrink-0">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-1 flex-1">
+                          <p className="font-serif font-bold text-sm text-ink dark:text-slateDark-text">
+                            Chat Privado Restrito por Privacidade
+                          </p>
+                          <p className="text-xs text-ink-secondary dark:text-slateDark-muted leading-relaxed">
+                            {dmCheck.reason}
+                          </p>
+                        </div>
+                      </div>
 
-                <button
-                  type="submit"
-                  disabled={
-                    isSending || (!messageInput.trim() && !attachedItem)
-                  }
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-all disabled:opacity-50 shrink-0"
-                >
-                  <Send className="w-4 h-4" />
-                  <span className="hidden sm:inline">Enviar</span>
-                </button>
-              </form>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {!dmCheck.iFollow ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleFollowUser(selectedPartner.id)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-xs font-semibold shadow-xs"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>
+                              {dmCheck.followsMe
+                                ? `Seguir de volta e Liberar Chat`
+                                : `Seguir ${selectedPartner.name}`}
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-forest/15 text-forest dark:text-emerald-300 border border-forest/30 text-xs font-semibold">
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>
+                              Você já segue {selectedPartner.name} • aguardando seguir de volta
+                            </span>
+                          </span>
+                        )}
+
+                        {permissions.can_moderate_queue && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setStaffOverrideByPartnerId((prev) => ({
+                                ...prev,
+                                [selectedPartner.id]: true,
+                              }))
+                            }
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card text-xs font-semibold text-ink-secondary dark:text-slateDark-muted hover:border-burgundy"
+                          >
+                            <ShieldAlert className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
+                            <span>Enviar mensagem como Moderação/Admin</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <form
+                    onSubmit={handleSend}
+                    className="p-3.5 sm:p-4 border-t border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-elevated/60 flex items-end gap-2"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowSharePicker((v) => !v)}
+                      title="Pesquisar e anexar livro, ensaio ou nota da CFW na mensagem"
+                      className={`p-2.5 rounded-xl border transition-colors shrink-0 ${
+                        showSharePicker
+                          ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg'
+                          : 'bg-parchment dark:bg-slateDark-card border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-gold hover:border-burgundy'
+                      }`}
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+
+                    <textarea
+                      rows={1}
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend(e);
+                        }
+                      }}
+                      placeholder={`Escreva uma mensagem privada para ${selectedPartner.name}... (Enter para enviar)`}
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-xs sm:text-sm text-ink dark:text-slateDark-text focus:outline-none focus:border-burgundy dark:focus:border-gold resize-none"
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={
+                        isSending || (!messageInput.trim() && !attachedItem)
+                      }
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-xs sm:text-sm font-semibold shadow-sm transition-all disabled:opacity-50 shrink-0"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span className="hidden sm:inline">Enviar</span>
+                    </button>
+                  </form>
+                );
+              })()}
             </>
           )}
         </section>

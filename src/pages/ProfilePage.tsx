@@ -125,6 +125,9 @@ export const ProfilePage: React.FC = () => {
   const [editBio, setEditBio] = useState(profileUser.bio || '');
   const [editAvatarUrl, setEditAvatarUrl] = useState(profileUser.avatar_url || '');
   const [editCoverUrl, setEditCoverUrl] = useState(profileUser.cover_url || '');
+  const [editDmPolicy, setEditDmPolicy] = useState<'MUTUAL' | 'FOLLOWERS' | 'EVERYONE'>(
+    profileUser.dm_policy || 'MUTUAL'
+  );
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [cropModalState, setCropModalState] = useState<{
     isOpen: boolean;
@@ -141,6 +144,7 @@ export const ProfilePage: React.FC = () => {
     setEditBio(currentUser.bio || '');
     setEditAvatarUrl(currentUser.avatar_url || '');
     setEditCoverUrl(currentUser.cover_url || '');
+    setEditDmPolicy(currentUser.dm_policy || 'MUTUAL');
     setIsEditing(true);
   };
 
@@ -153,6 +157,7 @@ export const ProfilePage: React.FC = () => {
       bio: editBio.trim(),
       avatar_url: editAvatarUrl.trim() || null,
       cover_url: editCoverUrl.trim() || null,
+      dm_policy: editDmPolicy,
     });
     setIsEditing(false);
   };
@@ -633,7 +638,12 @@ export const ProfilePage: React.FC = () => {
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-elevated text-xs sm:text-sm font-semibold text-ink dark:text-slateDark-text hover:border-burgundy transition-colors"
                 >
                   <MessageSquare className="w-4 h-4 text-burgundy dark:text-gold" />
-                  <span>Enviar Mensagem Privada</span>
+                  <span>
+                    {isFollowingUser(profileUser.id) &&
+                    isFollowingUser(currentUser.id, profileUser.id)
+                      ? 'Enviar Mensagem Privada'
+                      : 'Abrir Chat (Mútuo)'}
+                  </span>
                 </Link>
               </div>
             )}
@@ -880,16 +890,46 @@ export const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1">
-                  Apresentação Literária / Bio
-                </label>
-                <textarea
-                  rows={2}
-                  value={editBio}
-                  onChange={(e) => setEditBio(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1">
+                    Apresentação Literária / Bio
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editBio}
+                    onChange={(e) => setEditBio(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink dark:text-slateDark-text mb-1">
+                    Privacidade do Chat Privado
+                  </label>
+                  <select
+                    value={editDmPolicy}
+                    onChange={(e) =>
+                      setEditDmPolicy(
+                        e.target.value as 'MUTUAL' | 'FOLLOWERS' | 'EVERYONE'
+                      )
+                    }
+                    className="w-full px-3.5 py-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm font-medium"
+                  >
+                    <option value="MUTUAL">
+                      Apenas Conexões Mútuas (Seguindo e sendo seguido)
+                    </option>
+                    <option value="FOLLOWERS">
+                      Quem me segue pode me enviar mensagem
+                    </option>
+                    <option value="EVERYONE">
+                      Qualquer membro da comunidade
+                    </option>
+                  </select>
+                  <p className="text-[11px] text-ink-muted dark:text-slateDark-muted mt-1">
+                    Define quem pode iniciar conversas privadas com você.
+                  </p>
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <button

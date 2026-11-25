@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
@@ -12,9 +12,11 @@ import {
   User as UserIcon,
   Menu,
   X,
-  Sparkles,
   ClipboardList,
   MessageSquare,
+  Bell,
+  CheckCheck,
+  UserPlus,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -30,16 +32,38 @@ export const Navbar: React.FC = () => {
     works,
     topics,
     unreadMessagesCount,
+    notifications,
+    unreadNotificationsCount,
+    markNotificationRead,
+    markAllNotificationsRead,
+    isFollowingUser,
+    toggleFollowUser,
   } = useApp();
 
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement | null>(null);
 
-  // Close mobile drawer whenever route changes
+  // Close mobile drawer and notif dropdown whenever route changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
+    setIsNotifOpen(false);
   }, [location.pathname]);
+
+  // Close notif dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    };
+    if (isNotifOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isNotifOpen]);
 
   const pendingFlagsCount =
     moderationFlags.filter((f) => f.status === 'PENDING').length +
@@ -168,9 +192,141 @@ export const Navbar: React.FC = () => {
               <span>Escrever</span>
             </Link>
 
-            {/* User Session / Login */}
+            {/* User Session / Login + Bell Notifications */}
             {isAuthenticated ? (
               <div className="flex items-center gap-1.5 pl-2 border-l border-parchment-deep dark:border-slateDark-border shrink-0">
+                {/* Notification Bell Popover */}
+                <div ref={notifRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsNotifOpen((prev) => !prev)}
+                    aria-label="Notificações"
+                    title="Notificações e atividades recentes"
+                    className={`relative p-1.5 rounded-md border transition-colors ${
+                      isNotifOpen || location.pathname === '/notificacoes'
+                        ? 'bg-burgundy/15 dark:bg-gold/20 text-burgundy dark:text-gold border-burgundy/30 dark:border-gold/40'
+                        : 'bg-parchment-warm dark:bg-slateDark-card border-parchment-deep dark:border-slateDark-border text-ink-secondary dark:text-slateDark-text hover:border-burgundy/40'
+                    }`}
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    {unreadNotificationsCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-[10px] font-bold flex items-center justify-center leading-none">
+                        {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {isNotifOpen && (
+                    <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-2xl z-50 overflow-hidden animate-fade-in">
+                      <div className="px-4 py-3 border-b border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-elevated flex items-center justify-between gap-2">
+                        <span className="font-serif font-bold text-sm text-ink dark:text-slateDark-text flex items-center gap-1.5">
+                          <Bell className="w-4 h-4 text-burgundy dark:text-gold" />
+                          <span>Notificações</span>
+                          {unreadNotificationsCount > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-[10px] font-bold">
+                              {unreadNotificationsCount}
+                            </span>
+                          )}
+                        </span>
+                        {unreadNotificationsCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={markAllNotificationsRead}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-burgundy dark:text-gold hover:underline"
+                          >
+                            <CheckCheck className="w-3.5 h-3.5" />
+                            <span>Marcar lidas</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="max-h-80 overflow-y-auto divide-y divide-parchment-deep/60 dark:divide-slateDark-border/60">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-ink-muted dark:text-slateDark-muted">
+                            Nenhuma notificação recente.
+                          </div>
+                        ) : (
+                          notifications.slice(0, 6).map((n) => {
+                            const canFollowBack =
+                              n.type === 'FOLLOW' &&
+                              Boolean(n.actor_id) &&
+                              !isFollowingUser(n.actor_id!);
+                            return (
+                              <div
+                                key={n.id}
+                                className={`p-3 flex items-start gap-2.5 transition-colors hover:bg-parchment-warm/80 dark:hover:bg-slateDark-elevated/60 ${
+                                  !n.read_at ? 'bg-burgundy/[0.05] dark:bg-gold/[0.06]' : ''
+                                }`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!n.read_at) await markNotificationRead(n.id);
+                                    setIsNotifOpen(false);
+                                    if (n.action_url) navigate(n.action_url);
+                                  }}
+                                  className="flex-1 min-w-0 text-left space-y-0.5"
+                                >
+                                  <div className="flex items-center gap-1.5">
+                                    {!n.read_at && (
+                                      <span className="w-2 h-2 rounded-full bg-burgundy dark:bg-gold shrink-0" />
+                                    )}
+                                    <p className="font-serif font-bold text-xs text-ink dark:text-slateDark-text line-clamp-1">
+                                      {n.title}
+                                    </p>
+                                  </div>
+                                  {n.body && (
+                                    <p className="text-[11px] text-ink-secondary dark:text-slateDark-muted line-clamp-2">
+                                      {n.body}
+                                    </p>
+                                  )}
+                                </button>
+                                {canFollowBack && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleFollowUser(n.actor_id!)}
+                                    className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-[10px] font-bold"
+                                  >
+                                    <UserPlus className="w-3 h-3" />
+                                    <span>Seguir</span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      <Link
+                        to="/notificacoes"
+                        onClick={() => setIsNotifOpen(false)}
+                        className="block px-4 py-2.5 text-center text-xs font-bold text-burgundy dark:text-gold bg-parchment-warm dark:bg-slateDark-elevated border-t border-parchment-deep dark:border-slateDark-border hover:underline"
+                      >
+                        Ver todas as notificações →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                <Link
+                  to="/notificacoes"
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-semibold transition-colors ${
+                    location.pathname.startsWith('/notificacoes')
+                      ? 'bg-parchment-deep dark:bg-slateDark-elevated text-ink dark:text-white'
+                      : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-4 h-4 text-burgundy dark:text-gold" />
+                    <span>Notificações</span>
+                  </div>
+                  {unreadNotificationsCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg">
+                      {unreadNotificationsCount} novas
+                    </span>
+                  )}
+                </Link>
+
                 <Link
                   to="/perfil"
                   title={`Meu Perfil: ${currentUser.name} (${currentUser.role})`}
@@ -224,8 +380,22 @@ export const Navbar: React.FC = () => {
             </button>
           </div>
 
-          {/* Mobile/Tablet Right Controls: Theme + Hamburger Button */}
-          <div className="flex lg:hidden items-center gap-2">
+          {/* Mobile/Tablet Right Controls: Bell + Theme + Hamburger Button */}
+          <div className="flex lg:hidden items-center gap-1.5">
+            {isAuthenticated && (
+              <Link
+                to="/notificacoes"
+                aria-label="Notificações"
+                className="relative p-2 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card text-ink-secondary dark:text-gold hover:border-burgundy/40 transition-colors"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-[10px] font-bold flex items-center justify-center leading-none">
+                    {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                  </span>
+                )}
+              </Link>
+            )}
             <button
               onClick={toggleDark}
               aria-label="Alternar tema"
@@ -362,6 +532,25 @@ export const Navbar: React.FC = () => {
                   {unreadMessagesCount > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg">
                       {unreadMessagesCount} novas
+                    </span>
+                  )}
+                </Link>
+
+                <Link
+                  to="/notificacoes"
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-semibold transition-colors ${
+                    location.pathname.startsWith('/notificacoes')
+                      ? 'bg-parchment-deep dark:bg-slateDark-elevated text-ink dark:text-white'
+                      : 'text-ink-secondary dark:text-slateDark-text hover:bg-parchment-warm dark:hover:bg-slateDark-card'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-4 h-4 text-burgundy dark:text-gold" />
+                    <span>Notificações</span>
+                  </div>
+                  {unreadNotificationsCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg">
+                      {unreadNotificationsCount} novas
                     </span>
                   )}
                 </Link>

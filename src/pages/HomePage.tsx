@@ -6,7 +6,6 @@ import {
   Film,
   GraduationCap,
   MessageSquareQuote,
-  Sparkles,
   Search,
   Star,
   MessageCircle,
@@ -20,9 +19,8 @@ import {
   FileText,
   Feather,
   Clock,
-  ChevronDown,
-  ChevronUp,
-  Send,
+  ArrowRight,
+  Layers,
   ShieldAlert,
   CheckCircle2,
   XCircle,
@@ -30,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { AffiliateButton } from '../components/AffiliateButton';
-import { RichTextRenderer, getReadingMetrics } from '../components/RichTextRenderer';
+import { getReadingMetrics } from '../components/RichTextRenderer';
 import { MediaType } from '../types/schema';
 
 export const HomePage: React.FC = () => {
@@ -43,18 +41,13 @@ export const HomePage: React.FC = () => {
     currentUser,
     isAuthenticated,
     permissions,
-    textAlign,
-    fontSize,
-    fontFamily,
     moderateWorkStatus,
     moderateTopicStatus,
     deleteContent,
     deleteByModerator,
-    addComment,
     upvoteItem,
     hasUserUpvoted,
     setFlagModalTarget,
-    showToast,
   } = useApp();
 
   const [selectedMediaFilter, setSelectedMediaFilter] = useState<string>('ALL');
@@ -70,57 +63,24 @@ export const HomePage: React.FC = () => {
     'Remoção pela Moderação por inadequação às diretrizes editoriais.'
   );
 
-  // Track which book essays are expanded inline on the feed
-  const [expandedWorkIds, setExpandedWorkIds] = useState<Record<number, boolean>>({
-    1: true, // First essay ("Confissões") already expanded so the user immediately sees a rich long text!
-  });
-
-  // Track which book cards have their inline comment drawer open
-  const [openCommentsWorkIds, setOpenCommentsWorkIds] = useState<
-    Record<number, boolean>
-  >({
-    1: true,
-  });
-
-  const [quickCommentByWorkId, setQuickCommentByWorkId] = useState<
-    Record<number, string>
-  >({});
-
-  const toggleExpandWork = (id: number) => {
-    setExpandedWorkIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
-  const toggleCommentsDrawer = (id: number) => {
-    setOpenCommentsWorkIds((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const handleQuickCommentSubmit = async (e: React.FormEvent, workId: number) => {
-    e.preventDefault();
-    const text = quickCommentByWorkId[workId]?.trim();
-    if (!text) {
-      showToast(
-        'Comentário vazio',
-        'Escreva seu comentário antes de clicar em publicar.',
-        'warning'
-      );
-      return;
-    }
-    if (!isAuthenticated) {
-      showToast(
-        'Faça login para comentar',
-        'Entre na sua conta para publicar comentários.',
-        'warning'
-      );
-      return;
-    }
-    await addComment({
-      body: text,
-      rating: 5,
-      work_id: workId,
-      topic_id: null,
-      parent_id: null,
-    });
-    setQuickCommentByWorkId((prev) => ({ ...prev, [workId]: '' }));
+  const toPlainExcerpt = (raw: string, maxLength = 220) => {
+    const cleaned = raw
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^>\s+/gm, '')
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (cleaned.length <= maxLength) return cleaned;
+    return `${cleaned.slice(0, maxLength).trimEnd()}…`;
   };
 
   const mediaFilters = [
@@ -203,53 +163,253 @@ export const HomePage: React.FC = () => {
     }
   };
 
+  const featuredWork = useMemo(
+    () => approvedWorks[0] || works.find((w) => w.status === 'APPROVED') || null,
+    [approvedWorks, works]
+  );
+
+  const featuredMetrics = useMemo(
+    () => (featuredWork ? getReadingMetrics(featuredWork.synopsis) : null),
+    [featuredWork]
+  );
+
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-12">
-      {/* 1. HERO EDITORIAL & CHAMADA PARA ESCRITA */}
-      <section className="relative rounded-xl border border-parchment-deep dark:border-slateDark-border bg-gradient-to-br from-parchment-warm via-parchment to-parchment-deep/40 dark:from-slateDark-card dark:via-slateDark-bg dark:to-slateDark-elevated p-4 sm:p-8 lg:p-10 shadow-editorial">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-          <div className="lg:col-span-8 space-y-3 sm:space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-burgundy/10 dark:bg-gold/15 border border-burgundy/20 dark:border-gold/30 text-burgundy dark:text-gold text-xs font-semibold tracking-wider uppercase">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Revista Comunitária de Ensaios &amp; Resenhas Literárias</span>
-            </div>
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-10 space-y-8 sm:space-y-12">
+      {/* 1. HERO EDITORIAL */}
+      <section className="relative rounded-2xl border border-parchment-deep dark:border-slateDark-border bg-gradient-to-br from-parchment-warm via-parchment to-parchment-deep/35 dark:from-slateDark-card dark:via-slateDark-bg dark:to-slateDark-elevated px-5 py-8 sm:px-10 sm:py-12 lg:px-14 lg:py-14 shadow-editorial overflow-hidden">
+        <div className="max-w-3xl space-y-4 sm:space-y-5">
+          <p className="text-[11px] sm:text-xs font-bold tracking-[0.22em] uppercase text-burgundy dark:text-gold">
+            VERITAS &amp; LITTERAE
+          </p>
 
-            <h2 className="font-serif text-2xl sm:text-3xl lg:text-[40px] font-bold text-ink dark:text-slateDark-text leading-[1.18] tracking-tight">
-              Textos profundos sobre grandes livros, escritos para serem lidos sem pressa.
-            </h2>
+          <h1 className="font-serif text-2xl sm:text-4xl lg:text-[44px] font-bold text-ink dark:text-slateDark-text leading-[1.14] tracking-tight">
+            Conhecimento que se cultiva. Ideias que se compartilham.
+          </h1>
 
-            <p className="text-ink-secondary dark:text-slateDark-muted text-sm sm:text-lg leading-relaxed">
-              Cada postagem em nossa comunidade é um ensaio ou resenha meditada sobre uma
-              obra clássica, teológica ou educativa — com espaço confortável para leitura,
-              citações destacadas e diálogo aberto nos comentários.
-            </p>
-          </div>
+          <p className="font-literary text-base sm:text-xl text-ink-secondary dark:text-slateDark-muted leading-relaxed">
+            Publicações, estudos e discussões à luz da tradição reformada.
+          </p>
 
-          {/* Quick Action Card to Open the Scriptorium */}
-          <div className="lg:col-span-4 p-4 sm:p-6 rounded-xl bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border shadow-editorial space-y-3 sm:space-y-4">
-            <div className="flex items-center gap-2.5 text-burgundy dark:text-gold">
-              <Feather className="w-5 h-5" />
-              <h3 className="font-serif text-base sm:text-lg font-bold text-ink dark:text-slateDark-text">
-                Publique sua Leitura
-              </h3>
-            </div>
-            <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted leading-relaxed">
-              Terminou um livro marcante? Abra nosso <strong>Scriptorium</strong> em tela
-              cheia para redigir sua resenha com subtítulos, citações e preview ao vivo.
-            </p>
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <button
+              type="button"
+              onClick={() => scrollToSection('em-destaque')}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-sm font-semibold tracking-wide transition-colors shadow-sm"
+            >
+              <span>Conheça a publicação</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
             <Link
               to="/escrever"
-              className="w-full inline-flex items-center justify-center gap-2 py-2.5 sm:py-3 px-4 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-xs sm:text-sm font-semibold tracking-wide transition-colors shadow-sm"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-md border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-elevated hover:border-burgundy dark:hover:border-gold text-ink dark:text-slateDark-text text-sm font-semibold transition-colors"
             >
-              <Feather className="w-4 h-4" />
-              <span>Abrir Estúdio de Escrita</span>
+              <Feather className="w-4 h-4 text-burgundy dark:text-gold" />
+              <span>Seja um colaborador</span>
             </Link>
           </div>
         </div>
+      </section>
 
-        {/* Search & Media Filter Bar */}
-        <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-parchment-deep/80 dark:border-slateDark-border flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 sm:flex-wrap no-scrollbar -mx-1 px-1">
+      {/* 2. EM DESTAQUE */}
+      <section id="em-destaque" className="scroll-mt-24 space-y-4">
+        <div className="flex items-end justify-between border-b border-parchment-deep dark:border-slateDark-border pb-3">
+          <div>
+            <span className="text-[11px] uppercase tracking-[0.2em] font-bold text-burgundy dark:text-gold block">
+              Seleção Editorial
+            </span>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
+              Em destaque
+            </h2>
+          </div>
+          {featuredWork && (
+            <Link
+              to={`/obras/${featuredWork.slug}`}
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-burgundy dark:text-gold hover:underline"
+            >
+              <span>Ler edição completa</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          )}
+        </div>
+
+        {featuredWork && featuredMetrics ? (
+          <article className="rounded-2xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/70 dark:bg-slateDark-card shadow-editorial overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-12">
+              <Link
+                to={`/obras/${featuredWork.slug}`}
+                className="lg:col-span-5 relative block bg-parchment-deep/40 dark:bg-slateDark-elevated min-h-[220px] sm:min-h-[280px] overflow-hidden group"
+              >
+                <img
+                  src={featuredWork.cover_url}
+                  alt={featuredWork.title}
+                  className="w-full h-full max-h-[360px] object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                />
+              </Link>
+
+              <div className="lg:col-span-7 p-5 sm:p-8 lg:p-10 flex flex-col justify-between gap-5">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-burgundy dark:text-gold">
+                    <span>{mediaLabelMap[featuredWork.media_type]}</span>
+                    {featuredWork.category && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span>{featuredWork.category.name}</span>
+                      </>
+                    )}
+                    <span aria-hidden="true">·</span>
+                    <span className="inline-flex items-center gap-1 text-ink-secondary dark:text-slateDark-muted">
+                      <Clock className="w-3.5 h-3.5" />
+                      {featuredMetrics.minutes} MIN DE LEITURA
+                    </span>
+                  </div>
+
+                  <Link to={`/obras/${featuredWork.slug}`} className="block group">
+                    <h3 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold transition-colors leading-tight">
+                      {featuredWork.title}
+                    </h3>
+                  </Link>
+
+                  {featuredWork.subtitle && (
+                    <p className="font-literary italic text-base sm:text-lg text-ink-secondary dark:text-slateDark-muted">
+                      “{featuredWork.subtitle}”
+                    </p>
+                  )}
+
+                  <p className="text-sm sm:text-base text-ink-secondary dark:text-slateDark-muted leading-relaxed line-clamp-3">
+                    {toPlainExcerpt(featuredWork.synopsis, 280)}
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-parchment-deep/80 dark:border-slateDark-border flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+                    Por{' '}
+                    <Link
+                      to={`/perfil/${featuredWork.submitted_by?.id || featuredWork.submitted_by_id || 1}`}
+                      className="font-semibold text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
+                    >
+                      {featuredWork.submitted_by?.name || featuredWork.creator}
+                    </Link>
+                  </div>
+
+                  <Link
+                    to={`/obras/${featuredWork.slug}`}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:hover:bg-gold-light text-parchment dark:text-slateDark-bg text-xs sm:text-sm font-semibold transition-colors"
+                  >
+                    <span>Ler texto completo</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </article>
+        ) : (
+          <div className="p-6 sm:p-8 rounded-xl border border-dashed border-parchment-deep dark:border-slateDark-border bg-parchment-warm/60 dark:bg-slateDark-card/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h3 className="font-serif text-xl font-bold text-ink dark:text-slateDark-text">
+                Nenhuma publicação em destaque ainda
+              </h3>
+              <p className="text-sm text-ink-secondary dark:text-slateDark-muted">
+                Publique o primeiro artigo, resenha ou estudo para inaugurar a vitrine editorial.
+              </p>
+            </div>
+            <Link
+              to="/escrever"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-xs sm:text-sm font-semibold shrink-0"
+            >
+              <Feather className="w-4 h-4" />
+              <span>Escrever publicação</span>
+            </Link>
+          </div>
+        )}
+      </section>
+
+      {/* 3. EXPLORE NOSSAS PUBLICAÇÕES */}
+      <section id="explorar" className="space-y-4">
+        <div>
+          <span className="text-[11px] uppercase tracking-[0.2em] font-bold text-burgundy dark:text-gold block">
+            Curadoria por Formato
+          </span>
+          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
+            Explore nossas publicações
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedMediaFilter('BOOK');
+              scrollToSection('publicacoes');
+            }}
+            className={`text-left p-5 rounded-xl border transition-all group ${
+              selectedMediaFilter === 'BOOK'
+                ? 'border-burgundy dark:border-gold bg-burgundy/10 dark:bg-gold/15 ring-1 ring-burgundy/30'
+                : 'border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card hover:border-burgundy/50 dark:hover:border-gold/50'
+            }`}
+          >
+            <BookOpen className="w-5 h-5 text-burgundy dark:text-gold mb-3" />
+            <h3 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold transition-colors">
+              Resenhas
+            </h3>
+            <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted mt-1">
+              Livros e autores
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedMediaFilter('ESSAY');
+              scrollToSection('publicacoes');
+            }}
+            className={`text-left p-5 rounded-xl border transition-all group ${
+              selectedMediaFilter === 'ESSAY'
+                ? 'border-burgundy dark:border-gold bg-burgundy/10 dark:bg-gold/15 ring-1 ring-burgundy/30'
+                : 'border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card hover:border-burgundy/50 dark:hover:border-gold/50'
+            }`}
+          >
+            <FileText className="w-5 h-5 text-burgundy dark:text-gold mb-3" />
+            <h3 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold transition-colors">
+              Artigos
+            </h3>
+            <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted mt-1">
+              Reflexões e pesquisas
+            </p>
+          </button>
+
+          <Link
+            to="/series"
+            className="text-left p-5 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card hover:border-burgundy/50 dark:hover:border-gold/50 transition-all group block"
+          >
+            <Layers className="w-5 h-5 text-burgundy dark:text-gold mb-3" />
+            <h3 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold transition-colors">
+              Séries de estudos
+            </h3>
+            <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted mt-1">
+              Conteúdo sequencial
+            </p>
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => scrollToSection('discussoes')}
+            className="text-left p-5 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card hover:border-burgundy/50 dark:hover:border-gold/50 transition-all group"
+          >
+            <MessageSquareQuote className="w-5 h-5 text-burgundy dark:text-gold mb-3" />
+            <h3 className="font-serif text-lg font-bold text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold transition-colors">
+              Discussões
+            </h3>
+            <p className="text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted mt-1">
+              Diálogo e argumentação
+            </p>
+          </button>
+        </div>
+      </section>
+
+      {/* 4. FILTRO POR CÁTEDRA & BUSCA */}
+      <section className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm/50 dark:bg-slateDark-card/60 p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 sm:flex-wrap no-scrollbar">
             {mediaFilters.map((filter) => {
               const Icon = filter.icon;
               const active = selectedMediaFilter === filter.id;
@@ -257,7 +417,7 @@ export const HomePage: React.FC = () => {
                 <button
                   key={filter.id}
                   onClick={() => setSelectedMediaFilter(filter.id)}
-                  className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-md text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
                     active
                       ? 'bg-ink text-parchment dark:bg-gold dark:text-slateDark-bg shadow-sm'
                       : 'bg-parchment dark:bg-slateDark-elevated text-ink-secondary dark:text-slateDark-muted border border-parchment-deep dark:border-slateDark-border hover:border-burgundy/40'
@@ -276,66 +436,66 @@ export const HomePage: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar livro, autor ou tema do ensaio..."
+              placeholder="Buscar título, autor ou tema..."
               className="w-full pl-9 pr-4 py-2 rounded-md text-xs sm:text-sm bg-parchment dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-ink dark:text-slateDark-text placeholder:text-ink-muted/70 focus:outline-none focus:border-burgundy dark:focus:border-gold"
             />
           </div>
         </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setSelectedCategorySlug('ALL')}
+            className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+              selectedCategorySlug === 'ALL'
+                ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
+                : 'bg-parchment dark:bg-slateDark-elevated text-ink-secondary dark:text-slateDark-muted border border-parchment-deep dark:border-slateDark-border hover:border-burgundy/40'
+            }`}
+          >
+            Todas as Cátedras
+          </button>
+          {categories.map((cat) => {
+            const Icon = getCategoryIcon(cat.icon_name);
+            const isSelected = selectedCategorySlug === cat.slug;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() =>
+                  setSelectedCategorySlug(isSelected ? 'ALL' : cat.slug)
+                }
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+                  isSelected
+                    ? 'bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg'
+                    : 'bg-parchment dark:bg-slateDark-elevated text-ink-secondary dark:text-slateDark-muted border border-parchment-deep dark:border-slateDark-border hover:border-burgundy/40'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{cat.name}</span>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
-      {/* 2. FILTRO RÁPIDO PELAS 4 CÁTEDRAS TEMÁTICAS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {categories.map((cat) => {
-          const Icon = getCategoryIcon(cat.icon_name);
-          const isSelected = selectedCategorySlug === cat.slug;
-          return (
-            <button
-              key={cat.id}
-              onClick={() =>
-                setSelectedCategorySlug(isSelected ? 'ALL' : cat.slug)
-              }
-              className={`text-left p-4 rounded-lg border transition-all duration-200 overflow-hidden ${
-                isSelected
-                  ? 'border-burgundy dark:border-gold bg-burgundy/10 dark:bg-gold/15 shadow-editorial-hover ring-1 ring-burgundy/40'
-                  : 'border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card hover:border-burgundy/50'
-              }`}
-            >
-              <div className="space-y-0.5 mb-2">
-                <span className="flex items-center gap-2 font-serif font-bold text-base sm:text-lg text-ink dark:text-slateDark-text leading-snug">
-                  <Icon className="w-4 h-4 text-burgundy dark:text-gold shrink-0" />
-                  <span className="truncate">{cat.name}</span>
-                </span>
-                <span className="block font-literary italic text-xs sm:text-sm font-medium text-burgundy dark:text-gold-light truncate">
-                  {cat.latin_motto}
-                </span>
-              </div>
-              <p className="text-xs text-ink-secondary dark:text-slateDark-muted line-clamp-2 leading-relaxed">
-                {cat.description}
-              </p>
-            </button>
-          );
-        })}
-      </section>
-
-      {/* 3. FEED PRINCIPAL DE ENSAIOS & RESENHAS LONGAS SOBRE LIVROS + SIDEBAR */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Coluna Principal de Leitura dos Textos sobre Livros (8 colunas largas) */}
-        <div className="lg:col-span-8 space-y-8">
+      {/* 5. ACERVO DE PUBLICAÇÕES & SIDEBAR */}
+      <section id="publicacoes" className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="lg:col-span-8 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-parchment-deep dark:border-slateDark-border pb-4">
             <div>
               <span className="text-xs uppercase tracking-widest font-bold text-burgundy dark:text-gold block">
-                Caderno de Leituras &amp; Ensaios Críticos
+                Acervo Editorial
               </span>
               <h3 className="font-serif text-2xl sm:text-3xl font-bold text-ink dark:text-slateDark-text">
-                Postagens &amp; Resenhas sobre Obras
+                Publicações Recentes
               </h3>
             </div>
             <Link
               to="/escrever"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-sm font-semibold hover:opacity-95 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg text-xs sm:text-sm font-semibold hover:opacity-95 shadow-sm"
             >
               <Feather className="w-4 h-4" />
-              <span>+ Escrever Novo Texto</span>
+              <span>Escrever Novo Texto</span>
             </Link>
           </div>
 
@@ -501,405 +661,142 @@ export const HomePage: React.FC = () => {
           )}
 
           {approvedWorks.map((work) => {
-            const isExpanded = Boolean(expandedWorkIds[work.id]);
-            const isCommentsOpen = Boolean(openCommentsWorkIds[work.id]);
             const metrics = getReadingMetrics(work.synopsis);
-            const firstQuote = work.notable_quotes?.[0];
-            const previewParagraphs = work.synopsis
-              .split(/\n\n+/)
-              .slice(0, 2)
-              .join('\n\n');
             const commentsList = work.comments || [];
 
             return (
               <article
                 key={work.id}
-                className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden transition-all"
+                className="rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment dark:bg-slateDark-card shadow-editorial overflow-hidden hover:border-burgundy/40 dark:hover:border-gold/40 transition-all"
               >
-                {/* Cabeçalho do Livro + Autor da Postagem */}
-                <div className="p-4 sm:p-8 bg-parchment-warm/70 dark:bg-slateDark-elevated/60 border-b border-parchment-deep/80 dark:border-slateDark-border">
-                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
-                    {/* Capa do Livro */}
-                    <Link
-                      to={`/obras/${work.slug}`}
-                      className="shrink-0 mx-auto sm:mx-0"
-                    >
-                      <img
-                        src={work.cover_url}
-                        alt={work.title}
-                        className="w-28 sm:w-36 h-40 sm:h-52 object-cover rounded-lg shadow-md border border-parchment-deep dark:border-slateDark-border hover:scale-[1.02] transition-transform"
-                      />
-                    </Link>
+                <div className="p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
+                  <Link
+                    to={`/obras/${work.slug}`}
+                    className="shrink-0 w-full sm:w-32 md:w-36 h-44 sm:h-44 overflow-hidden rounded-lg border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-elevated"
+                  >
+                    <img
+                      src={work.cover_url}
+                      alt={work.title}
+                      className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
+                    />
+                  </Link>
 
-                    {/* Metadados do Livro & Título do Ensaio */}
-                    <div className="flex-1 min-w-0 space-y-2.5 sm:space-y-3">
-                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
-                        <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-bold uppercase tracking-wider text-[11px] sm:text-xs">
-                          {mediaLabelMap[work.media_type]}
-                        </span>
-                        {work.category && (
-                          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border font-semibold text-ink dark:text-slateDark-text text-[11px] sm:text-xs">
-                            {work.category.name}
-                          </span>
-                        )}
-                        <span className="inline-flex items-center gap-1 text-ink-secondary dark:text-slateDark-muted font-medium ml-auto text-[11px] sm:text-xs">
-                          <Clock className="w-3.5 h-3.5 text-burgundy dark:text-gold" />
-                          {metrics.words} palavras • ~{metrics.minutes} min
-                        </span>
-                      </div>
-
-                      <div>
-                        <Link to={`/obras/${work.slug}`} className="group">
-                          <h4 className="font-serif text-xl sm:text-3xl font-bold text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold transition-colors leading-tight">
-                            {work.title}
-                          </h4>
-                        </Link>
-                        <p className="text-xs sm:text-sm font-semibold text-burgundy dark:text-gold mt-1">
-                          {work.media_type === 'ESSAY' ? (
-                            <>
-                              Tema / Conceito:{' '}
-                              <span className="font-bold">
-                                {work.publisher_or_studio || 'Artigo & Conceito Livre'}
-                              </span>{' '}
-                              •{' '}
-                              <span className="font-medium text-ink-secondary dark:text-slateDark-muted">
-                                {work.release_year}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              Obra de {work.creator} ({work.release_year}) •{' '}
-                              <span className="font-medium text-ink-secondary dark:text-slateDark-muted">
-                                {work.publisher_or_studio}
-                              </span>
-                            </>
-                          )}
-                        </p>
-                      </div>
-
-                      {work.subtitle && (
-                        <p className="font-literary italic text-base sm:text-xl text-ink dark:text-slateDark-text leading-snug">
-                          “{work.subtitle}”
-                        </p>
+                  <div className="flex-1 min-w-0 space-y-2.5 w-full">
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-burgundy dark:text-gold">
+                      <span>{mediaLabelMap[work.media_type]}</span>
+                      {work.category && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span>{work.category.name}</span>
+                        </>
                       )}
+                      <span aria-hidden="true">·</span>
+                      <span className="inline-flex items-center gap-1 text-ink-secondary dark:text-slateDark-muted">
+                        <Clock className="w-3 h-3" />
+                        {metrics.minutes} MIN DE LEITURA
+                      </span>
+                      <span className="ml-auto inline-flex items-center gap-1 text-gold font-bold">
+                        <Star className="w-3.5 h-3.5 fill-gold text-gold" />
+                        {work.editorial_rating.toFixed(1)}
+                      </span>
+                    </div>
 
-                      <div className="pt-1 flex flex-wrap items-center justify-between gap-2.5 text-xs sm:text-sm text-ink-secondary dark:text-slateDark-muted">
+                    <div>
+                      <Link to={`/obras/${work.slug}`} className="group block">
+                        <h4 className="font-serif text-xl sm:text-2xl font-bold text-ink dark:text-slateDark-text group-hover:text-burgundy dark:group-hover:text-gold transition-colors leading-snug">
+                          {work.title}
+                        </h4>
+                      </Link>
+                      <p className="text-xs text-ink-secondary dark:text-slateDark-muted mt-0.5">
+                        {work.media_type === 'ESSAY' ? (
+                          <>
+                            {work.publisher_or_studio || 'Artigo & Conceito Livre'} • {work.release_year}
+                          </>
+                        ) : (
+                          <>
+                            {work.creator} ({work.release_year}) • {work.publisher_or_studio}
+                          </>
+                        )}
+                      </p>
+                    </div>
+
+                    <p className="text-sm text-ink-secondary dark:text-slateDark-muted leading-relaxed line-clamp-3">
+                      {toPlainExcerpt(work.synopsis, 240)}
+                    </p>
+
+                    <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-parchment-deep/60 dark:border-slateDark-border/60">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-ink-secondary dark:text-slateDark-muted">
                         <Link
                           to={`/perfil/${work.submitted_by?.id || work.submitted_by_id || 1}`}
-                          className="inline-flex items-center gap-2 group/author hover:opacity-90 min-w-0"
+                          className="inline-flex items-center gap-1.5 font-semibold text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
                         >
-                          <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-xs flex items-center justify-center shrink-0">
+                          <span className="w-5 h-5 rounded-full bg-burgundy text-parchment dark:bg-gold dark:text-slateDark-bg font-serif font-bold text-[10px] flex items-center justify-center shrink-0">
                             {(work.submitted_by?.name || 'A').charAt(0).toUpperCase()}
                           </span>
-                          <span className="truncate">
-                            Escrito por{' '}
-                            <strong className="text-ink dark:text-slateDark-text group-hover/author:text-burgundy dark:group-hover/author:text-gold underline decoration-burgundy/40">
-                              {work.submitted_by?.name || 'Prof. Augusto Vasconcelos'}
-                            </strong>
-                            {work.submitted_by?.title_badge && (
-                              <span className="hidden sm:inline text-xs text-ink-muted dark:text-slateDark-muted">
-                                {' '}
-                                • {work.submitted_by.title_badge}
-                              </span>
-                            )}
-                          </span>
+                          <span>{work.submitted_by?.name || 'Colaborador'}</span>
                         </Link>
-                        <span className="inline-flex items-center gap-1 text-gold font-bold shrink-0">
-                          <Star className="w-4 h-4 fill-gold text-gold" />
-                          {work.editorial_rating.toFixed(1)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Corpo do Texto sobre o Livro (Espaço Agradável de Leitura) */}
-                <div className="p-4 sm:p-8 lg:p-10 space-y-5 sm:space-y-6">
-                  {firstQuote && (
-                    <blockquote className="p-3.5 sm:p-5 rounded-lg bg-parchment-warm/70 dark:bg-slateDark-elevated border-l-4 border-burgundy dark:border-gold">
-                      <p className="font-literary italic text-base sm:text-xl text-ink dark:text-slateDark-text leading-relaxed">
-                        “{firstQuote.quote_text}”
-                      </p>
-                      <footer className="mt-1 text-xs font-semibold uppercase tracking-wider text-burgundy dark:text-gold-light">
-                        — {firstQuote.source_note}
-                      </footer>
-                    </blockquote>
-                  )}
-
-                  {/* Texto Médio/Grande Formatado */}
-                  <div className="relative">
-                    <RichTextRenderer
-                      content={isExpanded ? work.synopsis : previewParagraphs}
-                      dropcap={true}
-                      fontSize={fontSize}
-                      fontFamily={fontFamily}
-                      textAlign={textAlign}
-                    />
-
-                    {!isExpanded && work.synopsis.length > previewParagraphs.length && (
-                      <div className="mt-4 pt-4 border-t border-dashed border-parchment-deep dark:border-slateDark-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                        <button
-                          type="button"
-                          onClick={() => toggleExpandWork(work.id)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-md bg-parchment-warm dark:bg-slateDark-elevated border border-parchment-deep dark:border-slateDark-border text-xs sm:text-sm font-semibold text-burgundy dark:text-gold hover:border-burgundy transition-colors"
-                        >
-                          <ChevronDown className="w-4 h-4" />
-                          <span>
-                            Continuar Lendo o Texto Completo ({metrics.words} palavras)
-                          </span>
-                        </button>
-
                         <Link
-                          to={`/obras/${work.slug}`}
-                          className="text-xs font-semibold text-ink-secondary dark:text-slateDark-muted hover:text-burgundy dark:hover:text-gold underline text-center sm:text-left"
+                          to={`/obras/${work.slug}#comentarios`}
+                          className="inline-flex items-center gap-1 hover:text-burgundy dark:hover:text-gold"
                         >
-                          Abrir em tela de leitura dedicada →
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>{commentsList.length}</span>
                         </Link>
                       </div>
-                    )}
 
-                    {isExpanded && (
-                      <div className="mt-5 pt-3.5 border-t border-dashed border-parchment-deep dark:border-slateDark-border flex items-center justify-between">
-                        <button
-                          type="button"
-                          onClick={() => toggleExpandWork(work.id)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-ink-muted hover:text-ink"
-                        >
-                          <ChevronUp className="w-4 h-4" />
-                          <span>Recolher texto</span>
-                        </button>
-
-                        <Link
-                          to={`/obras/${work.slug}`}
-                          className="text-xs font-semibold text-burgundy dark:text-gold hover:underline"
-                        >
-                          Modo Leitura Tela Cheia →
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Barra de Ações da Postagem: Compra Afiliada + Botão de Comentários */}
-                  <div className="pt-4 border-t border-parchment-deep dark:border-slateDark-border flex flex-col md:flex-row md:items-center justify-between gap-3.5">
-                    <div className="w-full md:w-auto md:flex-1 max-w-md">
-                      <AffiliateButton work={work} variant="compact" />
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-end gap-2 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-parchment-deep/40 dark:border-slateDark-border/40">
-                      {(permissions.can_moderate_queue ||
-                        (isAuthenticated &&
-                          currentUser.id ===
-                            (work.submitted_by?.id || work.submitted_by_id))) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDeletePromptTarget({
-                              type: 'WORK',
-                              id: work.id,
-                              title: work.title,
-                              authorName: work.submitted_by?.name || work.creator,
-                            });
-                            setDeleteReasonText(
-                              permissions.can_moderate_queue
-                                ? 'Remoção pela Moderação por inadequação às diretrizes editoriais.'
-                                : 'Excluído pelo autor.'
-                            );
-                          }}
-                          className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-2 rounded-md text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30 transition-colors"
-                          title="Excluir esta publicação"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Excluir</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFlagModalTarget({
-                            target_type: 'WORK',
-                            target_id: work.id,
-                            target_title: work.title,
-                            target_excerpt: work.synopsis.slice(0, 160),
-                            target_author_name: work.submitted_by?.name || work.creator,
-                          })
-                        }
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-semibold text-ink-secondary dark:text-slateDark-muted hover:text-burgundy dark:hover:text-gold border border-parchment-deep dark:border-slateDark-border hover:border-burgundy dark:hover:border-gold transition-colors"
-                        title="Sinalizar conteúdo impróprio à moderação"
-                      >
-                        <Flag className="w-3.5 h-3.5" />
-                        <span>Sinalizar</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => toggleCommentsDrawer(work.id)}
-                        className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-md text-xs font-semibold border transition-colors ${
-                          isCommentsOpen
-                            ? 'bg-burgundy text-parchment border-burgundy dark:bg-gold dark:text-slateDark-bg'
-                            : 'bg-parchment-warm dark:bg-slateDark-elevated text-ink dark:text-slateDark-text border-parchment-deep dark:border-slateDark-border hover:border-burgundy'
-                        }`}
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        <span>
-                          Comentários ({commentsList.length})
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Gaveta Inline de Comentários */}
-                {isCommentsOpen && (
-                  <div className="p-4 sm:p-7 bg-parchment-warm/60 dark:bg-slateDark-elevated/50 border-t border-parchment-deep dark:border-slateDark-border space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h5 className="font-serif text-base sm:text-lg font-bold text-ink dark:text-slateDark-text flex items-center gap-2 truncate">
-                        <MessageCircle className="w-4 h-4 text-burgundy dark:text-gold shrink-0" />
-                        <span className="truncate">
-                          Comentários sobre “{work.title}” ({commentsList.length})
-                        </span>
-                      </h5>
-                      <Link
-                        to={`/obras/${work.slug}#comentarios`}
-                        className="text-xs font-semibold text-burgundy dark:text-gold hover:underline shrink-0 ml-2"
-                      >
-                        Ver thread completa →
-                      </Link>
-                    </div>
-
-                    {/* Caixa Rápida e Espaçosa para Comentar */}
-                    <form
-                      onSubmit={(e) => handleQuickCommentSubmit(e, work.id)}
-                      noValidate
-                      className="space-y-3"
-                    >
-                      <textarea
-                        rows={3}
-                        value={quickCommentByWorkId[work.id] || ''}
-                        onChange={(e) =>
-                          setQuickCommentByWorkId((prev) => ({
-                            ...prev,
-                            [work.id]: e.target.value,
-                          }))
-                        }
-                        placeholder={`Escreva seu comentário sobre "${work.title}"... (Use '>' para citar um trecho)`}
-                        className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-parchment-deep dark:border-slateDark-border bg-white dark:bg-slateDark-bg text-ink dark:text-slateDark-text text-sm sm:text-base font-literary leading-relaxed focus:outline-none focus:border-burgundy"
-                      />
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                        <span className="text-xs text-ink-muted dark:text-slateDark-muted">
-                          {isAuthenticated ? (
-                            <>
-                              Comentando como <strong>{currentUser.name}</strong>
-                            </>
-                          ) : (
-                            <Link
-                              to="/login"
-                              className="text-burgundy dark:text-gold font-semibold hover:underline"
-                            >
-                              Entre na sua conta para comentar →
-                            </Link>
-                          )}
-                        </span>
-                        <button
-                          type="submit"
-                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-burgundy hover:bg-burgundy-hover dark:bg-gold dark:text-slateDark-bg text-parchment text-xs font-semibold shadow-sm w-full sm:w-auto"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          <span>Publicar Comentário</span>
-                        </button>
-                      </div>
-                    </form>
-
-                    {/* Lista de Comentários do Livro */}
-                    {commentsList.length > 0 && (
-                      <div className="space-y-3 pt-2">
-                        {commentsList.map((c) => (
-                          <div
-                            key={c.id}
-                            className="p-4 rounded-lg bg-parchment dark:bg-slateDark-card border border-parchment-deep dark:border-slateDark-border space-y-2"
+                      <div className="flex flex-wrap items-center gap-2 ml-auto">
+                        {(permissions.can_moderate_queue ||
+                          (isAuthenticated &&
+                            currentUser.id ===
+                              (work.submitted_by?.id || work.submitted_by_id))) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeletePromptTarget({
+                                type: 'WORK',
+                                id: work.id,
+                                title: work.title,
+                                authorName: work.submitted_by?.name || work.creator,
+                              });
+                              setDeleteReasonText(
+                                permissions.can_moderate_queue
+                                  ? 'Remoção pela Moderação por inadequação às diretrizes editoriais.'
+                                  : 'Excluído pelo autor.'
+                              );
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-500/10 transition-colors"
+                            title="Excluir esta publicação"
                           >
-                            <div className="flex items-center justify-between text-xs">
-                              <Link
-                                to={`/perfil/${c.author?.id || c.author_id || 1}`}
-                                className="inline-flex items-center gap-2 font-bold text-ink dark:text-slateDark-text hover:text-burgundy dark:hover:text-gold"
-                              >
-                                <span className="w-6 h-6 rounded-full bg-burgundy/15 dark:bg-gold/20 text-burgundy dark:text-gold font-serif text-xs flex items-center justify-center">
-                                  {(c.author?.name || 'L').charAt(0).toUpperCase()}
-                                </span>
-                                <span className="underline decoration-burgundy/30">
-                                  {c.author?.name || 'Leitor'}
-                                </span>
-                              </Link>
-                              <div className="flex items-center gap-3">
-                                {(permissions.can_moderate_queue ||
-                                  (isAuthenticated &&
-                                    currentUser.id ===
-                                      (c.author?.id || c.author_id))) && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setDeletePromptTarget({
-                                        type: 'COMMENT',
-                                        id: c.id,
-                                        title: `Comentário #${c.id}: ${c.body.slice(0, 70)}`,
-                                        authorName: c.author?.name || 'Leitor',
-                                      });
-                                      setDeleteReasonText(
-                                        permissions.can_moderate_queue
-                                          ? 'Comentário removido pela Moderação.'
-                                          : 'Excluído pelo autor.'
-                                      );
-                                    }}
-                                    className="inline-flex items-center gap-1 text-red-700 dark:text-red-300 hover:underline font-semibold"
-                                    title="Excluir comentário"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                    <span>Excluir</span>
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setFlagModalTarget({
-                                      target_type: 'COMMENT',
-                                      target_id: c.id,
-                                      target_title: `Comentário em "${work.title}"`,
-                                      target_excerpt: c.body.slice(0, 140),
-                                      target_author_name: c.author?.name || 'Leitor',
-                                    })
-                                  }
-                                  className="text-ink-muted hover:text-burgundy dark:hover:text-gold transition-colors p-1"
-                                  title="Sinalizar comentário impróprio"
-                                >
-                                  <Flag className="w-3 h-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => upvoteItem('COMMENT', c.id)}
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded transition-colors ${
-                                    hasUserUpvoted('COMMENT', c.id)
-                                      ? 'bg-burgundy/15 text-burgundy dark:bg-gold/20 dark:text-gold font-bold'
-                                      : 'text-ink-muted hover:text-burgundy dark:hover:text-gold'
-                                  }`}
-                                >
-                                  <ThumbsUp
-                                    className={`w-3 h-3 ${
-                                      hasUserUpvoted('COMMENT', c.id) ? 'fill-current' : ''
-                                    }`}
-                                  />
-                                  <span>{c.upvotes_count}</span>
-                                </button>
-                              </div>
-                            </div>
-                            <RichTextRenderer
-                              content={c.body}
-                              fontSize="normal"
-                              fontFamily="serif"
-                            />
-                          </div>
-                        ))}
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFlagModalTarget({
+                              target_type: 'WORK',
+                              target_id: work.id,
+                              target_title: work.title,
+                              target_excerpt: work.synopsis.slice(0, 160),
+                              target_author_name: work.submitted_by?.name || work.creator,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold text-ink-muted hover:text-burgundy dark:hover:text-gold transition-colors"
+                          title="Sinalizar conteúdo impróprio"
+                        >
+                          <Flag className="w-3.5 h-3.5" />
+                        </button>
+                        <Link
+                          to={`/obras/${work.slug}`}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-burgundy/10 hover:bg-burgundy text-burgundy hover:text-parchment dark:bg-gold/15 dark:hover:bg-gold dark:text-gold dark:hover:text-slateDark-bg text-xs font-semibold transition-colors"
+                        >
+                          <span>Ler texto completo</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
                       </div>
-                    )}
+                    </div>
                   </div>
-                )}
+                </div>
               </article>
             );
           })}
@@ -991,7 +888,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Ensaios e Diálogos dos Membros */}
-          <div className="p-4 sm:p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card space-y-4 shadow-editorial">
+          <div id="discussoes" className="scroll-mt-24 p-4 sm:p-6 rounded-xl border border-parchment-deep dark:border-slateDark-border bg-parchment-warm dark:bg-slateDark-card space-y-4 shadow-editorial">
             <div className="flex items-center justify-between border-b border-parchment-deep dark:border-slateDark-border pb-3">
               <div>
                 <span className="text-xs uppercase tracking-widest font-bold text-navy dark:text-gold block">
